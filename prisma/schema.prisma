@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  email    String @unique
+  name     String @db.VarChar(50)
+  role     Role   @default(USER)
+  password String @db.VarChar(100)
+}
+
+model Flight {
+  flightId           Int       @id @default(autoincrement())
+  flightNo           String?   @db.VarChar(10)
+  scheduledDeparture DateTime
+  scheduledArrival   DateTime
+  departureAirport   String    @db.VarChar(10)
+  arrivalAirport     String    @db.VarChar(10)
+  status             String    @db.VarChar(20)
+  aircraftCode       String    @db.VarChar(10)
+  actualDeparture    DateTime?
+  actualArrival      DateTime?
+
+  aircraft            Aircraft @relation(fields: [aircraftCode], references: [code])
+  departureAirportRel Airport  @relation("DepartureRelation", fields: [departureAirport], references: [code])
+  arrivalAirportRel   Airport  @relation("ArrivalRelation", fields: [arrivalAirport], references: [code])
+
+  bookings       Booking[]
+  meals          FlightMeal[]
+  flightStatuses FlightStatus[]
+}
+
+model Aircraft {
+  code    String   @id
+  model   String
+  range   Int
+  flights Flight[]
+}
+
+model Airport {
+  code        String @id
+  name        String
+  city        String
+  coordinates String
+  timezone    String
+
+  departures Flight[] @relation("DepartureRelation")
+  arrivals   Flight[] @relation("ArrivalRelation")
+}
+
+model Passenger {
+  id       Int    @id @default(autoincrement())
+  fullName String
+  email    String @unique
+  phone    String
+  passport String
+
+  bookings Booking[]
+}
+
+model Booking {
+  id          Int      @id @default(autoincrement())
+  passengerId Int
+  flightId    Int
+  seat        String
+  bookingTime DateTime @default(now())
+
+  passenger  Passenger   @relation(fields: [passengerId], references: [id])
+  flight     Flight      @relation(fields: [flightId], references: [flightId])
+  mealOrders MealOrder[]
+}
+
+model Meal {
+  id          Int     @id @default(autoincrement())
+  name        String
+  mealType    String  @db.VarChar(50)
+  description String?
+  price       Float?
+  isAvailable Boolean @default(true)
+
+  flightMeals FlightMeal[]
+  mealOrders  MealOrder[]
+}
+
+model FlightMeal {
+  id       Int    @id @default(autoincrement())
+  flightId Int
+  mealId   Int
+  quantity Int    @default(1)
+  price    Float?
+
+  flight Flight @relation(fields: [flightId], references: [flightId])
+  meal   Meal   @relation(fields: [mealId], references: [id])
+}
+
+model MealOrder {
+  id        Int @id @default(autoincrement())
+  bookingId Int
+  mealId    Int
+  quantity  Int @default(1)
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  meal    Meal    @relation(fields: [mealId], references: [id])
+}
+
+model FlightStatus {
+  id          Int      @id @default(autoincrement())
+  flightId    Int
+  status      String   @db.VarChar(20)
+  description String?  @db.VarChar(255)
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  flight Flight @relation(fields: [flightId], references: [flightId])
+}
