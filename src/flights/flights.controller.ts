@@ -8,9 +8,7 @@ import {
   Delete,
 } from '@nestjs/common';
 import { FlightsService } from './flights.service';
-import { CreateFlightDto } from './dto/create-flight.dto';
-import { UpdateFlightDto } from './dto/update-flight.dto';
-import { Flight, User } from 'generated/prisma';
+import { Flight } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 
 @Controller('sys/flights')

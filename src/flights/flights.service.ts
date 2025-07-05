@@ -1,6 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { CreateFlightDto } from './dto/create-flight.dto';
-import { UpdateFlightDto } from './dto/update-flight.dto';
 import { PrismaService } from 'src/prisma.service';
 import { Flight } from 'generated/prisma';
 
