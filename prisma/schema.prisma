@@ -11,14 +11,20 @@ datasource db {
 enum Role {
   USER
   ADMIN
+  MONITOR
 }
 
 model User {
-  id       Int    @id @default(autoincrement())
-  email    String @unique
-  name     String @db.VarChar(50)
-  role     Role   @default(USER)
-  password String @db.VarChar(100)
+  id         Int      @id @default(autoincrement())
+  email      String   @unique
+  name       String   @db.VarChar(50)
+  firstname  String   @default("")
+  lastname   String   @default("")
+  pictureUrl String   @default("")
+  rank       String   @default("")
+  role       Role     @default(USER)
+  password   String   @db.VarChar(100)
+  createdAt  DateTime @default(now()) // 👈 sửa từ Now() -> @default(now())
 }
 
 model Flight {
