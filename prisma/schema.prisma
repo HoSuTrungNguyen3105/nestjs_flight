@@ -15,16 +15,52 @@ enum Role {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  email      String   @unique
-  name       String   @db.VarChar(50)
-  firstname  String   @default("")
-  lastname   String   @default("")
-  pictureUrl String   @default("")
-  rank       String   @default("")
-  role       Role     @default(USER)
-  password   String   @db.VarChar(100)
-  createdAt  DateTime @default(now()) // 👈 sửa từ Now() -> @default(now())
+  id         Int     @id @default(autoincrement())
+  email      String  @unique
+  name       String  @db.VarChar(50) // hoặc firstname + lastname
+  pictureUrl String  @default("")
+  rank       String  @default("")
+  role       Role    @default(USER)
+  password   String  @db.VarChar(100)
+  createdAt  Decimal @db.Decimal(20, 0)
+  updatedAt  Decimal @db.Decimal(20, 0)
+  userAlias  String
+
+  // Auth
+  authType      String  @default("ID,PW")
+  loginFailCnt  Int     @default(0)
+  accountLockYn String  @default("N")
+  mfaEnabledYn  String  @default("N")
+  mfaSecretKey  String? // Lưu secret Google Authenticator
+
+  isEmailVerified String @default("N")
+
+  // Lịch sử mật khẩu (nếu cần)
+  prevPassword String @default("")
+
+  // Hoạt động gần nhất
+  lastLoginDate Decimal? @db.Decimal(20, 0)
+
+  // Transfer admin (gom nhóm)
+  transferAdmin   TransferAdmin?
+  transferAdminId Int?
+}
+
+model TransferAdmin {
+  id          Int            @id @default(autoincrement())
+  user        User           @relation(fields: [userId], references: [id])
+  userId      Int            @unique // 👈 Thêm dòng này
+  fromUserId  Int
+  toUserId    Int
+  requestedAt DateTime       @default(now())
+  approvedAt  DateTime?
+  status      TransferStatus @default(PENDING)
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model Flight {

@@ -5,6 +5,6 @@ export class Auth {
   firstName: string;
   lastName: string;
   phoneNumber: string;
-  dateOfBirth: Date;
+  dateOfBirth: string;
   role: string; // e.g., 'admin', 'user', etc.
 }

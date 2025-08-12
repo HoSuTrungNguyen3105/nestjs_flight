@@ -34,6 +34,12 @@ export class FlightsService {
           aircraft: true,
           departureAirportRel: true,
           arrivalAirportRel: true,
+          meals: {
+            // include luôn các món ăn trên chuyến bay
+            include: {
+              meal: true, // để lấy thông tin món ăn kèm
+            },
+          },
         },
       });
     } catch (error) {

@@ -24,7 +24,7 @@ export class FlightsController {
   async findAll(): Promise<BaseResponseDto<Flight>> {
     const data = await this.flightService.findAll();
     return {
-      resultCode: 200,
+      resultCode: '00',
       resultMessage: 'Thành công',
       list: data,
     };

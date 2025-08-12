@@ -1,5 +1,6 @@
 export class BaseResponseDto<T> {
-  resultCode: number;
+  resultCode: string;
   resultMessage: string;
+  data?: T;
   list?: T[];
 }
