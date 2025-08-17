@@ -1,10 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Role } from 'generated/prisma';
 import { Document } from 'mongoose';
-type TypeRole = {
-  User: 'user';
-  Admin: 'admin';
-  Guest: 'guest';
-};
+
 @Schema()
 export class User extends Document {
   @Prop({ required: true })
@@ -19,8 +16,8 @@ export class User extends Document {
   @Prop({ default: Date.now })
   createdAt: Date;
 
-  @Prop({ default: 'user' })
-  role: string;
+  @Prop({ default: Role.USER })
+  role: Role;
 
   @Prop({ default: false })
   isLocked: boolean;

@@ -10,6 +10,7 @@ import {
 import { FlightMealService } from './flightMeal.service';
 import { CreateFlightMealDto } from './dto/create-meal.dto';
 import { UpdateFlightMealDto } from './dto/update-meal.dto';
+import { CreateFlightMealsDto } from './dto/addMealToFlight';
 
 @Controller('sys/flight-meals')
 export class FlightMealController {
@@ -38,5 +39,13 @@ export class FlightMealController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.flightMealService.remove(+id);
+  }
+
+  @Post(':id/meals')
+  async addMealsToFlight(
+    @Param('id') id: string,
+    @Body() body: CreateFlightMealsDto,
+  ) {
+    return this.flightMealService.addMealsToFlight(+id, body.meals);
   }
 }

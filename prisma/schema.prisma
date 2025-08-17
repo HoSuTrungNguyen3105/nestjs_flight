@@ -22,8 +22,8 @@ model User {
   rank       String  @default("")
   role       Role    @default(USER)
   password   String  @db.VarChar(100)
-  createdAt  Decimal @db.Decimal(20, 0)
-  updatedAt  Decimal @db.Decimal(20, 0)
+  createdAt  Decimal @db.Decimal(20, 3)
+  updatedAt  Decimal @db.Decimal(20, 3)
   userAlias  String
 
   // Auth
@@ -39,11 +39,23 @@ model User {
   prevPassword String @default("")
 
   // Hoạt động gần nhất
-  lastLoginDate Decimal? @db.Decimal(20, 0)
+  lastLoginDate Decimal? @db.Decimal(20, 3)
 
   // Transfer admin (gom nhóm)
   transferAdmin   TransferAdmin?
   transferAdminId Int?
+
+  // Session
+  sessions UserSession[]
+}
+
+model UserSession {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  token     String   @db.Text // ✅ cho phép chuỗi dài
+  createdAt Decimal? @db.Decimal(20, 3)
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model TransferAdmin {
@@ -52,8 +64,8 @@ model TransferAdmin {
   userId      Int            @unique // 👈 Thêm dòng này
   fromUserId  Int
   toUserId    Int
-  requestedAt DateTime       @default(now())
-  approvedAt  DateTime?
+  requestedAt Decimal        @db.Decimal(20, 3)
+  approvedAt  Decimal?       @db.Decimal(20, 3)
   status      TransferStatus @default(PENDING)
 }
 
@@ -64,16 +76,16 @@ enum TransferStatus {
 }
 
 model Flight {
-  flightId           Int       @id @default(autoincrement())
-  flightNo           String?   @db.VarChar(10)
-  scheduledDeparture DateTime
-  scheduledArrival   DateTime
-  departureAirport   String    @db.VarChar(10)
-  arrivalAirport     String    @db.VarChar(10)
-  status             String    @db.VarChar(20)
-  aircraftCode       String    @db.VarChar(10)
-  actualDeparture    DateTime?
-  actualArrival      DateTime?
+  flightId           Int      @id @default(autoincrement())
+  flightNo           String   @unique @db.VarChar(10) // ✅ không cho trùng chuyến bay
+  scheduledDeparture Decimal  @db.Decimal(20, 3)
+  scheduledArrival   Decimal  @db.Decimal(20, 3)
+  departureAirport   String   @db.VarChar(10)
+  arrivalAirport     String   @db.VarChar(10)
+  status             String   @db.VarChar(20)
+  aircraftCode       String   @db.VarChar(10)
+  actualDeparture    Decimal? @db.Decimal(20, 3)
+  actualArrival      Decimal? @db.Decimal(20, 3)
 
   aircraft            Aircraft @relation(fields: [aircraftCode], references: [code])
   departureAirportRel Airport  @relation("DepartureRelation", fields: [departureAirport], references: [code])
@@ -92,11 +104,11 @@ model Aircraft {
 }
 
 model Airport {
-  code        String @id
-  name        String
-  city        String
-  coordinates String
-  timezone    String
+  code        String @unique @db.VarChar(10)
+  name        String @db.VarChar(100)
+  city        String @db.VarChar(100)
+  coordinates String @db.VarChar(100)
+  timezone    String @db.VarChar(100)
 
   departures Flight[] @relation("DepartureRelation")
   arrivals   Flight[] @relation("ArrivalRelation")
@@ -113,11 +125,11 @@ model Passenger {
 }
 
 model Booking {
-  id          Int      @id @default(autoincrement())
+  id          Int     @id @default(autoincrement())
   passengerId Int
   flightId    Int
   seat        String
-  bookingTime DateTime @default(now())
+  bookingTime Decimal @db.Decimal(20, 3)
 
   passenger  Passenger   @relation(fields: [passengerId], references: [id])
   flight     Flight      @relation(fields: [flightId], references: [flightId])
@@ -135,6 +147,13 @@ model Meal {
   flightMeals FlightMeal[]
   mealOrders  MealOrder[]
 }
+
+// {
+//   "meals": [
+//     { "id": 4, "quantity": 50, "price": 5.0 },
+//     { "id": 2, "quantity": 30, "price": 4.5 }
+//   ]
+// }
 
 model FlightMeal {
   id       Int    @id @default(autoincrement())
@@ -158,11 +177,11 @@ model MealOrder {
 }
 
 model FlightStatus {
-  id          Int      @id @default(autoincrement())
+  id          Int     @id @default(autoincrement())
   flightId    Int
-  status      String   @db.VarChar(20)
-  description String?  @db.VarChar(255)
-  updatedAt   DateTime @default(now()) @updatedAt
+  status      String  @db.VarChar(20)
+  description String? @db.VarChar(255)
+  updatedAt   Decimal @db.Decimal(20, 3)
 
   flight Flight @relation(fields: [flightId], references: [flightId])
 }

@@ -6,10 +6,12 @@ import {
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma.service';
-import { Prisma, Role, User } from 'generated/prisma';
+import { Prisma, Role } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { generatePassword } from './hooks/randompw';
+import { UserResponseDto } from './dto/info-user-dto';
+import { formatUserResponse, toEpochDecimal } from 'src/common/helpers/hook';
 
 @Injectable()
 export class UsersService {
@@ -19,15 +21,11 @@ export class UsersService {
     const password = await generatePassword(true);
     return {
       resultCode: '00',
-      resultMessage: 'Get random password thành công!',
       data: password, // dùng list thay vì data vì là mảng
     };
-    // console.log('Mật khẩu random:', password);
-    //return password;
-    // Lưu user với password đã hash (BCrypt)
   }
   // Lấy tất cả user
-  async getAllUsers(): Promise<BaseResponseDto<Partial<User>>> {
+  async getAllUsers(): Promise<BaseResponseDto<Partial<UserResponseDto>>> {
     const users = await this.prisma.user.findMany({
       select: {
         id: true,
@@ -36,12 +34,12 @@ export class UsersService {
         pictureUrl: true,
         rank: true,
         role: true,
-        createdAt: true,
         authType: true,
         userAlias: true,
         loginFailCnt: true,
         accountLockYn: true,
         mfaEnabledYn: true,
+        createdAt: true,
         mfaSecretKey: true,
         // ❌ Không trả password và prevPassword
       },
@@ -57,7 +55,7 @@ export class UsersService {
   // Lấy user theo ID
   async getUserById(
     id: number,
-  ): Promise<BaseResponseDto<Partial<User> | null>> {
+  ): Promise<BaseResponseDto<Partial<UserResponseDto>>> {
     const user = await this.prisma.user.findUnique({
       where: { id },
       select: {
@@ -67,10 +65,11 @@ export class UsersService {
         pictureUrl: true,
         rank: true,
         role: true,
-        createdAt: true,
         authType: true,
+        isEmailVerified: true,
+        mfaEnabledYn: true,
         userAlias: true,
-        loginFailCnt: true,
+        // loginFailCnt: true,
         accountLockYn: true,
         // ❌ Không trả password và prevPassword
       },
@@ -87,7 +86,7 @@ export class UsersService {
   }
   async createUserByAdmin(
     dto: CreateUserDto,
-  ): Promise<BaseResponseDto<User | null>> {
+  ): Promise<BaseResponseDto<UserResponseDto | null>> {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -95,20 +94,8 @@ export class UsersService {
     if (existing) {
       throw new ConflictException('Email đã tồn tại');
     }
-    // function generateRandomPassword(length: number = 8): string {
-    //   const chars =
-    //     'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+';
-    //   let password = '';
-    //   for (let i = 0; i < length; i++) {
-    //     const randomChar = chars.charAt(
-    //       Math.floor(Math.random() * chars.length),
-    //     );
-    //     password += randomChar;
-    //   }
-    //   return password;
-    // }
 
-    const defaultPassword = dto.password ?? generatePassword(true); // 8 hoặc 12 tùy nhu cầu
+    const defaultPassword = dto.password ?? generatePassword(true);
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
     const user = await this.prisma.user.create({
@@ -121,57 +108,21 @@ export class UsersService {
         role: dto.role as Role,
         authType: 'ID,PW',
         userAlias: '',
-        createdAt: new Prisma.Decimal(Date.now()), // milliseconds
-        updatedAt: new Prisma.Decimal(Date.now()), // milliseconds
+        createdAt: toEpochDecimal(), // lưu Decimal
+        updatedAt: toEpochDecimal(),
       },
     });
 
     return {
       resultCode: '00',
-      resultMessage: 'Lấy danh sách người dùng thành công!',
-      data: user, // dùng list thay vì data vì là mảng
+      resultMessage: 'Tạo người dùng thành công!',
+      data: formatUserResponse(user), // ✅ format đúng kiểu DTO
     };
   }
 
   findOne(id: number) {
     return this.prisma.user.findUnique({ where: { id } });
   }
-  // update(id: number, data: Partial<User>) {
-  //   return this.prisma.user.update({ where: { id }, data });
-  // }
-  // async update(id: number, updateUserDto: UpdateUserDto): Promise<any> {
-  //   const user = await this.prisma.user.findUnique({ id });
-  //   if (!user) {
-  //     throw new NotFoundException(`User with ID ${id} not found`);
-  //   }
-  //   const updated = Object.assign(user, updateUserDto);
-  //   return await this.user.save(updated);
-  // }
-  // async update(id: number, updateUserDto: UpdateUserDto) {
-  //   const user = await this.prisma.user.findUnique({
-  //     where: { id },
-  //   });
-
-  //   if (!user) {
-  //     throw new NotFoundException(`User with ID ${id} not found`);
-  //   }
-
-  //   // Map role về kiểu enum nếu có
-  //   const data: Prisma.UserUpdateInput = {
-  //     ...updateUserDto,
-  //     role: updateUserDto.role ? (updateUserDto.role as Role) : undefined,
-  //   };
-
-  //   const updatedUser = await this.prisma.user.update({
-  //     where: { id },
-  //     data,
-  //   });
-  //   return {
-  //     resultCode: '00',
-  //     resultMessage: 'Lấy danh sách người dùng thành công!',
-  //     data: updatedUser, // dùng list thay vì data vì là mảng
-  //   };
-  // }
 
   async updateUserById(id: number, updateUserDto: UpdateUserDto) {
     const user = await this.prisma.user.findUnique({
@@ -181,6 +132,7 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
+
     // Kiểm tra role cũ và role mới
     const isRoleChangingToAdmin =
       updateUserDto.role === Role.ADMIN && user.role !== Role.ADMIN;
@@ -193,6 +145,7 @@ export class UsersService {
         rank: updateUserDto.rank,
         role: updateUserDto.role,
         userAlias: updateUserDto.userAlias,
+        updatedAt: toEpochDecimal(),
       },
       select: {
         id: true,
@@ -206,12 +159,20 @@ export class UsersService {
 
     // Nếu đổi role thành ADMIN thì tạo request TransferAdmin
     if (isRoleChangingToAdmin) {
+      // Ví dụ: tìm 1 admin hiện tại để gán làm "toUserId"
+      const existingAdmin = await this.prisma.user.findFirst({
+        where: { role: Role.ADMIN, NOT: { id: updatedUser.id } },
+        select: { id: true },
+      });
+
       await this.prisma.transferAdmin.create({
         data: {
           userId: updatedUser.id,
-          fromUserId: 0, // Anh cần xác định ai là người request (có thể lấy từ JWT user hiện tại)
-          toUserId: updatedUser.id,
+          fromUserId: updatedUser.id, // hoặc lấy từ JWT user hiện tại
+          toUserId: existingAdmin ? existingAdmin.id : updatedUser.id,
           status: 'PENDING',
+          requestedAt: toEpochDecimal(),
+          approvedAt: null, // ✅ null hợp lệ
         },
       });
     }
@@ -220,26 +181,10 @@ export class UsersService {
       resultCode: '00',
       resultMessage: 'Cập nhật người dùng thành công!',
       data: updatedUser,
+      result: isRoleChangingToAdmin
+        ? 'Đã tạo request TransferAdmin'
+        : 'Không có thay đổi role',
     };
-
-    // const data: Prisma.UserUpdateInput = {
-    //   name: updateUserDto.name,
-    //   pictureUrl: updateUserDto.pictureUrl,
-    //   rank: updateUserDto.rank,
-    //   role: updateUserDto.role,
-    //   userAlias: updateUserDto.userAlias,
-    // };
-
-    // const updatedUser = await this.prisma.user.update({
-    //   where: { id },
-    //   data,
-    // });
-
-    // return {
-    //   resultCode: '00',
-    //   resultMessage: 'Cập nhật người dùng thành công!',
-    //   data: updatedUser,
-    // };
   }
 
   // user.service.ts

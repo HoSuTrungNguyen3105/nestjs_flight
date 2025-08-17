@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -15,4 +15,10 @@ export class AuthController {
   async login(@Body() dto: LoginDto) {
     return this.authService.loginUser(dto);
   }
+  @Post('logout')
+  async logout(@Body() dto: { id: number; token: string }) {
+    return this.authService.logout(dto.id, dto.token);
+  }
+  // ✅ Logout: lấy userId từ token, xóa session hiện tại + cập nhật lastLoginDate
+  // @UseGuards(JwtAuthGuard)
 }

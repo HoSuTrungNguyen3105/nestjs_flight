@@ -7,6 +7,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { FlightsModule } from './flights/flights.module';
 import { AuthModule } from './auth/auth.module';
 import { FlightMealModule } from './flightMeal/flightMeal.module';
+import { MealsModule } from './meals/meals.module';
 
 @Module({
   controllers: [AppController],
@@ -17,6 +18,7 @@ import { FlightMealModule } from './flightMeal/flightMeal.module';
     AuthModule,
     UsersModule,
     FlightMealModule,
+    MealsModule,
   ],
 })
 export class AppModule {}

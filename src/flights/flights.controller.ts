@@ -8,8 +8,9 @@ import {
   Delete,
 } from '@nestjs/common';
 import { FlightsService } from './flights.service';
-import { Flight } from 'generated/prisma';
+import { Aircraft, Airport, Flight } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
+import { AirportDto } from './dto/create-airport.dto';
 
 @Controller('sys/flights')
 export class FlightsController {
@@ -20,14 +21,14 @@ export class FlightsController {
     return this.flightService.create(data);
   }
 
+  @Post('/aircraft')
+  createAircraft(@Body() data: Aircraft) {
+    return this.flightService.createAircraft(data);
+  }
+
   @Get()
   async findAll(): Promise<BaseResponseDto<Flight>> {
-    const data = await this.flightService.findAll();
-    return {
-      resultCode: '00',
-      resultMessage: 'Thành công',
-      list: data,
-    };
+    return this.flightService.findAll();
   }
 
   @Get(':flightId')
@@ -43,5 +44,28 @@ export class FlightsController {
   @Delete(':flightId')
   remove(@Param('flightId') id: string) {
     return this.flightService.delete(+id);
+  }
+  @Delete('all')
+  async deleteAllFlights() {
+    return this.flightService.deleteAll();
+  }
+
+  @Get('aircraft')
+  async getAircraft() {
+    return this.flightService.getAllAircraft();
+  }
+
+  // 2. GET all airports
+  @Get('airports')
+  async getAirports() {
+    return this.flightService.getAllAirports();
+  }
+
+  // 3. POST create new airport
+  // flights.controller.ts
+  @Post('airports')
+  async createAirport(@Body() body: AirportDto) {
+    console.log('👉 REQ BODY /flights/airports:', body);
+    return this.flightService.createAirport(body);
   }
 }

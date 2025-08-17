@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Meal, Prisma } from 'generated/prisma';
+import { BaseResponseDto } from 'src/baseResponse/response.dto';
+import { PrismaService } from 'src/prisma.service';
 
 @Injectable()
 export class MealService {
@@ -10,10 +11,16 @@ export class MealService {
     return this.prisma.meal.create({ data });
   }
 
-  async findAll() {
-    return this.prisma.meal.findMany({
-      include: { flightMeals: true, mealOrders: true },
+  async findAll(): Promise<BaseResponseDto<Meal>> {
+    const meals = await this.prisma.meal.findMany({
+      include: { flightMeals: true },
     });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Lấy danh sách món ăn thành công!',
+      list: meals, // mảng Meal[] thật sự
+    };
   }
 
   async findOne(id: number) {

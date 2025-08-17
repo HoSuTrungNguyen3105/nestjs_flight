@@ -56,6 +56,26 @@ export class FlightMealService {
     };
   }
 
+  async addMealsToFlight(
+    flightId: number,
+    meals: { id: number; quantity: number; price?: number }[],
+  ) {
+    const data = meals.map((m) => ({
+      flightId,
+      mealId: m.id,
+      quantity: m.quantity,
+      price: m.price,
+    }));
+
+    await this.prisma.flightMeal.createMany({ data });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Gán meals vào flight thành công!',
+      list: data,
+    };
+  }
+
   async update(id: number, data: UpdateFlightMealDto) {
     await this.findOne(id); // check exists
     return this.prisma.flightMeal.update({
