@@ -42,6 +42,13 @@ export class UsersController {
     return user;
   }
 
+  @Get('/getUserInfo/:id')
+  async getUserInfo(@Param('id', ParseIntPipe) id: number) {
+    const user = await this.userService.getUserInfo(id);
+    if (!user) throw new NotFoundException('User không tồn tại');
+    return user;
+  }
+
   // Xoá tất cả user
   @Post('deleteAll')
   async deleteAll() {

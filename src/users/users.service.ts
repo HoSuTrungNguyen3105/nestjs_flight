@@ -12,6 +12,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { generatePassword } from './hooks/randompw';
 import { UserResponseDto } from './dto/info-user-dto';
 import { formatUserResponse, toEpochDecimal } from 'src/common/helpers/hook';
+import { Decimal } from 'generated/prisma/runtime/library';
 
 @Injectable()
 export class UsersService {
@@ -39,7 +40,7 @@ export class UsersService {
         loginFailCnt: true,
         accountLockYn: true,
         mfaEnabledYn: true,
-        createdAt: true,
+        // createdAt: true,
         mfaSecretKey: true,
         // ❌ Không trả password và prevPassword
       },
@@ -81,6 +82,71 @@ export class UsersService {
       data: user, // dùng list thay vì data vì là mảng
     };
   }
+
+  async getUserInfo(
+    id: number,
+  ): Promise<BaseResponseDto<Partial<UserResponseDto>>> {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        pictureUrl: true,
+        rank: true,
+        role: true,
+        authType: true,
+        isEmailVerified: true,
+        mfaEnabledYn: true,
+        userAlias: true,
+        accountLockYn: true,
+        loginFailCnt: true,
+        lastLoginDate: true,
+        createdAt: true,
+        updatedAt: true,
+        transferAdminId: true,
+        // ❌ không trả password, prevPassword trừ khi thực sự cần
+        sessions: {
+          select: {
+            id: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return {
+        resultCode: '01',
+        resultMessage: 'Không tìm thấy người dùng',
+        data: null,
+      };
+    }
+
+    // ✅ Convert Decimal -> number
+    const safeUser: UserResponseDto = {
+      ...user,
+      createdAt: (user.createdAt as Decimal).toNumber(),
+      updatedAt: (user.updatedAt as Decimal).toNumber(),
+      lastLoginDate: user.lastLoginDate
+        ? (user.lastLoginDate as Decimal).toNumber()
+        : undefined,
+      // sessions: user.sessions.map((s) => ({
+      //   ...s,
+      //   createdAt: (s.createdAt as Decimal).toNumber(),
+      //   lastActiveAt: s.lastActiveAt
+      //     ? (s.lastActiveAt as Decimal).toNumber()
+      //     : undefined,
+      // })),
+    };
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Lấy thông tin người dùng thành công!',
+      data: safeUser,
+    };
+  }
+
   findAll() {
     return this.prisma.user.findMany();
   }
