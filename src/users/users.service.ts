@@ -13,10 +13,15 @@ import { generatePassword } from './hooks/randompw';
 import { UserResponseDto } from './dto/info-user-dto';
 import { formatUserResponse, toEpochDecimal } from 'src/common/helpers/hook';
 import { Decimal } from 'generated/prisma/runtime/library';
+import { MailService } from 'src/common/nodemailer/nodemailer.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) {}
+
   // private readonly userRepository: Repository<User>{}// ✅ Repository ở đây nè anh
   async randomPw() {
     const password = await generatePassword(true);
@@ -150,6 +155,42 @@ export class UsersService {
   findAll() {
     return this.prisma.user.findMany();
   }
+
+  async requestTransfer(data: {
+    userId: number;
+    fromUserId: number;
+    toUserId: number;
+  }) {
+    return this.prisma.transferAdmin.create({
+      data: {
+        ...data,
+        requestedAt: new Date().getTime(),
+        status: 'PENDING',
+      },
+    });
+  }
+
+  async approveTransfer(id: number) {
+    return this.prisma.transferAdmin.update({
+      where: { id },
+      data: {
+        approvedAt: new Date().getTime(),
+        status: 'APPROVED',
+      },
+    });
+  }
+
+  async rejectTransfer(id: number) {
+    return this.prisma.transferAdmin.update({
+      where: { id },
+      data: { status: 'REJECTED' },
+    });
+  }
+
+  async findAllUserRequests() {
+    return this.prisma.transferAdmin.findMany({ include: { user: true } });
+  }
+
   async createUserByAdmin(
     dto: CreateUserDto,
   ): Promise<BaseResponseDto<UserResponseDto | null>> {
@@ -167,7 +208,8 @@ export class UsersService {
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
-        password: hashedPassword,
+        password: '',
+        tempPassword: hashedPassword,
         name: dto.name ?? '',
         pictureUrl: '',
         rank: '',
@@ -178,6 +220,21 @@ export class UsersService {
         updatedAt: toEpochDecimal(),
       },
     });
+
+    // Gửi email thông báo (nếu lỗi thì log, không throw)
+    try {
+      await this.mailService.sendMail(
+        dto.email, // ✅ gửi đến email người dùng vừa tạo
+        'Tài khoản của bạn đã được tạo',
+        `Xin chào ${dto.name ?? 'bạn'},\n\nTài khoản của bạn đã được tạo thành công.\nMật khẩu mặc định: ${defaultPassword}`,
+        `<p>Xin chào <b>${dto.name ?? 'bạn'}</b>,</p>
+       <p>Tài khoản của bạn đã được tạo thành công.</p>
+       <p><b>Mật khẩu mặc định:</b> ${defaultPassword}</p>
+       <p>Vui lòng đăng nhập và đổi mật khẩu ngay.</p>`,
+      );
+    } catch (err) {
+      console.error('Gửi email thất bại:', err.message);
+    }
 
     return {
       resultCode: '00',
@@ -234,11 +291,11 @@ export class UsersService {
       await this.prisma.transferAdmin.create({
         data: {
           userId: updatedUser.id,
-          fromUserId: updatedUser.id, // hoặc lấy từ JWT user hiện tại
+          fromUserId: updatedUser.id,
           toUserId: existingAdmin ? existingAdmin.id : updatedUser.id,
           status: 'PENDING',
           requestedAt: toEpochDecimal(),
-          approvedAt: null, // ✅ null hợp lệ
+          approvedAt: null,
         },
       });
     }
@@ -262,38 +319,6 @@ export class UsersService {
     };
   }
 
-  // async setAccountLockChange(
-  //   id: number,
-  //   accountLockYn: string,
-  // ): Promise<BaseResponseDto<null>> {
-  //   const currentUser = await this.prisma.user.findUnique({
-  //     where: { id },
-  //     select: { accountLockYn: true },
-  //   });
-  //   console.log(
-  //     'Giá trị thật trong DB trước khi đổi:',
-  //     currentUser?.accountLockYn,
-  //   );
-  //   console.log('Giá trị được truyền vào hàm:', accountLockYn);
-
-  //   const newValue = currentUser?.accountLockYn === 'N' ? 'Y' : 'N';
-
-  //   // await this.prisma.user.update({
-  //   //   where: { id },
-  //   //   data: { accountLockYn: newValue },
-  //   // });
-  //   // const newValue = accountLockYn === 'N' ? 'Y' : 'N';
-
-  //   await this.prisma.user.update({
-  //     where: { id },
-  //     data: { accountLockYn: newValue },
-  //   });
-
-  //   return {
-  //     resultCode: '00',
-  //     resultMessage: `Đã đổi trạng thái accountLockYn từ ${accountLockYn} → ${newValue} thành công!`,
-  //   };
-  // }
   async setAccountLockChange(
     id: number,
   ): Promise<BaseResponseDto<{ accountLockYn: string }>> {
@@ -319,7 +344,12 @@ export class UsersService {
     };
   }
 
-  delete(id: number) {
-    return this.prisma.user.delete({ where: { id } });
+  async delete(id: number) {
+    try {
+      const user = await this.prisma.user.delete({ where: { id } });
+      return user;
+    } catch (err) {
+      console.error('Error:', err.message);
+    }
   }
 }

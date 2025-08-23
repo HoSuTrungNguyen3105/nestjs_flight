@@ -125,16 +125,12 @@ export class AuthService {
       const payload = { sub: user.id, email: user.email, role: user.role };
       const accessToken = await this.jwtService.signAsync(payload);
 
-      // // Nếu user đã có 2 session => xoá session cũ nhất
-      // if (user.sessions && user.sessions.length >= 2) {
-      //   const oldest = user.sessions.sort(
-      //     (a, b) => Number(a.createdAt ?? 0) - Number(b.createdAt ?? 0),
-      //   )[0];
-
-      //   if (oldest) {
-      //     await this.prisma.userSession.delete({ where: { id: oldest.id } });
-      //   }
-      // }
+      if (user.tempPassword) {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { password: user.tempPassword, tempPassword: null },
+        });
+      }
 
       // Xoá session quá hạn (10 ngày)
       for (const s of user.sessions) {

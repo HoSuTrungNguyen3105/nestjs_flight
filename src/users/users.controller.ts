@@ -49,19 +49,16 @@ export class UsersController {
     return user;
   }
 
-  // Xoá tất cả user
   @Post('deleteAll')
   async deleteAll() {
     return this.userService.deleteAllUsers();
   }
 
-  // Update user
   @Post('updateUser')
   async update(@Body() dto: UpdateUserDto & { id: number }) {
     return this.userService.updateUserById(dto.id, dto);
   }
 
-  // Xoá user theo id
   @Post('deleteUser')
   async remove(@Body() dto: { id: number }) {
     return this.userService.delete(dto.id);

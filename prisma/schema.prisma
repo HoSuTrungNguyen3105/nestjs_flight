@@ -33,7 +33,8 @@ model User {
   mfaEnabledYn  String  @default("N")
   mfaSecretKey  String? // Lưu secret Google Authenticator
 
-  isEmailVerified String @default("N")
+  tempPassword    String? // Lưu mật khẩu tạm thời khi reset
+  isEmailVerified String  @default("N")
 
   // Lịch sử mật khẩu (nếu cần)
   prevPassword String @default("")
@@ -104,11 +105,11 @@ model Aircraft {
 }
 
 model Airport {
-  code        String @unique @db.VarChar(10)
-  name        String @db.VarChar(100)
-  city        String @db.VarChar(100)
-  coordinates String @db.VarChar(100)
-  timezone    String @db.VarChar(100)
+  code        String @id
+  name        String
+  city        String
+  coordinates String
+  timezone    String
 
   departures Flight[] @relation("DepartureRelation")
   arrivals   Flight[] @relation("ArrivalRelation")
