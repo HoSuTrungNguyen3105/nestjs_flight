@@ -112,34 +112,95 @@ export class AuthService {
 
       const user = await this.prisma.user.findUnique({
         where: { email },
-        include: { sessions: true }, // cần để lấy danh sách session
+        include: { sessions: true },
       });
 
       if (!user) throw new BadRequestException('Tài khoản chưa đăng ký!');
 
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid)
-        throw new BadRequestException('Mật khẩu không đúng!');
+      // Nếu tài khoản đã bị khóa
+      if (user.accountLockYn === 'Y') {
+        throw new BadRequestException('Tài khoản đã bị khóa!');
+      }
 
-      // Tạo token mới
+      // Nếu user có tempPassword thì check theo tempPassword trước
+      // if (user.tempPassword) {
+      //   const isTempPasswordValid = await bcrypt.compare(
+      //     password,
+      //     user.tempPassword,
+      //   );
+      //   if (!isTempPasswordValid) {
+      //     // ❌ Sai mật khẩu → tăng loginFailCnt
+      //     await this.handleLoginFail(user);
+      //     throw new BadRequestException('Mật khẩu tạm không đúng!');
+      //   }
+
+      //   return {
+      //     resultCode: '99',
+      //     resultMessage: 'Bạn cần đổi mật khẩu trước khi đăng nhập!',
+      //     requireChangePassword: true,
+      //     userId: user.id,
+      //   };
+      // }
+
+      // Nếu có tempPassword thì check
+      if (user.tempPassword && user.tempPassword !== '') {
+        const isTempPasswordValid = await bcrypt.compare(
+          password,
+          user.tempPassword,
+        );
+        if (!isTempPasswordValid) {
+          await this.handleLoginFail(user);
+          throw new BadRequestException('Mật khẩu tạm không đúng!');
+        }
+
+        return {
+          resultCode: '99',
+          resultMessage: 'Bạn cần đổi mật khẩu trước khi đăng nhập!',
+          requireChangePassword: true,
+          userId: user.id,
+        };
+      }
+
+      // Check password gốc
+      if (!user.password || user.password === '') {
+        throw new BadRequestException('Tài khoản chưa có mật khẩu hợp lệ!');
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        await this.handleLoginFail(user);
+        throw new BadRequestException('Mật khẩu không đúng!');
+      }
+
+      // if (user.isEmailVerified === 'N') {
+      //   throw new BadRequestException('Email chưa được xác thực!');
+      // }
+
+      // Bình thường thì check password gốc
+      // const isPasswordValid = await bcrypt.compare(password, user.password);
+      // if (!isPasswordValid) {
+      //   // ❌ Sai mật khẩu → tăng loginFailCnt
+      //   await this.handleLoginFail(user);
+      //   throw new BadRequestException('Mật khẩu không đúng!');
+      // }
+
+      // ✅ Đúng mật khẩu → reset loginFailCnt
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { loginFailCnt: 0 },
+      });
+
+      // ✅ Nếu pass hợp lệ → cấp token
       const payload = { sub: user.id, email: user.email, role: user.role };
       const accessToken = await this.jwtService.signAsync(payload);
 
-      if (user.tempPassword) {
-        await this.prisma.user.update({
-          where: { id: user.id },
-          data: { password: user.tempPassword, tempPassword: null },
-        });
-      }
-
-      // Xoá session quá hạn (10 ngày)
+      // Xử lý session như cũ
       for (const s of user.sessions) {
         if (Date.now() - Number(s.createdAt || 0) > TEN_DAYS) {
           await this.prisma.userSession.delete({ where: { id: s.id } });
         }
       }
 
-      // Nếu user còn ≥ 2 session hợp lệ → xoá session cũ nhất
       const validSessions = user.sessions.filter(
         (s) => Date.now() - Number(s.createdAt || 0) <= TEN_DAYS,
       );
@@ -151,11 +212,6 @@ export class AuthService {
         await this.prisma.userSession.delete({ where: { id: oldest.id } });
       }
 
-      // Tạo token mới
-      // const payload = { sub: user.id, email: user.email, role: user.role };
-      // const accessToken = await this.jwtService.signAsync(payload);
-
-      // Lưu session mới
       await this.prisma.userSession.create({
         data: {
           userId: user.id,
@@ -163,14 +219,6 @@ export class AuthService {
           createdAt: nowDecimal(),
         },
       });
-      // Lưu session mới
-      // await this.prisma.userSession.create({
-      //   data: {
-      //     userId: user.id,
-      //     token: accessToken,
-      //     createdAt: new Prisma.Decimal(Date.now().toString()), // ✅ luôn có timestamp
-      //   },
-      // });
 
       return {
         resultCode: '00',
@@ -184,8 +232,66 @@ export class AuthService {
         },
       };
     } catch (err) {
-      console.error('🔥 Lỗi loginUser:', err); // Log ra console để bắt đúng lỗi
-      throw err; // Đẩy lỗi lại để NestJS xử lý
+      console.error('🔥 Lỗi loginUser:', err);
+      throw err;
+    }
+  }
+
+  // Helper xử lý khi sai mật khẩu
+  private async handleLoginFail(user: any) {
+    const newFailCnt = user.loginFailCnt + 1;
+
+    if (newFailCnt >= 5) {
+      // ❌ Tự động khóa tài khoản
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          loginFailCnt: newFailCnt,
+          accountLockYn: 'Y',
+        },
+      });
+      throw new BadRequestException(
+        'Tài khoản đã bị khóa do nhập sai mật khẩu quá nhiều lần!',
+      );
+    } else {
+      // chỉ tăng loginFailCnt
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { loginFailCnt: newFailCnt },
+      });
+    }
+  }
+
+  async changePassword(userId: number, newPassword: string) {
+    try {
+      if (!userId) {
+        throw new BadRequestException('Thiếu userId');
+      }
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId }, // ✅ đảm bảo userId có giá trị
+      });
+
+      if (!user) {
+        throw new BadRequestException('User không tồn tại');
+      }
+
+      // ✅ Hash password trước khi lưu
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          password: hashedPassword,
+          tempPassword: '',
+          isEmailVerified: 'Y',
+        }, // ✅ xoá tempPassword sau khi đổi
+      });
+
+      return { resultCode: '00', message: 'Đổi mật khẩu thành công' };
+    } catch (err) {
+      console.error('🔥 Lỗi change password:', err);
+      throw err;
     }
   }
 

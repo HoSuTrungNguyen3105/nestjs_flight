@@ -47,7 +47,8 @@ model User {
   transferAdminId Int?
 
   // Session
-  sessions UserSession[]
+  sessions       UserSession[]
+  unlockRequests UnlockRequest[]
 }
 
 model UserSession {
@@ -74,6 +75,16 @@ enum TransferStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+model UnlockRequest {
+  id         Int      @id @default(autoincrement())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+  reason     String   @db.Text
+  status     String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdAt  Decimal  @db.Decimal(20, 3)
+  approvedAt Decimal? @db.Decimal(20, 3)
 }
 
 model Flight {

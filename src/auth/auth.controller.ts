@@ -19,6 +19,10 @@ export class AuthController {
   async logout(@Body() dto: { id: number; token: string }) {
     return this.authService.logout(dto.id, dto.token);
   }
+  @Post('change-password')
+  async changePassword(@Body() dto: { userId: number; newPassword: string }) {
+    return this.authService.changePassword(dto.userId, dto.newPassword);
+  }
   // ✅ Logout: lấy userId từ token, xóa session hiện tại + cập nhật lastLoginDate
   // @UseGuards(JwtAuthGuard)
 }

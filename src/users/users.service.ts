@@ -1,12 +1,14 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma.service';
-import { Prisma, Role } from 'generated/prisma';
+import { Prisma, Role, TransferStatus } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { generatePassword } from './hooks/randompw';
@@ -14,6 +16,7 @@ import { UserResponseDto } from './dto/info-user-dto';
 import { formatUserResponse, toEpochDecimal } from 'src/common/helpers/hook';
 import { Decimal } from 'generated/prisma/runtime/library';
 import { MailService } from 'src/common/nodemailer/nodemailer.service';
+import { nowDecimal } from 'src/common/helpers/base.helper';
 
 @Injectable()
 export class UsersService {
@@ -169,26 +172,130 @@ export class UsersService {
       },
     });
   }
+  // async approveTransfer(id: number) {
+  //   try {
+  //     // Kiểm tra transfer request có tồn tại không
+  //     const transfer = await this.prisma.transferAdmin.findUnique({
+  //       where: { id },
+  //       include: { user: true }, // load user luôn
+  //     });
 
-  async approveTransfer(id: number) {
-    return this.prisma.transferAdmin.update({
-      where: { id },
-      data: {
-        approvedAt: new Date().getTime(),
-        status: 'APPROVED',
-      },
-    });
+  //     if (!transfer) {
+  //       throw new NotFoundException(
+  //         `Transfer request với id ${id} không tồn tại`,
+  //       );
+  //     }
+
+  //     // Transaction để đảm bảo atomic (cập nhật cả 2 bảng cùng lúc)
+  //     const [updatedTransfer, updatedUser] = await this.prisma.$transaction([
+  //       this.prisma.transferAdmin.update({
+  //         where: { id },
+  //         data: {
+  //           status: 'APPROVED',
+  //           approvedAt: new Date().getTime().toString(), // hoặc nowDecimal() nếu anh có helper
+  //         },
+  //       }),
+  //       this.prisma.user.update({
+  //         where: { id: transfer.userId },
+  //         data: {
+  //           role: 'ADMIN',
+  //         },
+  //       }),
+  //     ]);
+
+  //     return {
+  //       resultCode: '00',
+  //       message: 'Transfer approved thành công!',
+  //       transfer: updatedTransfer,
+  //       user: updatedUser,
+  //     };
+  //   } catch (error) {
+  //     console.error('🔥 Error approving transfer:', error);
+  //     throw error;
+  //   }
+  // }
+
+  async approveTransfer(userId: number) {
+    try {
+      const transfer = await this.prisma.transferAdmin.findUnique({
+        where: { userId }, // 👈 tìm theo userId vì nó unique
+        include: { user: true },
+      });
+
+      if (!transfer) {
+        throw new NotFoundException(
+          `Không tìm thấy Transfer với userId = ${userId}`,
+        );
+      }
+
+      // Transaction: update transfer + role user
+      const [updatedTransfer, updatedUser] = await this.prisma.$transaction([
+        this.prisma.transferAdmin.update({
+          where: { userId },
+          data: {
+            status: 'APPROVED',
+            approvedAt: new Date().getTime().toString(),
+          },
+        }),
+        this.prisma.user.update({
+          where: { id: userId },
+          data: { role: 'ADMIN' },
+        }),
+      ]);
+
+      return {
+        resultCode: '00',
+        message: '✅ Transfer approved thành công',
+        transfer: updatedTransfer,
+        user: updatedUser,
+      };
+    } catch (error) {
+      console.error('🔥 Error approving transfer:', error);
+      throw error;
+    }
   }
 
-  async rejectTransfer(id: number) {
-    return this.prisma.transferAdmin.update({
-      where: { id },
-      data: { status: 'REJECTED' },
-    });
+  async rejectTransfer(userId: number) {
+    try {
+      const transfer = await this.prisma.transferAdmin.findUnique({
+        where: { userId }, // 👈 tìm theo userId
+      });
+
+      if (!transfer) {
+        throw new NotFoundException(
+          `Không tìm thấy Transfer với userId = ${userId}`,
+        );
+      }
+
+      return await this.prisma.transferAdmin.update({
+        where: { userId },
+        data: { status: 'REJECTED' },
+      });
+    } catch (error) {
+      console.error('🔥 Error rejecting transfer:', error);
+      throw error; // để Postman nhận được lỗi chi tiết
+    }
   }
 
   async findAllUserRequests() {
-    return this.prisma.transferAdmin.findMany({ include: { user: true } });
+    try {
+      const transt = this.prisma.transferAdmin.findMany({
+        include: {
+          user: {
+            select: {
+              id: true,
+              transferAdminId: true,
+              transferAdmin: true,
+              role: true,
+            },
+          },
+        },
+      });
+      return transt;
+    } catch (error) {
+      console.error('Error finding all user requests:', error);
+      throw new InternalServerErrorException('Error finding all user requests');
+    }
   }
 
   async createUserByAdmin(
@@ -208,7 +315,7 @@ export class UsersService {
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
-        password: '',
+        password: hashedPassword,
         tempPassword: hashedPassword,
         name: dto.name ?? '',
         pictureUrl: '',
@@ -245,6 +352,93 @@ export class UsersService {
 
   findOne(id: number) {
     return this.prisma.user.findUnique({ where: { id } });
+  }
+
+  // User gửi yêu cầu mở khóa
+  async requestUnlock(userId: number, reason: string) {
+    // Check xem user có request nào đang PENDING không
+    const existing = await this.prisma.unlockRequest.findFirst({
+      where: {
+        userId,
+        status: 'PENDING',
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException(
+        'Bạn đã gửi yêu cầu mở khóa, vui lòng chờ xử lý!',
+      );
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('User không tồn tại!');
+
+    if (user.accountLockYn !== 'Y') {
+      throw new BadRequestException(
+        'Tài khoản chưa bị khóa, không cần mở khóa!',
+      );
+    }
+    if (user.isEmailVerified !== 'Y') {
+      throw new BadRequestException(
+        'Email chưa được xác thực, không thể mở khóa!',
+      );
+    }
+
+    return this.prisma.unlockRequest.create({
+      data: {
+        userId,
+        reason,
+        createdAt: nowDecimal(),
+      },
+    });
+  }
+
+  // Admin duyệt mở khóa
+  async approveUnlockRequest(requestId: number) {
+    const req = await this.prisma.unlockRequest.findUnique({
+      where: { id: requestId },
+      include: { user: true },
+    });
+    if (!req) throw new BadRequestException('Yêu cầu không tồn tại!');
+    if (req.status !== 'PENDING') {
+      throw new BadRequestException('Yêu cầu đã được xử lý!');
+    }
+
+    // Mở khóa user
+    await this.prisma.user.update({
+      where: { id: req.userId },
+      data: {
+        accountLockYn: 'N',
+        loginFailCnt: 0,
+      },
+    });
+
+    // Cập nhật trạng thái yêu cầu
+    return this.prisma.unlockRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'APPROVED',
+        approvedAt: nowDecimal(),
+      },
+    });
+  }
+
+  // Admin từ chối
+  async rejectUnlockRequest(requestId: number) {
+    return this.prisma.unlockRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'REJECTED',
+        approvedAt: nowDecimal(),
+      },
+    });
+  }
+
+  // Admin xem tất cả yêu cầu
+  async getAllUnlockRequests() {
+    return this.prisma.unlockRequest.findMany({
+      include: { user: true },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   async updateUserById(id: number, updateUserDto: UpdateUserDto) {
