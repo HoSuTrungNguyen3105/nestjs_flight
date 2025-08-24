@@ -3,11 +3,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { MongooseModule } from '@nestjs/mongoose';
 import { FlightsModule } from './flights/flights.module';
 import { AuthModule } from './auth/auth.module';
 import { FlightMealModule } from './flightMeal/flightMeal.module';
 import { MealsModule } from './meals/meals.module';
+import { PassengerModule } from './passenger/passenger.module';
 
 @Module({
   controllers: [AppController],
@@ -19,6 +19,7 @@ import { MealsModule } from './meals/meals.module';
     UsersModule,
     FlightMealModule,
     MealsModule,
+    PassengerModule,
   ],
 })
 export class AppModule {}

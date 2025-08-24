@@ -10,6 +10,8 @@ import { LoginDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from 'generated/prisma';
 import { nowDecimal, TEN_DAYS } from 'src/common/helpers/base.helper';
+import * as speakeasy from 'speakeasy';
+import * as QRCode from 'qrcode';
 
 @Injectable()
 export class AuthService {
@@ -235,6 +237,64 @@ export class AuthService {
       console.error('🔥 Lỗi loginUser:', err);
       throw err;
     }
+  }
+
+  // Tạo secret MFA cho user
+  async generateMfaSecret(user?: { id: number; email: string }) {
+    const secret = speakeasy.generateSecret({
+      name: `MyApp (${user ? user.id : 'new'})`,
+    });
+
+    let userId = user?.id;
+
+    // Nếu user chưa có id, tạo user tạm thời trong DB
+    if (!userId) {
+      const newUser = await this.prisma.user.create({
+        data: {
+          email: user?.email || `temp${Date.now()}@example.com`,
+          password: 'temp', // mật khẩu tạm hoặc có thể bỏ
+          // createdAt: Date.now(),
+          // updatedAt: Date.now(),
+          // email: dto.email,
+          userAlias: '',
+          // password: hashedPassword,
+          name: '',
+          pictureUrl: '',
+          rank: '',
+          createdAt: new Prisma.Decimal(Date.now()), // milliseconds
+          updatedAt: new Prisma.Decimal(Date.now()),
+          mfaSecretKey: secret.base32,
+          mfaEnabledYn: 'Y',
+        },
+      });
+      userId = newUser.id;
+    } else {
+      // Nếu có id, update secret
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { mfaSecretKey: secret.base32, mfaEnabledYn: 'Y' },
+      });
+    }
+
+    const qrCodeDataURL = await QRCode.toDataURL(secret.otpauth_url);
+
+    return {
+      resultCode: '00',
+      message: 'Tạo MFA thành công',
+      userId,
+      secret: secret.base32,
+      qrCodeDataURL,
+    };
+  }
+
+  // Verify MFA code
+  verifyMfaCode(secret: string, code: string) {
+    return speakeasy.totp.verify({
+      secret,
+      encoding: 'base32',
+      token: code,
+      window: 1,
+    });
   }
 
   // Helper xử lý khi sai mật khẩu
