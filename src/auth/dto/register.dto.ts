@@ -1,27 +1,18 @@
-import { PartialType } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, Matches, MinLength } from 'class-validator';
-enum Role {
-  ADMIN = 'admin',
-  USER = 'user',
-}
+import { IsEmail, IsNotEmpty } from 'class-validator';
+
 export class RegisterDto {
   @IsEmail()
   email: string;
 
   @IsNotEmpty()
-  @MinLength(6)
   password: string;
 
   @IsNotEmpty()
-  name: string;
+  fullName: string;
 
   @IsNotEmpty()
-  firstname: string;
+  passport: string;
 
   @IsNotEmpty()
-  lastname: string;
-
-  pictureUrl: string;
-
-  rank?: string;
+  phone: string;
 }

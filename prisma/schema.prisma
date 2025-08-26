@@ -9,29 +9,32 @@ datasource db {
 }
 
 model User {
-  id              Int             @id @default(autoincrement())
-  email           String          @unique
-  name            String          @db.VarChar(50)
-  role            Role            @default(USER)
-  password        String          @db.VarChar(100)
-  pictureUrl      String          @default("")
-  rank            String          @default("")
-  authType        String          @default("ID,PW")
-  prevPassword    String          @default("")
-  isEmailVerified String          @default("N")
+  id              Int      @id @default(autoincrement())
+  email           String   @unique
+  name            String   @db.VarChar(50)
+  role            Role     @default(USER)
+  password        String   @db.VarChar(100)
+  pictureUrl      String   @default("")
+  rank            String   @default("")
+  authType        String   @default("ID,PW")
+  prevPassword    String   @default("")
+  isEmailVerified String   @default("N")
   transferAdminId Int?
   userAlias       String
-  createdAt       Decimal         @db.Decimal(20, 3)
-  updatedAt       Decimal         @db.Decimal(20, 3)
-  accountLockYn   String          @default("N")
-  lastLoginDate   Decimal?        @db.Decimal(20, 3)
-  loginFailCnt    Int             @default(0)
-  mfaEnabledYn    String          @default("N")
+  createdAt       Decimal  @db.Decimal(20, 3)
+  updatedAt       Decimal  @db.Decimal(20, 3)
+  accountLockYn   String   @default("N")
+  lastLoginDate   Decimal? @db.Decimal(20, 3)
+  loginFailCnt    Int      @default(0)
+  mfaEnabledYn    String   @default("N")
   mfaSecretKey    String?
   tempPassword    String?
-  transferAdmin   TransferAdmin?
-  unlockRequests  UnlockRequest[]
-  sessions        UserSession[]
+
+  resetToken        String?
+  resetTokenExpires Decimal?        @db.Decimal(20, 3)
+  transferAdmin     TransferAdmin?
+  unlockRequests    UnlockRequest[]
+  sessions          UserSession[]
 }
 
 model UserSession {
@@ -55,14 +58,20 @@ model TransferAdmin {
   user        User           @relation(fields: [userId], references: [id])
 }
 
+enum UnlockStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model UnlockRequest {
-  id         Int      @id @default(autoincrement())
+  id         Int          @id @default(autoincrement())
   userId     Int
-  reason     String   @db.Text
-  status     String   @default("PENDING")
-  createdAt  Decimal  @db.Decimal(20, 3)
-  approvedAt Decimal? @db.Decimal(20, 3)
-  user       User     @relation(fields: [userId], references: [id])
+  reason     String       @db.Text
+  status     UnlockStatus @default(PENDING)
+  createdAt  Decimal      @db.Decimal(20, 3)
+  approvedAt Decimal?     @db.Decimal(20, 3)
+  user       User         @relation(fields: [userId], references: [id])
 
   @@index([userId], map: "UnlockRequest_userId_fkey")
 }
@@ -107,14 +116,21 @@ model Airport {
   departures  Flight[] @relation("DepartureRelation")
 }
 
+enum AuthType {
+  IDPW  @map("ID,PW")
+  MFA
+  GMAIL
+}
+
 model Passenger {
   id              Int       @id @default(autoincrement())
+  password        String    @db.VarChar(100)
   fullName        String
   email           String    @unique
   phone           String
   passport        String
   accountLockYn   String    @default("N")
-  authType        String    @default("ID,PW")
+  authType        AuthType  @default(IDPW)
   isEmailVerified String    @default("N")
   lastLoginDate   Decimal?  @db.Decimal(20, 3)
   loginFailCnt    Int       @default(0)
@@ -122,6 +138,9 @@ model Passenger {
   mfaSecretKey    String?
   prevPassword    String    @default("")
   bookings        Booking[]
+
+  createdAt Decimal? @db.Decimal(20, 3)
+  updatedAt Decimal? @db.Decimal(20, 3)
 }
 
 model Booking {

@@ -19,8 +19,8 @@ export class PassengerService {
           return 'Email already exists';
         }
       }
-      const passenger = await this.prisma.passenger.create({ data });
-      return passenger;
+      // const passenger = await this.prisma.passenger.create({ data });
+      // return passenger;
     } catch (error) {
       console.error('Error creating passenger:', error);
       throw new Error('Error creating passenger');

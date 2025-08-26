@@ -1,4 +1,4 @@
-export class BaseResponseDto<T> {
+export class BaseResponseDto<T = null> {
   resultCode: string;
   resultMessage: string;
   data?: T | null; // 👈 thêm null

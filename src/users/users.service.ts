@@ -112,12 +112,13 @@ export class UsersService {
         lastLoginDate: true,
         createdAt: true,
         updatedAt: true,
-        transferAdminId: true,
-        // ❌ không trả password, prevPassword trừ khi thực sự cần
+        // transferAdminId: true,
+        transferAdmin: true,
         sessions: {
           select: {
             id: true,
             createdAt: true,
+            userId: true,
           },
         },
       },
@@ -139,13 +140,6 @@ export class UsersService {
       lastLoginDate: user.lastLoginDate
         ? (user.lastLoginDate as Decimal).toNumber()
         : undefined,
-      // sessions: user.sessions.map((s) => ({
-      //   ...s,
-      //   createdAt: (s.createdAt as Decimal).toNumber(),
-      //   lastActiveAt: s.lastActiveAt
-      //     ? (s.lastActiveAt as Decimal).toNumber()
-      //     : undefined,
-      // })),
     };
 
     return {
