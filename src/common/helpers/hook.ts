@@ -42,7 +42,6 @@ export const formatUserResponse = (user: User): UserResponseDto => {
     mfaSecretKey: user.mfaSecretKey ?? undefined,
     isEmailVerified: user.isEmailVerified,
     prevPassword: user.prevPassword,
-    transferAdminId: user.transferAdminId ?? null,
     createdAt: toEpochNumber(user.createdAt), // ✅ Decimal → number (có dấu .)
     updatedAt: toEpochNumber(user.updatedAt),
     lastLoginDate: user.lastLoginDate

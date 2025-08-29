@@ -26,13 +26,10 @@ export class FlightsService {
         data: flight,
       };
     } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('Flight already exists with this flightNo');
-      }
-      throw new BadRequestException(error.message || 'Failed to create flight');
+      return {
+        resultCode: '99',
+        resultMessage: error.message || 'Failed to create flight',
+      };
     }
   }
 
@@ -55,7 +52,6 @@ export class FlightsService {
         list: flights,
       };
     } catch (error) {
-      console.error('🔥 Lỗi findAll flight:', error);
       return {
         resultCode: '99',
         resultMessage: 'Lỗi hệ thống',
@@ -71,7 +67,10 @@ export class FlightsService {
     });
 
     if (!flight) {
-      throw new NotFoundException(`Flight with ID ${flightId} not found`);
+      return {
+        resultCode: '01',
+        resultMessage: `Flight with ID ${flightId} not found`,
+      };
     }
 
     return flight;
@@ -86,19 +85,24 @@ export class FlightsService {
       });
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new BadRequestException('Failed to update flight');
+      return { resultCode: '99', resultMessage: 'Failed to update flight' };
     }
   }
 
   async delete(flightId: number) {
     try {
-      // Kiểm tra tồn tại trước
-      await this.findOne(flightId);
+      const hasFlight = await this.findOne(flightId);
+      if (!hasFlight) {
+        return {
+          resultCode: '01',
+          resultMessage: `Flight with ID ${flightId} not found`,
+        };
+      }
 
       return await this.prisma.flight.delete({ where: { flightId } });
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new BadRequestException('Failed to delete flight');
+      return { resultCode: '99', resultMessage: 'Failed to delete flight' };
     }
   }
 
@@ -107,24 +111,20 @@ export class FlightsService {
       await this.prisma.flight.deleteMany({});
       return {
         resultCode: '00',
-        message: 'Đã xoá toàn bộ chuyến bay thành công',
+        resultMessage: 'Đã xoá toàn bộ chuyến bay thành công',
       };
     } catch (error) {
-      throw new BadRequestException(
-        error.message || 'Xoá toàn bộ flights thất bại',
-      );
+      return {
+        resultCode: '99',
+        resultMessage: error.message || 'Xoá toàn bộ flights thất bại',
+      };
     }
   }
   async createAircraft(data: Aircraft) {
     try {
       return await this.prisma.aircraft.create({ data });
     } catch (error) {
-      if (error.code === 'P2002') {
-        throw new ConflictException('Aircraft already exists');
-      }
-      throw new BadRequestException(
-        error.message || 'Failed to create aircraft',
-      );
+      return { resultCode: '01', resultMessage: 'Aircraft already exists' };
     }
   }
   // 1. Lấy tất cả máy bay
@@ -140,7 +140,16 @@ export class FlightsService {
   // 3. Tạo mới Airport
   async createAirport(data: AirportDto) {
     try {
-      console.log('👉 DATA TRUYỀN VÀO SERVICE:', data);
+      const existingAirport = await this.prisma.airport.findUnique({
+        where: { code: data.code },
+      });
+      if (existingAirport) {
+        return {
+          resultCode: '01',
+          resultMessage: `Airport code ${data.code} đã tồn tại`,
+        };
+      }
+
       const res = await this.prisma.airport.create({
         data: {
           code: data.code,
@@ -150,17 +159,16 @@ export class FlightsService {
           timezone: data.timezone,
         },
       });
-      return res;
+      return {
+        resultCode: '00',
+        resultMessage: 'Thành công',
+        list: res,
+      };
     } catch (error) {
-      console.error('🔥 Lỗi createAirport:', error);
-
-      if (error.code === 'P2002') {
-        throw new ConflictException(`Airport code ${data.code} đã tồn tại`);
-      }
-
-      throw new InternalServerErrorException(
-        'Không thể tạo airport, xem log để biết chi tiết!',
-      );
+      return {
+        resultCode: '99',
+        resultMessage: 'Không thể tạo airport, xem log để biết chi tiết!',
+      };
     }
   }
 }

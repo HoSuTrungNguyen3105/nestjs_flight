@@ -24,8 +24,19 @@ export class AuthController {
     return this.authService.forgotPassword(dto.email);
   }
   @Post('change-password')
-  async changePassword(@Body() dto: { userId: number; newPassword: string }) {
-    return this.authService.changePassword(dto.userId, dto.newPassword);
+  async changePassword(
+    @Body()
+    dto: {
+      userId: number;
+      newPassword: string;
+      confirmPassword: string;
+    },
+  ) {
+    return this.authService.changePassword(
+      dto.userId,
+      dto.newPassword,
+      dto.confirmPassword,
+    );
   }
 
   @Post('forgot-password-with-mfa')
@@ -57,5 +68,10 @@ export class AuthController {
   @Post('loginmfa')
   async mfaLogin(@Body() body: MfaLoginDto) {
     return this.authService.mfaLogin(body);
+  }
+
+  @Get('unlock-requests')
+  async getUnlockRequests() {
+    return this.authService.getAllUnlockRequests();
   }
 }

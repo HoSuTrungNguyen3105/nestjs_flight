@@ -60,16 +60,29 @@ export class AuthService {
     try {
       const { email, password } = dto;
 
+      if (!email || !password) {
+        return {
+          resultCode: '99',
+          resultMessage: 'Email và mật khẩu là bắt buộc!',
+        };
+      }
+
       const user = await this.prisma.user.findUnique({
         where: { email },
         include: { sessions: true },
       });
 
-      if (!user) throw new BadRequestException('Tài khoản chưa đăng ký!');
+      if (!user)
+        return { resultCode: '99', resultMessage: 'Tài khoản chưa đăng ký!' };
 
       // Nếu tài khoản đã bị khóa
       if (user.accountLockYn === 'Y') {
-        throw new BadRequestException('Tài khoản đã bị khóa!');
+        return {
+          resultCode: '09',
+          resultMessage: 'Tài khoản đã bị khóa!',
+          userId: user.id,
+          requireUnlock: true,
+        };
       }
 
       if (user.tempPassword && user.tempPassword !== '') {
@@ -79,7 +92,10 @@ export class AuthService {
         );
         if (!isTempPasswordValid) {
           await this.handleLoginFail(user);
-          throw new BadRequestException('Mật khẩu tạm không đúng!');
+          return {
+            resultCode: '99',
+            resultMessage: 'Mật khẩu tạm không đúng!',
+          };
         }
 
         return {
@@ -90,16 +106,11 @@ export class AuthService {
         };
       }
 
-      // Check password gốc
-      // if (!user.password || user.password === '') {
-      //   throw new BadRequestException('Tài khoản chưa có mật khẩu hợp lệ!');
-      // }
-
       const isPasswordValid = await bcrypt.compare(password, user.password);
 
       if (!isPasswordValid) {
         await this.handleLoginFail(user);
-        throw new BadRequestException('Mật khẩu không đúng!');
+        return { resultCode: '99', resultMessage: 'Mật khẩu không đúng!' };
       }
 
       await this.prisma.user.update({
@@ -147,6 +158,23 @@ export class AuthService {
     }
   }
 
+  async getAllUnlockRequests() {
+    const res = await this.prisma.unlockRequest.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return {
+      responseCode: '00',
+      responseMessage: 'Lấy danh sách yêu cầu mở khóa thành công!',
+      data: res,
+    };
+  }
   async setMfa(user: { email: string }) {
     try {
       const secret = speakeasy.generateSecret({
@@ -288,17 +316,8 @@ export class AuthService {
       return {
         resultCode: '00',
         resultMessage: 'Đăng nhập MFA thành công',
-        data: {
-          accessToken,
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            pictureUrl: user.pictureUrl,
-            rank: user.rank,
-            mfaEnabledYn: user.mfaEnabledYn ?? 'Y',
-          },
-        },
+        accessToken,
+        data: { id: user.id },
       };
     } catch (err) {
       console.error('🔥 Lỗi mfaLogin:', err);
@@ -445,7 +464,11 @@ export class AuthService {
     };
   }
 
-  async changePassword(userId: number, newPassword: string) {
+  async changePassword(
+    userId: number,
+    newPassword: string,
+    confirmPassword: string,
+  ) {
     try {
       if (!userId) {
         return { resultCode: '01', message: 'Thiếu userId' };
@@ -457,6 +480,13 @@ export class AuthService {
 
       if (!user) {
         return { resultCode: '01', message: 'User không tồn tại' };
+      }
+
+      if (newPassword !== confirmPassword) {
+        return {
+          resultCode: '02',
+          message: 'Mật khẩu mới và xác nhận mật khẩu không khớp',
+        };
       }
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);

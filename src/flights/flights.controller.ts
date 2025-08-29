@@ -55,17 +55,13 @@ export class FlightsController {
     return this.flightService.getAllAircraft();
   }
 
-  // 2. GET all airports
   @Get('airports')
   async getAirports() {
     return this.flightService.getAllAirports();
   }
 
-  // 3. POST create new airport
-  // flights.controller.ts
   @Post('airports')
   async createAirport(@Body() body: AirportDto) {
-    console.log('👉 REQ BODY /flights/airports:', body);
     return this.flightService.createAirport(body);
   }
 }

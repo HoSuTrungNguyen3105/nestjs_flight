@@ -19,7 +19,6 @@ model User {
   authType        String   @default("ID,PW")
   prevPassword    String   @default("")
   isEmailVerified String   @default("N")
-  transferAdminId Int?
   userAlias       String
   createdAt       Decimal  @db.Decimal(20, 3)
   updatedAt       Decimal  @db.Decimal(20, 3)

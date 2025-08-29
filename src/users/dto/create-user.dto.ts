@@ -1,9 +1,6 @@
-// src/user/dto/create-user.dto.ts
 import { IsEmail, IsOptional, IsString } from 'class-validator';
 
 export class CreateUserDto {
-  //Create user from admin
-  // For admin
   @IsEmail()
   email: string;
 
