@@ -107,7 +107,6 @@ export class UsersService {
         lastLoginDate: true,
         createdAt: true,
         updatedAt: true,
-        // transferAdminId: true,
         transferAdmin: true,
         sessions: {
           select: {
@@ -127,7 +126,6 @@ export class UsersService {
       };
     }
 
-    // ✅ Convert Decimal -> number
     const safeUser: UserResponseDto = {
       ...user,
       createdAt: (user.createdAt as Decimal).toNumber(),
@@ -291,7 +289,7 @@ export class UsersService {
     return {
       resultCode: '00',
       resultMessage: 'Tạo người dùng thành công!',
-      data: formatUserResponse(user), // ✅ format đúng kiểu DTO
+      data: formatUserResponse(user),
     };
   }
 
@@ -344,6 +342,26 @@ export class UsersService {
         createdAt: nowDecimal(),
       },
     });
+  }
+
+  async getUserIdByEmail(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+
+    if (!user) {
+      return {
+        resultCode: '99',
+        resultMessage: 'Không tìm thấy người dùng với email này',
+      };
+    }
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Tạo người dùng thành công!',
+      data: user.id,
+    };
   }
 
   // Admin duyệt mở khóa

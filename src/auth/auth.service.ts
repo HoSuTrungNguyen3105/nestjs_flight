@@ -75,7 +75,6 @@ export class AuthService {
       if (!user)
         return { resultCode: '99', resultMessage: 'Tài khoản chưa đăng ký!' };
 
-      // Nếu tài khoản đã bị khóa
       if (user.accountLockYn === 'Y') {
         return {
           resultCode: '09',

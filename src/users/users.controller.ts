@@ -5,6 +5,7 @@ import {
   Body,
   Param,
   ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -81,6 +82,11 @@ export class UsersController {
   @Post('updateUser')
   async update(@Body() dto: UpdateUserDto & { id: number }) {
     return this.userService.updateUserById(dto.id, dto);
+  }
+
+  @Get('getUserIdByEmail')
+  async getUserIdByEmail(@Query('email') email: string) {
+    return this.userService.getUserIdByEmail(email);
   }
 
   @Post('deleteUser')
