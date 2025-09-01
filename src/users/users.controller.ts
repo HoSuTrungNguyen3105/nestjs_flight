@@ -84,8 +84,8 @@ export class UsersController {
     return this.userService.updateUserById(dto.id, dto);
   }
 
-  @Get('getUserIdByEmail')
-  async getUserIdByEmail(@Query('email') email: string) {
+  @Post('getUserIdByEmail')
+  async getUserIdByEmail(@Body('email') email: string) {
     return this.userService.getUserIdByEmail(email);
   }
 

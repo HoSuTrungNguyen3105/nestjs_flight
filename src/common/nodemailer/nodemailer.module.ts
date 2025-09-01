@@ -4,6 +4,6 @@ import { MailService } from './nodemailer.service';
 
 @Module({
   providers: [MailService],
-  exports: [MailService], // để dùng ở chỗ khác
+  exports: [MailService],
 })
 export class MailModule {}

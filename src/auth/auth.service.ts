@@ -169,9 +169,9 @@ export class AuthService {
       orderBy: { createdAt: 'desc' },
     });
     return {
-      responseCode: '00',
-      responseMessage: 'Lấy danh sách yêu cầu mở khóa thành công!',
-      data: res,
+      resultCode: '00',
+      resultMessage: 'Lấy danh sách yêu cầu mở khóa thành công!',
+      list: res,
     };
   }
   async setMfa(user: { email: string }) {
@@ -184,7 +184,6 @@ export class AuthService {
         where: { email: user.email },
       });
 
-      // Nếu user đã tồn tại và đã bật MFA thì trả về luôn
       if (existingUser && existingUser.mfaEnabledYn === 'Y') {
         return {
           resultCode: '00',
@@ -209,7 +208,7 @@ export class AuthService {
             createdAt: new Prisma.Decimal(Date.now()),
             updatedAt: new Prisma.Decimal(Date.now()),
             mfaSecretKey: secret.base32,
-            mfaEnabledYn: 'N', // 👈 chưa bật ngay
+            mfaEnabledYn: 'N',
           },
         });
       } else {
@@ -255,7 +254,6 @@ export class AuthService {
       };
     }
 
-    // Nếu ok → bật MFA
     await this.prisma.user.update({
       where: { id: user.id },
       data: { mfaEnabledYn: 'Y' },
@@ -282,19 +280,27 @@ export class AuthService {
         where: { email: dto.email },
       });
 
-      if (!user) throw new UnauthorizedException('Tài khoản không tồn tại');
+      if (!user)
+        return { resultCode: '01', resultMessage: 'Tài khoản không tồn tại' };
 
       if (user.accountLockYn === 'Y') {
-        throw new UnauthorizedException('Tài khoản đang bị khóa');
+        return {
+          resultCode: '02',
+          resultMessage: 'Tài khoản đang bị khóa',
+          requireUnlock: true,
+        };
       }
 
       if (!user.mfaSecretKey) {
-        throw new BadRequestException('Tài khoản chưa bật MFA');
+        return { resultCode: '01', resultMessage: 'Tài khoản chưa bật MFA' };
       }
       const verified = this.verifyMfaCode(user.mfaSecretKey, dto.code);
 
       if (!verified) {
-        throw new UnauthorizedException('Mã MFA không đúng hoặc đã hết hạn');
+        return {
+          resultCode: '99',
+          resultMessage: 'Mã MFA không đúng hoặc đã hết hạn',
+        };
       }
 
       const payload = { sub: user.id, email: user.email, role: user.role };
@@ -303,11 +309,10 @@ export class AuthService {
         expiresIn: '2h',
       });
 
-      // cập nhật lần đăng nhập gần nhất
       await this.prisma.user.update({
         where: { id: user.id },
         data: {
-          lastLoginDate: nowDecimal(), // nếu dùng DateTime trong schema
+          lastLoginDate: nowDecimal(),
           loginFailCnt: 0,
         },
       });
@@ -356,7 +361,6 @@ export class AuthService {
     const newFailCnt = user.loginFailCnt + 1;
 
     if (newFailCnt >= 5) {
-      // ❌ Tự động khóa tài khoản
       await this.prisma.user.update({
         where: { id: user.id },
         data: {
@@ -370,7 +374,6 @@ export class AuthService {
           'Tài khoản đã bị khóa do nhập sai mật khẩu quá nhiều lần!',
       };
     } else {
-      // chỉ tăng loginFailCnt
       await this.prisma.user.update({
         where: { id: user.id },
         data: { loginFailCnt: newFailCnt },
@@ -436,21 +439,18 @@ export class AuthService {
       return { resultCode: '05', resultMessage: 'Mã MFA không đúng' };
     }
 
-    // ✅ Bước 2: tạo reset token (hoặc password tạm)
     const resetToken = crypto.randomBytes(32).toString('hex');
     const expiresAt = Decimal(Date.now() + 1000 * 60 * 15); // 15 phút
 
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
-        // resetToken,
         resetTokenExpires: expiresAt,
       },
     });
 
     const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
 
-    // ✅ Bước 3: gửi email reset link
     await this.mailer.sendMail(
       email,
       'Đặt lại mật khẩu',
@@ -470,7 +470,7 @@ export class AuthService {
   ) {
     try {
       if (!userId) {
-        return { resultCode: '01', message: 'Thiếu userId' };
+        return { resultCode: '01', resultMessage: 'Thiếu userId' };
       }
 
       const user = await this.prisma.user.findUnique({
@@ -478,13 +478,13 @@ export class AuthService {
       });
 
       if (!user) {
-        return { resultCode: '01', message: 'User không tồn tại' };
+        return { resultCode: '01', resultMessage: 'User không tồn tại' };
       }
 
       if (newPassword !== confirmPassword) {
         return {
           resultCode: '02',
-          message: 'Mật khẩu mới và xác nhận mật khẩu không khớp',
+          resultMessage: 'Mật khẩu mới và xác nhận mật khẩu không khớp',
         };
       }
 
@@ -499,7 +499,7 @@ export class AuthService {
         },
       });
 
-      return { resultCode: '00', message: 'Đổi mật khẩu thành công' };
+      return { resultCode: '00', resultMessage: 'Đổi mật khẩu thành công' };
     } catch (err) {
       console.error('🔥 Lỗi change password:', err);
       throw err;
@@ -524,6 +524,6 @@ export class AuthService {
       data: { lastLoginDate: new Prisma.Decimal(now.toString()) },
     });
 
-    return { resultCode: '00', message: 'Logout successful' };
+    return { resultCode: '00', resultMessage: 'Logout successful' };
   }
 }

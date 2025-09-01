@@ -168,9 +168,10 @@ export class UsersService {
       });
 
       if (!transfer) {
-        throw new NotFoundException(
-          `Không tìm thấy Transfer với userId = ${userId}`,
-        );
+        return {
+          resultCode: '01',
+          resultMessage: `Không tìm thấy Transfer với userId = ${userId}`,
+        };
       }
 
       const [updatedTransfer, updatedUser] = await this.prisma.$transaction([
@@ -189,7 +190,7 @@ export class UsersService {
 
       return {
         resultCode: '00',
-        message: '✅ Transfer approved thành công',
+        resultMessage: 'Transfer approved thành công',
         transfer: updatedTransfer,
         user: updatedUser,
       };
@@ -223,7 +224,7 @@ export class UsersService {
 
   async findAllUserRequests() {
     try {
-      const transt = this.prisma.transferAdmin.findMany({
+      const transt = await this.prisma.transferAdmin.findMany({
         include: {
           user: {
             select: {
@@ -234,7 +235,11 @@ export class UsersService {
           },
         },
       });
-      return transt;
+      return {
+        resultCode: '00',
+        resultMessage: 'Transfer data',
+        data: transt,
+      };
     } catch (error) {
       console.error('Error finding all user requests:', error);
       throw new InternalServerErrorException('Error finding all user requests');
@@ -271,7 +276,6 @@ export class UsersService {
       },
     });
 
-    // Gửi email thông báo (nếu lỗi thì log, không throw)
     try {
       await this.mailService.sendMail(
         dto.email, // ✅ gửi đến email người dùng vừa tạo
@@ -297,9 +301,7 @@ export class UsersService {
     return this.prisma.user.findUnique({ where: { id } });
   }
 
-  // User gửi yêu cầu mở khóa
   async requestUnlock(userId: number, reason: string) {
-    // Check xem user có request nào đang PENDING không
     const existing = await this.prisma.unlockRequest.findFirst({
       where: {
         userId,
@@ -345,6 +347,12 @@ export class UsersService {
   }
 
   async getUserIdByEmail(email: string) {
+    if (!email) {
+      return {
+        resultCode: '99',
+        resultMessage: 'Vui lòng cung cấp email',
+      };
+    }
     const user = await this.prisma.user.findUnique({
       where: { email },
       select: { id: true },
@@ -359,12 +367,11 @@ export class UsersService {
 
     return {
       resultCode: '00',
-      resultMessage: 'Tạo người dùng thành công!',
+      resultMessage: 'Get Id người dùng thành công!',
       data: user.id,
     };
   }
 
-  // Admin duyệt mở khóa
   async approveUnlockRequest(requestId: number) {
     const req = await this.prisma.unlockRequest.findUnique({
       where: { id: requestId },
@@ -376,7 +383,6 @@ export class UsersService {
       throw new BadRequestException('Yêu cầu đã được xử lý!');
     }
 
-    // Mở khóa user
     await this.prisma.user.update({
       where: { id: req.userId },
       data: {
@@ -385,7 +391,6 @@ export class UsersService {
       },
     });
 
-    // Cập nhật trạng thái yêu cầu
     return this.prisma.unlockRequest.update({
       where: { id: requestId },
       data: {
@@ -396,7 +401,6 @@ export class UsersService {
   }
 
   async approveAllUnlockRequests() {
-    // Lấy tất cả request đang chờ
     const requests = await this.prisma.unlockRequest.findMany({
       where: { status: 'PENDING' },
       include: { user: true },
@@ -404,14 +408,12 @@ export class UsersService {
 
     if (requests.length === 0) {
       return {
-        responseCode: '99',
-        responseMessage: 'Không có yêu cầu nào cần xử lý!',
+        resultCode: '99',
+        resultMessage: 'Không có yêu cầu nào cần xử lý!',
       };
     }
 
-    // Chạy transaction để đảm bảo đồng bộ
     return this.prisma.$transaction(async (tx) => {
-      // Mở khóa toàn bộ user liên quan
       for (const req of requests) {
         await tx.user.update({
           where: { id: req.userId },
@@ -431,8 +433,8 @@ export class UsersService {
       }
 
       return {
-        responseCode: '00',
-        responseMessage: `${requests.length} yêu cầu đã được duyệt và mở khóa.`,
+        resultCode: '00',
+        resultMessage: `${requests.length} yêu cầu đã được duyệt và mở khóa.`,
       };
     });
   }
@@ -468,12 +470,11 @@ export class UsersService {
 
     if (!user) {
       return {
-        responseCode: '99',
-        responseMessage: `User with ID ${id} not found`,
+        resultCode: '99',
+        resultMessage: `User with ID ${id} not found`,
       };
     }
 
-    // Kiểm tra role cũ và role mới
     const isRoleChangingToAdmin =
       updateUserDto.role === Role.ADMIN && user.role !== Role.ADMIN;
 
@@ -497,9 +498,7 @@ export class UsersService {
       },
     });
 
-    // Nếu đổi role thành ADMIN thì tạo request TransferAdmin
     if (isRoleChangingToAdmin) {
-      // Ví dụ: tìm 1 admin hiện tại để gán làm "toUserId"
       const existingAdmin = await this.prisma.user.findFirst({
         where: { role: Role.ADMIN, NOT: { id: updatedUser.id } },
         select: { id: true },

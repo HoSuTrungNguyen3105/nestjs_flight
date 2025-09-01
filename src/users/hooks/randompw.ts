@@ -10,7 +10,6 @@ export function generatePassword(allowSpecial = false) {
 
   const pick = (str: string) => str[crypto.randomInt(0, str.length)];
 
-  // đảm bảo chứa ít nhất 1 chữ, 1 số, và 1 special nếu có
   const required = [
     pick(LETTERS),
     pick(DIGITS),
@@ -22,7 +21,6 @@ export function generatePassword(allowSpecial = false) {
     required.push(pick(pool));
   }
 
-  // trộn mảng (Fisher–Yates shuffle)
   for (let i = required.length - 1; i > 0; i--) {
     const j = crypto.randomInt(0, i + 1);
     [required[i], required[j]] = [required[j], required[i]];

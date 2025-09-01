@@ -1,13 +1,6 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  BadRequestException,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { Aircraft, Flight } from 'generated/prisma';
-import { PrismaClientKnownRequestError } from 'generated/prisma/runtime/library';
 import { AirportDto } from './dto/create-airport.dto';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 
@@ -28,7 +21,7 @@ export class FlightsService {
     } catch (error) {
       return {
         resultCode: '99',
-        resultMessage: error.message || 'Failed to create flight',
+        resultMessage: 'Failed to create flight',
       };
     }
   }
@@ -55,7 +48,6 @@ export class FlightsService {
       return {
         resultCode: '99',
         resultMessage: 'Lỗi hệ thống',
-        list: [],
       };
     }
   }
@@ -127,17 +119,14 @@ export class FlightsService {
       return { resultCode: '01', resultMessage: 'Aircraft already exists' };
     }
   }
-  // 1. Lấy tất cả máy bay
   async getAllAircraft() {
     return await this.prisma.aircraft.findMany();
   }
 
-  // 2. Lấy tất cả sân bay
   async getAllAirports() {
     return await this.prisma.airport.findMany();
   }
 
-  // 3. Tạo mới Airport
   async createAirport(data: AirportDto) {
     try {
       const existingAirport = await this.prisma.airport.findUnique({
