@@ -57,12 +57,6 @@ model TransferAdmin {
   user        User           @relation(fields: [userId], references: [id])
 }
 
-enum UnlockStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
 model UnlockRequest {
   id         Int          @id @default(autoincrement())
   userId     Int
@@ -92,6 +86,7 @@ model Flight {
   departureAirportRel Airport        @relation("DepartureRelation", fields: [departureAirport], references: [code])
   meals               FlightMeal[]
   flightStatuses      FlightStatus[]
+  seats               Seat[]
 
   @@index([aircraftCode], map: "Flight_aircraftCode_fkey")
   @@index([arrivalAirport], map: "Flight_arrivalAirport_fkey")
@@ -113,12 +108,6 @@ model Airport {
   timezone    String
   arrivals    Flight[] @relation("ArrivalRelation")
   departures  Flight[] @relation("DepartureRelation")
-}
-
-enum AuthType {
-  IDPW  @map("ID,PW")
-  MFA
-  GMAIL
 }
 
 model Passenger {
@@ -143,17 +132,32 @@ model Passenger {
 }
 
 model Booking {
-  id          Int         @id @default(autoincrement())
+  id          Int     @id @default(autoincrement())
   passengerId Int
   flightId    Int
-  seat        String
-  bookingTime Decimal     @db.Decimal(20, 3)
-  flight      Flight      @relation(fields: [flightId], references: [flightId])
-  passenger   Passenger   @relation(fields: [passengerId], references: [id])
-  mealOrders  MealOrder[]
+  bookingTime Decimal @db.Decimal(20, 3)
+
+  flight    Flight    @relation(fields: [flightId], references: [flightId])
+  passenger Passenger @relation(fields: [passengerId], references: [id])
+
+  mealOrders MealOrder[]
+  seats      Seat[]
 
   @@index([flightId], map: "Booking_flightId_fkey")
   @@index([passengerId], map: "Booking_passengerId_fkey")
+}
+
+model Seat {
+  id       Int     @id @default(autoincrement())
+  row      Int
+  column   String
+  isBooked Boolean @default(false)
+
+  flightId Int
+  flight   Flight @relation(fields: [flightId], references: [flightId])
+
+  bookingId Int?     @unique
+  booking   Booking? @relation(fields: [bookingId], references: [id])
 }
 
 model Meal {
@@ -210,6 +214,18 @@ enum Role {
 }
 
 enum TransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AuthType {
+  IDPW  @map("ID,PW")
+  MFA
+  GMAIL
+}
+
+enum UnlockStatus {
   PENDING
   APPROVED
   REJECTED

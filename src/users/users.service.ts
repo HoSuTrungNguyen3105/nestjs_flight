@@ -560,12 +560,28 @@ export class UsersService {
     };
   }
 
-  async delete(id: number) {
+  async deleteUser(id: number) {
     try {
-      const user = await this.prisma.user.delete({ where: { id } });
-      return user;
+      const current = await this.prisma.user.findUnique({
+        where: { id }, // id phải là number
+      });
+
+      if (!current) {
+        return { resultCode: '01', resultMessage: 'User không tồn tại!' };
+      }
+
+      await this.prisma.user.delete({ where: { id } });
+
+      return {
+        resultCode: '00',
+        resultMessage: `Đã delete success!`,
+      };
     } catch (err) {
       console.error('Error:', err.message);
+      return {
+        resultCode: '99',
+        resultMessage: 'Có lỗi xảy ra khi xóa user!',
+      };
     }
   }
 }

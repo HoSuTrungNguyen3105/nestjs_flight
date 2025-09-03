@@ -16,11 +16,12 @@ export class PassengerService {
           where: { email: data.email },
         });
         if (existingPassenger) {
-          return 'Email already exists';
+          return {
+            resultCode: '09',
+            resultMessage: 'Email already exists',
+          };
         }
       }
-      // const passenger = await this.prisma.passenger.create({ data });
-      // return passenger;
     } catch (error) {
       console.error('Error creating passenger:', error);
       throw new Error('Error creating passenger');
@@ -28,7 +29,19 @@ export class PassengerService {
   }
 
   async findAll() {
-    return this.prisma.passenger.findMany();
+    const res = await this.prisma.passenger.findMany({
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+      },
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Success',
+      data: res,
+    };
   }
 
   async findOne(id: number) {

@@ -90,8 +90,8 @@ export class UsersController {
   }
 
   @Post('deleteUser')
-  async remove(@Body() dto: { id: number }) {
-    return this.userService.delete(dto.id);
+  async remove(@Body('id') id: number) {
+    return this.userService.deleteUser(Number(id));
   }
 
   @Post('reject/:userId')

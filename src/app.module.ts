@@ -8,6 +8,8 @@ import { AuthModule } from './auth/auth.module';
 import { FlightMealModule } from './flightMeal/flightMeal.module';
 import { MealsModule } from './meals/meals.module';
 import { PassengerModule } from './passenger/passenger.module';
+import { BookingModule } from './booking/booking.module';
+import { SeatModule } from './seat/seat.module';
 
 @Module({
   controllers: [AppController],
@@ -20,6 +22,8 @@ import { PassengerModule } from './passenger/passenger.module';
     FlightMealModule,
     MealsModule,
     PassengerModule,
+    BookingModule,
+    SeatModule,
   ],
 })
 export class AppModule {}
