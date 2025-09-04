@@ -24,8 +24,8 @@ export class BookingService {
       );
     }
 
-    const passenger = await this.prisma.passenger.findUnique({
-      where: { id: passengerId },
+    const passenger = await this.prisma.user.findUnique({
+      where: { id: passengerId, role: 'USER' },
     });
     const flight = await this.prisma.flight.findUnique({
       where: { flightId: flightId },
@@ -38,10 +38,24 @@ export class BookingService {
       };
     }
     return this.prisma.$transaction(async (tx) => {
+      const availableSeats = await tx.seat.findMany({
+        where: {
+          id: { in: seatIds },
+          flightId,
+          bookingId: null,
+        },
+      });
+
+      if (availableSeats.length !== seatIds.length) {
+        throw new BadRequestException(
+          'One or more selected seats are not available.',
+        );
+      }
+
       const booking = await tx.booking.create({
         data: {
-          passengerId: passengerId,
-          flightId: flightId,
+          passengerId,
+          flightId,
           bookingTime: nowDecimal(),
         },
       });

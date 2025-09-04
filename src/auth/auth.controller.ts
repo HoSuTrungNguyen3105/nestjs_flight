@@ -15,6 +15,11 @@ export class AuthController {
   async login(@Body() dto: LoginDto) {
     return this.authService.loginUser(dto);
   }
+
+  // @Post('login/:token')
+  // async loginAdmin(@Body() dto: LoginDto) {
+  //   return this.authService.loginUser(dto);
+  // }
   @Post('logout')
   async logout(@Body() dto: { id: number; token: string }) {
     return this.authService.logout(dto.id, dto.token);

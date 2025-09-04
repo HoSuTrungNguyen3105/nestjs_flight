@@ -7,7 +7,7 @@ import { FlightsModule } from './flights/flights.module';
 import { AuthModule } from './auth/auth.module';
 import { FlightMealModule } from './flightMeal/flightMeal.module';
 import { MealsModule } from './meals/meals.module';
-import { PassengerModule } from './passenger/passenger.module';
+// import { PassengerModule } from './passenger/passenger.module';
 import { BookingModule } from './booking/booking.module';
 import { SeatModule } from './seat/seat.module';
 
@@ -21,7 +21,7 @@ import { SeatModule } from './seat/seat.module';
     UsersModule,
     FlightMealModule,
     MealsModule,
-    PassengerModule,
+    // PassengerModule,
     BookingModule,
     SeatModule,
   ],

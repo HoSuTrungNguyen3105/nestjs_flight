@@ -16,24 +16,30 @@ model User {
   password        String   @db.VarChar(100)
   pictureUrl      String   @default("")
   rank            String   @default("")
+  phone           String   @default("")
+  passport        String   @default("")
   authType        String   @default("ID,PW")
   prevPassword    String   @default("")
   isEmailVerified String   @default("N")
-  userAlias       String
+  userAlias       String   @default("")
   createdAt       Decimal  @db.Decimal(20, 3)
   updatedAt       Decimal  @db.Decimal(20, 3)
   accountLockYn   String   @default("N")
   lastLoginDate   Decimal? @db.Decimal(20, 3)
   loginFailCnt    Int      @default(0)
   mfaEnabledYn    String   @default("N")
-  mfaSecretKey    String?
+  mfaSecretKey    String?  @default("")
   tempPassword    String?
 
+  otpCode   String?
+  otpExpire Decimal? @db.Decimal(20, 3)
+
   resetToken        String?
-  resetTokenExpires Decimal?        @db.Decimal(20, 3)
-  transferAdmin     TransferAdmin?
-  unlockRequests    UnlockRequest[]
-  sessions          UserSession[]
+  resetTokenExpires Decimal? @db.Decimal(20, 3)
+
+  transferAdmin  TransferAdmin?
+  unlockRequests UnlockRequest[]
+  sessions       UserSession[]
 }
 
 model UserSession {
@@ -110,35 +116,13 @@ model Airport {
   departures  Flight[] @relation("DepartureRelation")
 }
 
-model Passenger {
-  id              Int       @id @default(autoincrement())
-  password        String    @db.VarChar(100)
-  fullName        String
-  email           String    @unique
-  phone           String
-  passport        String
-  accountLockYn   String    @default("N")
-  authType        AuthType  @default(IDPW)
-  isEmailVerified String    @default("N")
-  lastLoginDate   Decimal?  @db.Decimal(20, 3)
-  loginFailCnt    Int       @default(0)
-  mfaEnabledYn    String    @default("N")
-  mfaSecretKey    String?
-  prevPassword    String    @default("")
-  bookings        Booking[]
-
-  createdAt Decimal? @db.Decimal(20, 3)
-  updatedAt Decimal? @db.Decimal(20, 3)
-}
-
 model Booking {
   id          Int     @id @default(autoincrement())
   passengerId Int
   flightId    Int
   bookingTime Decimal @db.Decimal(20, 3)
 
-  flight    Flight    @relation(fields: [flightId], references: [flightId])
-  passenger Passenger @relation(fields: [passengerId], references: [id])
+  flight Flight @relation(fields: [flightId], references: [flightId])
 
   mealOrders MealOrder[]
   seats      Seat[]
