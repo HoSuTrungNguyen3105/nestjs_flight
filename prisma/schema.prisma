@@ -9,37 +9,34 @@ datasource db {
 }
 
 model User {
-  id              Int      @id @default(autoincrement())
-  email           String   @unique
-  name            String   @db.VarChar(50)
-  role            Role     @default(USER)
-  password        String   @db.VarChar(100)
-  pictureUrl      String   @default("")
-  rank            String   @default("")
-  phone           String   @default("")
-  passport        String   @default("")
-  authType        String   @default("ID,PW")
-  prevPassword    String   @default("")
-  isEmailVerified String   @default("N")
-  userAlias       String   @default("")
-  createdAt       Decimal  @db.Decimal(20, 3)
-  updatedAt       Decimal  @db.Decimal(20, 3)
-  accountLockYn   String   @default("N")
-  lastLoginDate   Decimal? @db.Decimal(20, 3)
-  loginFailCnt    Int      @default(0)
-  mfaEnabledYn    String   @default("N")
-  mfaSecretKey    String?  @default("")
-  tempPassword    String?
-
-  otpCode   String?
-  otpExpire Decimal? @db.Decimal(20, 3)
-
+  id                Int             @id @default(autoincrement())
+  email             String          @unique
+  name              String          @db.VarChar(50)
+  role              Role            @default(USER)
+  password          String          @db.VarChar(100)
+  pictureUrl        String          @default("")
+  rank              String          @default("")
+  authType          String          @default("ID,PW")
+  prevPassword      String          @default("")
+  isEmailVerified   String          @default("N")
+  userAlias         String          @default("")
+  createdAt         Decimal         @db.Decimal(20, 3)
+  updatedAt         Decimal         @db.Decimal(20, 3)
+  accountLockYn     String          @default("N")
+  lastLoginDate     Decimal?        @db.Decimal(20, 3)
+  loginFailCnt      Int             @default(0)
+  mfaEnabledYn      String          @default("N")
+  mfaSecretKey      String?         @default("")
+  tempPassword      String?
+  resetTokenExpires Decimal?        @db.Decimal(20, 3)
   resetToken        String?
-  resetTokenExpires Decimal? @db.Decimal(20, 3)
-
-  transferAdmin  TransferAdmin?
-  unlockRequests UnlockRequest[]
-  sessions       UserSession[]
+  passport          String          @default("")
+  phone             String          @default("")
+  otpCode           String?
+  otpExpire         Decimal?        @db.Decimal(20, 3)
+  transferAdmin     TransferAdmin?
+  unlockRequests    UnlockRequest[]
+  sessions          UserSession[]
 }
 
 model UserSession {
@@ -76,12 +73,13 @@ model UnlockRequest {
 }
 
 model Flight {
-  flightId            Int            @id @default(autoincrement())
-  flightNo            String         @unique @db.VarChar(10)
-  departureAirport    String         @db.VarChar(10)
-  arrivalAirport      String         @db.VarChar(10)
-  status              String         @db.VarChar(20)
-  aircraftCode        String         @db.VarChar(10)
+  flightId         Int    @id @default(autoincrement())
+  flightNo         String @unique @db.VarChar(10)
+  departureAirport String @db.VarChar(10)
+  arrivalAirport   String @db.VarChar(10)
+  status           String @db.VarChar(20)
+  aircraftCode     String @db.VarChar(10)
+
   scheduledDeparture  Decimal        @db.Decimal(20, 3)
   scheduledArrival    Decimal        @db.Decimal(20, 3)
   actualDeparture     Decimal?       @db.Decimal(20, 3)
@@ -117,31 +115,30 @@ model Airport {
 }
 
 model Booking {
-  id          Int     @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   passengerId Int
   flightId    Int
-  bookingTime Decimal @db.Decimal(20, 3)
-
-  flight Flight @relation(fields: [flightId], references: [flightId])
-
-  mealOrders MealOrder[]
-  seats      Seat[]
+  bookingTime Decimal     @db.Decimal(20, 3)
+  flight      Flight      @relation(fields: [flightId], references: [flightId])
+  mealOrders  MealOrder[]
+  seats       Seat?
 
   @@index([flightId], map: "Booking_flightId_fkey")
   @@index([passengerId], map: "Booking_passengerId_fkey")
 }
 
 model Seat {
-  id       Int     @id @default(autoincrement())
-  row      Int
-  column   String
-  isBooked Boolean @default(false)
-
-  flightId Int
-  flight   Flight @relation(fields: [flightId], references: [flightId])
-
+  id        Int      @id @default(autoincrement())
+  row       Int
+  column    String
+  isBooked  Boolean  @default(false)
+  flightId  Int
   bookingId Int?     @unique
+  type      SeatType @default(ECONOMY)
   booking   Booking? @relation(fields: [bookingId], references: [id])
+  flight    Flight   @relation(fields: [flightId], references: [flightId])
+
+  @@index([flightId], map: "Seat_flightId_fkey")
 }
 
 model Meal {
@@ -191,6 +188,12 @@ model FlightStatus {
   @@index([flightId], map: "FlightStatus_flightId_fkey")
 }
 
+enum SeatType {
+  VIP
+  BUSINESS
+  ECONOMY
+}
+
 enum Role {
   USER
   ADMIN
@@ -201,12 +204,6 @@ enum TransferStatus {
   PENDING
   APPROVED
   REJECTED
-}
-
-enum AuthType {
-  IDPW  @map("ID,PW")
-  MFA
-  GMAIL
 }
 
 enum UnlockStatus {

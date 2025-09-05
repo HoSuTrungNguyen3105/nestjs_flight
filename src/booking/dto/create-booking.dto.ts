@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsArray } from 'class-validator';
+import { IsInt, IsNotEmpty, IsArray, IsNumber } from 'class-validator';
 
 export class CreateBookingDto {
   @IsInt()
@@ -9,8 +9,8 @@ export class CreateBookingDto {
   @IsNotEmpty()
   flightId: number;
 
-  //   @IsArray()
-  //   @IsInt({ each: true })
+  @IsArray()
+  @IsNumber({}, { each: true }) // tất cả phần tử phải là number
   @IsNotEmpty()
   seatIds: number[];
 }

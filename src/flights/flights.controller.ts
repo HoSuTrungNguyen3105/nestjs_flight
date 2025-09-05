@@ -21,19 +21,20 @@ export class FlightsController {
     return this.flightService.create(data);
   }
 
-  @Post('/aircraft')
+  @Post('aircraft')
   createAircraft(@Body() data: Aircraft) {
     return this.flightService.createAircraft(data);
   }
 
   @Get()
   async findAll(): Promise<BaseResponseDto<Flight>> {
+    console.log('👉 Controller hit');
     return this.flightService.findAll();
   }
 
-  @Get(':flightId')
-  findOne(@Param('flightId') id: string) {
-    return this.flightService.findOne(+id);
+  @Get('getFlight')
+  findOne(@Body('id') id: number) {
+    return this.flightService.findOne(id);
   }
 
   @Patch(':flightId')
@@ -52,16 +53,34 @@ export class FlightsController {
 
   @Get('aircraft')
   async getAircraft() {
+    console.log('👉 Controller hit');
     return this.flightService.getAllAircraft();
+  }
+
+  @Get('getAllAircraftBasic')
+  async getAllAircraftBasic() {
+    const res = await this.flightService.getAllAircraftBasic();
+    return res;
+  }
+
+  @Get('aircraft/:id/seats')
+  async getSeatsByAircraft(@Param('id') id: string) {
+    return this.flightService.getSeatsByAircraftId(id);
   }
 
   @Get('airports')
   async getAirports() {
+    console.log('👉 Controller hit');
     return this.flightService.getAllAirports();
   }
 
   @Post('airports')
   async createAirport(@Body() body: AirportDto) {
     return this.flightService.createAirport(body);
+  }
+
+  @Post('generate/:flightId')
+  async generateSeats(@Param('flightId') flightId: string) {
+    return this.flightService.generateSeats(Number(flightId));
   }
 }

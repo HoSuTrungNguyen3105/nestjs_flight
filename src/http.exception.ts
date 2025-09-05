@@ -24,9 +24,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : 'Lỗi máy chủ';
 
     response.status(status).json({
-      code: status,
-      message: message,
-      list: [],
+      resultCode: status,
+      resultMessage: message,
     });
   }
 }

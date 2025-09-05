@@ -2,13 +2,27 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Meal, Prisma } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { PrismaService } from 'src/prisma.service';
+import { CreateMealDto } from './dto/CreateMeal.dto';
 
 @Injectable()
 export class MealService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: Prisma.MealCreateInput) {
-    return this.prisma.meal.create({ data });
+  async create(data: CreateMealDto) {
+    const res = await this.prisma.meal.create({
+      data: {
+        name: data.name,
+        mealType: data.mealType,
+        description: data.description,
+        price: data.price,
+        isAvailable: data.isAvailable ?? true,
+      },
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Lấy danh sách món ăn thành công!',
+      data: res,
+    };
   }
 
   async findAll(): Promise<BaseResponseDto<Meal>> {
@@ -19,7 +33,7 @@ export class MealService {
     return {
       resultCode: '00',
       resultMessage: 'Lấy danh sách món ăn thành công!',
-      list: meals, // mảng Meal[] thật sự
+      list: meals,
     };
   }
 

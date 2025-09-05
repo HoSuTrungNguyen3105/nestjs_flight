@@ -1,17 +1,30 @@
-// dto/create-meal.dto.ts
-import { IsString, IsNumber, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+  MinLength,
+  Min,
+} from 'class-validator';
 
 export class CreateMealDto {
   @IsString()
+  @MinLength(2)
   name: string;
 
   @IsString()
-  description: string;
-
-  @IsNumber()
-  price: number;
+  mealType: string;
 
   @IsOptional()
   @IsString()
-  category?: string;
+  description?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  price?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isAvailable?: boolean;
 }

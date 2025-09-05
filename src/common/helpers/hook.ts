@@ -1,25 +1,21 @@
-// src/common/utils/response.util.ts
-
 import { Prisma, User } from 'generated/prisma';
 import { Decimal } from 'generated/prisma/runtime/library';
 import { UserResponseDto } from 'src/users/dto/info-user-dto';
-
-// export function formatUserResponse(user: User) {
-//   return {
-//     ...user,
-//     createdAt: Number(user.createdAt),
-//     updatedAt: Number(user.updatedAt),
-//   };
-// }
-
-// export const toDecimalDateTime = (value: any): number => {
-//   // Prisma.Decimal => number (epoch giây với phần thập phân)
-//   const ms = Number(value);
-//   return ms / 1000;
-// };
+import { dateToDecimal } from './base.helper';
+import * as bcrypt from 'bcrypt';
 
 export function toEpochDecimal(): Prisma.Decimal {
   return new Prisma.Decimal(Date.now() / 1000);
+}
+
+export async function generateOtp(expireMinutes: number = 5) {
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const hashedOtp = await bcrypt.hash(otp, 10);
+  const expireAt = dateToDecimal(
+    new Date(Date.now() + expireMinutes * 60 * 1000),
+  );
+
+  return { otp, hashedOtp, expireAt };
 }
 
 export const toEpochNumber = (value: Decimal | number): number => {

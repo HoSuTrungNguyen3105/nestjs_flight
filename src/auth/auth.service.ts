@@ -22,6 +22,7 @@ import * as crypto from 'crypto';
 import { MailService } from 'src/common/nodemailer/nodemailer.service';
 import { Decimal } from 'generated/prisma/runtime/library';
 import { generatePassword } from 'src/users/hooks/randompw';
+import { generateOtp } from 'src/common/helpers/hook';
 
 @Injectable()
 export class AuthService {
@@ -40,21 +41,9 @@ export class AuthService {
       return { resultCode: '99', resultMessage: 'Email already registered' };
     }
 
-    // Hash mật khẩu
-    //const hashedPassword = await bcrypt.hash(dto.password, 10);
-    // const keySetValue = //6 hash code ;
+    const { otp, hashedOtp, expireAt } = await generateOtp(5);
 
-    // 2. Tạo mật khẩu ngẫu nhiên và an toàn
-    //const temporaryPassword = Math.random().toString(36).substring(2, 8); // Tạo chuỗi 6 ký tự ngẫu nhiên
-    // const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
-
-    // Sinh OTP 6 số ngẫu nhiên
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const hashedOtp = await bcrypt.hash(otp, 10);
-    const expireAt = dateToDecimal(new Date(Date.now() + 5 * 60 * 1000));
-
-    // Tạo passenger
-    const passenger = await this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         email: dto.email,
         password: '',
@@ -90,63 +79,68 @@ export class AuthService {
     return {
       resultCode: '00',
       resultMessage: 'Đăng ký thành công!',
-      data: passenger.id,
+      data: {
+        email: user.email,
+      },
     };
   }
 
   async verifyOtp(userId: number, otp: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    try {
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
-    if (!user) {
-      return { resultCode: '99', resultMessage: 'User not found' };
-    }
+      if (!user) {
+        return { resultCode: '99', resultMessage: 'User not found' };
+      }
 
-    // Kiểm tra có OTP không
-    if (!user.otpCode || !user.otpExpire) {
+      if (!user.otpCode || !user.otpExpire) {
+        return {
+          resultCode: '98',
+          resultMessage: 'OTP không tồn tại hoặc đã được xác nhận',
+        };
+      }
+
+      const expireDate = decimalToDate(user.otpExpire);
+      if (expireDate && expireDate < new Date()) {
+        return { resultCode: '97', resultMessage: 'OTP đã hết hạn' };
+      }
+
+      const isValid = await bcrypt.compare(otp, user.otpCode);
+      if (!isValid) {
+        return { resultCode: '96', resultMessage: 'OTP không đúng' };
+      }
+
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          otpCode: null,
+          otpExpire: null,
+          isEmailVerified: 'Y',
+        },
+      });
+
       return {
-        resultCode: '98',
-        resultMessage: 'OTP không tồn tại hoặc đã được xác nhận',
+        resultCode: '00',
+        resultMessage: 'Xác thực OTP thành công',
+        requireChangePassword: true,
+        userId: user.id,
       };
+    } catch (error) {
+      console.error('error', error);
     }
-
-    // Kiểm tra hết hạn
-    const expireDate = decimalToDate(user.otpExpire);
-    if (expireDate && expireDate < new Date()) {
-      return { resultCode: '97', resultMessage: 'OTP đã hết hạn' };
-    }
-
-    // So sánh OTP
-    const isValid = await bcrypt.compare(otp, user.otpCode);
-    if (!isValid) {
-      return { resultCode: '96', resultMessage: 'OTP không đúng' };
-    }
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        otpCode: null,
-        otpExpire: null,
-        isEmailVerified: 'Y',
-      },
-    });
-
-    return {
-      resultCode: '00',
-      resultMessage: 'Xác thực OTP thành công',
-    };
   }
-  async setPassword(userId: number, newPassword: string) {
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+  // async setPassword(userId: number, newPassword: string) {
+  //   const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        password: hashedPassword,
-      },
-    });
+  //   await this.prisma.user.update({
+  //     where: { id: userId },
+  //     data: {
+  //       password: hashedPassword,
+  //     },
+  //   });
 
-    return { resultCode: '00', resultMessage: 'Đổi mật khẩu thành công' };
-  }
+  //   return { resultCode: '00', resultMessage: 'Đổi mật khẩu thành công' };
+  // }
 
   async loginUser(dto: LoginDto) {
     try {
@@ -176,7 +170,11 @@ export class AuthService {
         };
       }
 
-      if (user.tempPassword && user.tempPassword !== '') {
+      if (
+        user.tempPassword &&
+        user.password !== '' &&
+        user.tempPassword !== ''
+      ) {
         const isTempPasswordValid = await bcrypt.compare(
           password,
           user.tempPassword,

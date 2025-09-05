@@ -9,13 +9,14 @@ import {
 } from '@nestjs/common';
 import { MealService } from './meals.service';
 import { Prisma } from 'generated/prisma';
+import { CreateMealDto } from './dto/CreateMeal.dto';
 
 @Controller('sys/meals')
 export class MealController {
   constructor(private readonly mealService: MealService) {}
 
   @Post()
-  create(@Body() data: Prisma.MealCreateInput) {
+  create(@Body() data: CreateMealDto) {
     return this.mealService.create(data);
   }
 

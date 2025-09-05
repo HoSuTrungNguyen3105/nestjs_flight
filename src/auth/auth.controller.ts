@@ -70,6 +70,11 @@ export class AuthController {
     return this.authService.resetMfa(body.userId);
   }
 
+  @Post('verifyOtp')
+  async verifyOtp(@Body() body: { userId: number; otp: string }) {
+    return this.authService.verifyOtp(body.userId, body.otp);
+  }
+
   @Post('loginmfa')
   async mfaLogin(@Body() body: MfaLoginDto) {
     return this.authService.mfaLogin(body);

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
-import { Aircraft, Flight } from 'generated/prisma';
+import { Aircraft, Flight, Prisma, SeatType } from 'generated/prisma';
 import { AirportDto } from './dto/create-airport.dto';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 
@@ -52,9 +52,82 @@ export class FlightsService {
     }
   }
 
-  async findOne(flightId: number) {
+  async generateSeats(flightId: number) {
     const flight = await this.prisma.flight.findUnique({
       where: { flightId },
+    });
+    if (!flight) throw new Error('Flight not found');
+
+    const rows = 30;
+    const columns = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+    const seats: Prisma.SeatCreateManyInput[] = [];
+
+    for (let row = 1; row <= rows; row++) {
+      for (const col of columns) {
+        let seatType: SeatType;
+        if (row <= 2) seatType = SeatType.VIP;
+        else if (row <= 10) seatType = SeatType.BUSINESS;
+        else seatType = SeatType.ECONOMY;
+
+        seats.push({
+          row,
+          column: col,
+          flightId,
+          type: seatType,
+          isBooked: false,
+        });
+      }
+    }
+
+    await this.prisma.seat.createMany({ data: seats });
+
+    return {
+      message: `Generated ${seats.length} seats for flight ${flightId}`,
+      total: seats.length,
+    };
+  }
+
+  // async generateSeats(flightId: number) {
+  //   const flight = await this.prisma.flight.findUnique({
+  //     where: { flightId },
+  //   });
+  //   if (!flight) throw new Error("Flight not found");
+
+  //   // Tự định nghĩa số hàng & số cột
+  //   const rows = 30;
+  //   const columns = ["A", "B", "C", "D", "E", "F"];
+
+  //   const seats: {
+  //   row: number;
+  //   column: string;
+  //   flightId: number;
+  //   type: string;
+  //   isBooked: boolean;
+  // }[] = [];
+  //   for (let row = 1; row <= rows; row++) {
+  //     for (const col of columns) {
+  //       seats.push({
+  //         row,
+  //         column: col,
+  //         flightId: flightId,
+  //         type: row <= 2 ? "VIP" : row <= 10 ? "BUSINESS" : "ECONOMY",
+  //         isBooked: false,
+  //       });
+  //     }
+  //   }
+
+  // await this.prisma.seat.createMany({ data: seats });
+  //   return {
+  //     resultMessage: `Generated ${seats.length} seats for flight ${flightId}`,
+  //     total: seats.length,
+  //   };
+  // }
+
+  async findOne(flightId: number) {
+    console.log('👉 flightId nhận vào:', flightId, typeof flightId);
+    const flight = await this.prisma.flight.findUnique({
+      where: { flightId: flightId },
       include: { aircraft: true },
     });
 
@@ -112,6 +185,7 @@ export class FlightsService {
       };
     }
   }
+
   async createAircraft(data: Aircraft) {
     try {
       return await this.prisma.aircraft.create({ data });
@@ -120,11 +194,30 @@ export class FlightsService {
     }
   }
   async getAllAircraft() {
-    return await this.prisma.aircraft.findMany();
+    const res = await this.prisma.aircraft.findMany({
+      select: {
+        code: true,
+        model: true,
+        range: true,
+        flights: {
+          select: {
+            flightId: true,
+            flightNo: true,
+          },
+        },
+      },
+    });
+    console.log('Data', res);
+    return { resultCode: '00', resultMessage: 'Aircraft', data: res };
   }
 
   async getAllAirports() {
-    return await this.prisma.airport.findMany();
+    try {
+      const res = await this.prisma.airport.findMany();
+      return { resultCode: '00', resultMessage: 'Airport', data: res };
+    } catch (error) {
+      return { resultCode: '01', resultMessage: 'Error Airport' };
+    }
   }
 
   async createAirport(data: AirportDto) {
@@ -159,5 +252,40 @@ export class FlightsService {
         resultMessage: 'Không thể tạo airport, xem log để biết chi tiết!',
       };
     }
+  }
+
+  async getAllAircraftBasic() {
+    const res = await this.prisma.aircraft.findMany({
+      select: {
+        code: true,
+        range: true,
+        model: true,
+      },
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Danh sách code máy bay',
+      list: res,
+    };
+  }
+  async getSeatsByAircraftId(aircraftId: string) {
+    const res = await this.prisma.flight.findMany({
+      where: { aircraftCode: aircraftId },
+      select: {
+        flightId: true,
+        flightNo: true,
+        seats: {
+          select: {
+            id: true,
+            row: true,
+            column: true,
+            type: true,
+            isBooked: true,
+          },
+        },
+      },
+    });
+
+    return { resultCode: '00', resultMessage: 'Danh sách ghế', data: res };
   }
 }
