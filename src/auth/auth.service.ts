@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto';
 import { PrismaService } from 'src/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -11,7 +6,6 @@ import { LoginDto, MfaLoginDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, Role } from 'generated/prisma';
 import {
-  dateToDecimal,
   decimalToDate,
   nowDecimal,
   TEN_DAYS,
@@ -81,12 +75,19 @@ export class AuthService {
       resultMessage: 'Đăng ký thành công!',
       data: {
         email: user.email,
+        userId: user.id,
       },
     };
   }
 
   async verifyOtp(userId: number, otp: string) {
     try {
+      if (!userId) {
+        return {
+          resultCode: '09',
+          resultMessage: 'No input User',
+        };
+      }
       const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
       if (!user) {
@@ -245,6 +246,31 @@ export class AuthService {
       console.error('🔥 Lỗi loginUser:', err);
       throw err;
     }
+  }
+
+  async resetTempPassword(userId: number, tempPassword: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return {
+        resultCode: '01',
+        resultMessage: 'Không tìm thấy user!',
+      };
+    }
+
+    const hashPassword = await bcrypt.hash(tempPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { tempPassword: hashPassword },
+    });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Đã reset lại mật khẩu tạm!',
+    };
   }
 
   async getAllUnlockRequests() {

@@ -73,17 +73,26 @@ model UnlockRequest {
 }
 
 model Flight {
-  flightId         Int    @id @default(autoincrement())
-  flightNo         String @unique @db.VarChar(10)
-  departureAirport String @db.VarChar(10)
-  arrivalAirport   String @db.VarChar(10)
-  status           String @db.VarChar(20)
-  aircraftCode     String @db.VarChar(10)
+  flightId           Int      @id @default(autoincrement())
+  flightNo           String   @unique @db.VarChar(10)
+  flightType         String   @db.VarChar(10) // "oneway" | "roundtrip"
+  departureAirport   String   @db.VarChar(10)
+  arrivalAirport     String   @db.VarChar(10)
+  status             String   @db.VarChar(20)
+  aircraftCode       String   @db.VarChar(10)
+  priceEconomy       Float?
+  priceBusiness      Float?
+  priceFirst         Float?
+  maxCapacity        Int?
+  scheduledDeparture Decimal  @db.Decimal(20, 3)
+  scheduledArrival   Decimal  @db.Decimal(20, 3)
+  actualDeparture    Decimal? @db.Decimal(20, 3)
+  actualArrival      Decimal? @db.Decimal(20, 3)
+  gate               String?
+  terminal           String?
+  isCancelled        Boolean  @default(false)
+  delayMinutes       Int?
 
-  scheduledDeparture  Decimal        @db.Decimal(20, 3)
-  scheduledArrival    Decimal        @db.Decimal(20, 3)
-  actualDeparture     Decimal?       @db.Decimal(20, 3)
-  actualArrival       Decimal?       @db.Decimal(20, 3)
   bookings            Booking[]
   aircraft            Aircraft       @relation(fields: [aircraftCode], references: [code])
   arrivalAirportRel   Airport        @relation("ArrivalRelation", fields: [arrivalAirport], references: [code])

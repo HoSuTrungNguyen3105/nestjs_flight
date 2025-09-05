@@ -377,10 +377,18 @@ export class UsersService {
       where: { id: requestId },
       include: { user: true },
     });
-    if (!req) throw new BadRequestException('Yêu cầu không tồn tại!');
+    if (!req) {
+      return {
+        resultCode: '01',
+        resultMessage: 'Yêu cầu không tồn tại!',
+      };
+    }
 
     if (req.status !== 'PENDING') {
-      throw new BadRequestException('Yêu cầu đã được xử lý!');
+      return {
+        resultCode: '01',
+        resultMessage: 'Yêu cầu đã được xử lý!',
+      };
     }
 
     await this.prisma.user.update({
@@ -390,14 +398,18 @@ export class UsersService {
         loginFailCnt: 0,
       },
     });
-
-    return this.prisma.unlockRequest.update({
+    await this.prisma.unlockRequest.update({
       where: { id: requestId },
       data: {
         status: 'APPROVED',
         approvedAt: nowDecimal(),
       },
     });
+
+    return {
+      resultCode: '00',
+      resultMessage: `yêu cầu đã được duyệt và mở khóa.`,
+    };
   }
 
   async approveAllUnlockRequests() {

@@ -11,6 +11,7 @@ import { FlightsService } from './flights.service';
 import { Aircraft, Airport, Flight } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { AirportDto } from './dto/create-airport.dto';
+import { SearchFlightDto } from './dto/SearchFlightDto';
 
 @Controller('sys/flights')
 export class FlightsController {
@@ -82,5 +83,10 @@ export class FlightsController {
   @Post('generate/:flightId')
   async generateSeats(@Param('flightId') flightId: string) {
     return this.flightService.generateSeats(Number(flightId));
+  }
+
+  @Post('search')
+  async searchFlights(@Body() dto: SearchFlightDto) {
+    return this.flightService.searchFlights(dto);
   }
 }
