@@ -16,7 +16,7 @@ import * as crypto from 'crypto';
 import { MailService } from 'src/common/nodemailer/nodemailer.service';
 import { Decimal } from 'generated/prisma/runtime/library';
 import { generatePassword } from 'src/users/hooks/randompw';
-import { generateOtp } from 'src/common/helpers/hook';
+import { generateOtp, hashPassword } from 'src/common/helpers/hook';
 
 @Injectable()
 export class AuthService {
@@ -40,7 +40,7 @@ export class AuthService {
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
-        password: '',
+        password: await hashPassword(dto.password), // hash trước khi lưu
         phone: dto.phone,
         passport: dto.passport,
         tempPassword: '',
@@ -130,18 +130,6 @@ export class AuthService {
       console.error('error', error);
     }
   }
-  // async setPassword(userId: number, newPassword: string) {
-  //   const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-  //   await this.prisma.user.update({
-  //     where: { id: userId },
-  //     data: {
-  //       password: hashedPassword,
-  //     },
-  //   });
-
-  //   return { resultCode: '00', resultMessage: 'Đổi mật khẩu thành công' };
-  // }
 
   async loginUser(dto: LoginDto) {
     try {

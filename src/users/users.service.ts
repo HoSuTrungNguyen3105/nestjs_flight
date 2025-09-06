@@ -368,7 +368,7 @@ export class UsersService {
     return {
       resultCode: '00',
       resultMessage: 'Get Id người dùng thành công!',
-      data: user.id,
+      data: { userId: user.id },
     };
   }
 
@@ -462,19 +462,6 @@ export class UsersService {
     });
   }
 
-  // Admin xem tất cả yêu cầu
-  // async getAllUnlockRequests() {
-  //   const res = await this.prisma.unlockRequest.findMany({
-  //     include: { user: true },
-  //     orderBy: { createdAt: 'desc' },
-  //   });
-  //   return {
-  //     responseCode: '00',
-  //     responseMessage: 'Lấy danh sách yêu cầu mở khóa thành công!',
-  //     data: res,
-  //   };
-  // }
-
   async updateUserById(id: number, updateUserDto: UpdateUserDto) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -538,9 +525,8 @@ export class UsersService {
     };
   }
 
-  // user.service.ts
   async deleteAllUsers() {
-    await this.prisma.user.deleteMany({}); // Không truyền where -> xoá hết
+    await this.prisma.user.deleteMany({});
     return {
       resultCode: '00',
       resultMessage: 'Xoá toàn bộ người dùng thành công!',
@@ -575,7 +561,7 @@ export class UsersService {
   async deleteUser(id: number) {
     try {
       const current = await this.prisma.user.findUnique({
-        where: { id }, // id phải là number
+        where: { id },
       });
 
       if (!current) {

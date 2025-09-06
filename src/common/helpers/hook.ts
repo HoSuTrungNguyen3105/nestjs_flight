@@ -22,6 +22,12 @@ export const toEpochNumber = (value: Decimal | number): number => {
   return Number(value) / 1000; // từ ms → giây có dấu .
 };
 
+export async function hashPassword(password: string): Promise<string> {
+  const salt = await bcrypt.genSalt(10); // tạo salt
+  const hashed = await bcrypt.hash(password, salt); // hash mật khẩu
+  return hashed;
+}
+
 export const formatUserResponse = (user: User): UserResponseDto => {
   return {
     id: user.id,

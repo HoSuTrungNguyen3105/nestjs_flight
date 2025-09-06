@@ -322,6 +322,28 @@ export class FlightsService {
     }
   }
 
+  async getCityFromAirportCode() {
+    const flights = await this.prisma.flight.findMany({
+      select: {
+        departureAirportRel: {
+          select: {
+            city: true,
+          },
+        },
+        arrivalAirportRel: {
+          select: {
+            city: true,
+          },
+        },
+      },
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Danh sách code máy bay',
+      list: flights,
+    };
+  }
+
   async getAllAircraftBasic() {
     const res = await this.prisma.aircraft.findMany({
       select: {

@@ -4,7 +4,7 @@ import { BookingService } from './booking.service';
 import { PrismaModule } from 'src/prisma.module';
 
 @Module({
-  imports: [PrismaModule], // Thêm PrismaModule vào mảng imports
+  imports: [PrismaModule],
   controllers: [BookingController],
   providers: [BookingService],
 })
