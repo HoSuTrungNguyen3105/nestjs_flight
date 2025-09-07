@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { Aircraft, Flight, Prisma, SeatType } from 'generated/prisma';
 import { AirportDto } from './dto/create-airport.dto';
@@ -23,70 +23,15 @@ export class FlightsService {
     } catch (error) {
       console.error('error', error);
       throw error;
-      // return {
-      //   resultCode: '99',
-      //   resultMessage: 'Failed to create flight',
-      // };
     }
   }
-
-  // async searchFlights(dto: SearchFlightDto) {
-  //   const { from, to, departDate, returnDate, flightType } = dto;
-
-  //   // Convert date string (yyyy-MM-dd) → timestamp (milliseconds)
-  //   const departStart = new Date(departDate + 'T00:00:00Z').getTime();
-  //   const departEnd = new Date(departDate + 'T23:59:59Z').getTime();
-
-  //   // Query chuyến bay đi
-  //   const outbound = await this.prisma.flight.findMany({
-  //     where: {
-  //       departureAirport: from,
-  //       arrivalAirport: to,
-  //       scheduledDeparture: {
-  //         gte: departStart,
-  //         lte: departEnd,
-  //       },
-  //     },
-  //     include: {
-  //       seats: {
-  //         where: { isBooked: false },
-  //       },
-  //     },
-  //   });
-
-  //   if (flightType === 'oneway') {
-  //     return { outbound };
-  //   }
-
-  //   // Query chuyến bay về
-  //   const returnStart = new Date(returnDate + 'T00:00:00Z').getTime();
-  //   const returnEnd = new Date(returnDate + 'T23:59:59Z').getTime();
-
-  //   const inbound = await this.prisma.flight.findMany({
-  //     where: {
-  //       departureAirport: to,
-  //       arrivalAirport: from,
-  //       scheduledDeparture: {
-  //         gte: returnStart,
-  //         lte: returnEnd,
-  //       },
-  //     },
-  //     include: {
-  //       seats: {
-  //         where: { isBooked: false },
-  //       },
-  //     },
-  //   });
-
-  //   return { outbound, inbound };
-  // }
 
   async searchFlights(dto: SearchFlightDto) {
     const { from, to, departDate, returnDate, flightType } = dto;
     if (!departDate) {
       throw new Error('departDate is required');
     }
-    const departDateObj = new Date(departDate); // ✅ đã chắc chắn không undefined
+    const departDateObj = new Date(departDate);
 
     const departStart = new Decimal(departDateObj.setHours(0, 0, 0, 0));
     const departEnd = new Decimal(departDateObj.setHours(23, 59, 59, 999));
@@ -217,8 +162,7 @@ export class FlightsService {
         data,
       });
     } catch (error) {
-      if (error instanceof NotFoundException) throw error;
-      return { resultCode: '99', resultMessage: 'Failed to update flight' };
+      throw error;
     }
   }
 
@@ -234,8 +178,7 @@ export class FlightsService {
 
       return await this.prisma.flight.delete({ where: { flightId } });
     } catch (error) {
-      if (error instanceof NotFoundException) throw error;
-      return { resultCode: '99', resultMessage: 'Failed to delete flight' };
+      throw error;
     }
   }
 
@@ -252,6 +195,13 @@ export class FlightsService {
         resultMessage: error.message || 'Xoá toàn bộ flights thất bại',
       };
     }
+  }
+
+  async cancelFlight(flightId: number) {
+    return this.prisma.flight.update({
+      where: { flightId },
+      data: { isCancelled: true, status: 'CANCELLED' },
+    });
   }
 
   async createAircraft(data: Aircraft) {

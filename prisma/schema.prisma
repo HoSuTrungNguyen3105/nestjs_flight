@@ -8,18 +8,111 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum SeatType {
+  VIP
+  BUSINESS
+  ECONOMY
+}
+
+enum Role {
+  USER
+  ADMIN
+  MONITOR
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum UnlockStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum ContractType {
+  FULL_TIME
+  PART_TIME
+  INTERN
+  FIXED_TERM
+  FREELANCE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  ON_LEAVE
+  REMOTE
+}
+
+enum PayrollStatus {
+  DRAFT
+  FINALIZED
+  PAID
+}
+
+enum Department {
+  HR // Nhân sự
+  IT // Công nghệ thông tin
+  FINANCE // Tài chính
+  OPS // Vận hành
+  SECURITY // An ninh
+  OTHER
+}
+
+enum Position {
+  INTERN
+  STAFF
+  SENIOR
+  MANAGER
+  DIRECTOR
+  EXECUTIVE
+}
+
+enum Rank {
+  JUNIOR
+  MID
+  SENIOR
+  LEAD
+  PRINCIPAL
+  NONE
+}
+
 model User {
   id                Int             @id @default(autoincrement())
+  employeeNo        String?         @unique
   email             String          @unique
   name              String          @db.VarChar(50)
   role              Role            @default(USER)
   password          String          @db.VarChar(100)
   pictureUrl        String          @default("")
-  rank              String          @default("")
+  rank              Rank            @default(NONE)
   authType          String          @default("ID,PW")
   prevPassword      String          @default("")
   isEmailVerified   String          @default("N")
   userAlias         String          @default("")
+  department        Department?
+  position          Position?
+  hireDate          Decimal?        @db.Decimal(20, 3)
+  status            EmployeeStatus  @default(ACTIVE)
+  baseSalary        Float?
   createdAt         Decimal         @db.Decimal(20, 3)
   updatedAt         Decimal         @db.Decimal(20, 3)
   accountLockYn     String          @default("N")
@@ -37,6 +130,9 @@ model User {
   transferAdmin     TransferAdmin?
   unlockRequests    UnlockRequest[]
   sessions          UserSession[]
+  payrolls          Payroll[]
+  attendance        Attendance[]
+  leaveRequest      LeaveRequest[]
 }
 
 model UserSession {
@@ -60,6 +156,58 @@ model TransferAdmin {
   user        User           @relation(fields: [userId], references: [id])
 }
 
+model Payroll {
+  id          Int           @id @default(autoincrement())
+  employee    User          @relation(fields: [employeeId], references: [id])
+  employeeId  Int
+  month       Int
+  year        Int
+  baseSalary  Float
+  allowances  Float         @default(0)
+  deductions  Float         @default(0)
+  tax         Float         @default(0)
+  netPay      Float
+  status      PayrollStatus @default(DRAFT)
+  generatedAt Decimal       @db.Decimal(20, 3)
+
+  @@unique([employeeId, month, year])
+  @@index([employeeId])
+}
+
+model Attendance {
+  id          Int              @id @default(autoincrement())
+  employee    User             @relation(fields: [employeeId], references: [id])
+  employeeId  Int
+  date        Decimal          @db.Decimal(20, 3)
+  checkIn     Decimal          @db.Decimal(20, 3)
+  checkOut    Decimal          @db.Decimal(20, 3)
+  status      AttendanceStatus @default(PRESENT)
+  workedHours Float? // tính ra từ checkIn/checkOut
+  note        String?
+  createdAt   Decimal          @db.Decimal(20, 3)
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+}
+
+model LeaveRequest {
+  id           Int         @id @default(autoincrement())
+  employee     User        @relation(fields: [employeeId], references: [id])
+  employeeId   Int
+  leaveType    String // e.g., "ANNUAL", "SICK", "UNPAID"
+  startDate    Decimal     @db.Decimal(20, 3)
+  endDate      Decimal     @db.Decimal(20, 3)
+  days         Float
+  reason       String?
+  status       LeaveStatus @default(PENDING)
+  approverId   Int? // user id của người duyệt (nếu có)
+  approverNote String?
+  appliedAt    Decimal     @db.Decimal(20, 3)
+  decidedAt    Decimal?    @db.Decimal(20, 3)
+
+  @@index([employeeId])
+}
+
 model UnlockRequest {
   id         Int          @id @default(autoincrement())
   userId     Int
@@ -75,7 +223,7 @@ model UnlockRequest {
 model Flight {
   flightId           Int      @id @default(autoincrement())
   flightNo           String   @unique @db.VarChar(10)
-  flightType         String   @db.VarChar(10) // "oneway" | "roundtrip"
+  flightType         String   @db.VarChar(10)
   departureAirport   String   @db.VarChar(10)
   arrivalAirport     String   @db.VarChar(10)
   status             String   @db.VarChar(20)
@@ -195,28 +343,4 @@ model FlightStatus {
   flight      Flight  @relation(fields: [flightId], references: [flightId])
 
   @@index([flightId], map: "FlightStatus_flightId_fkey")
-}
-
-enum SeatType {
-  VIP
-  BUSINESS
-  ECONOMY
-}
-
-enum Role {
-  USER
-  ADMIN
-  MONITOR
-}
-
-enum TransferStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-enum UnlockStatus {
-  PENDING
-  APPROVED
-  REJECTED
 }

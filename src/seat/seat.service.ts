@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { CreateSeatDto } from './dto/create-seat.dto';
 import { UpdateSeatDto } from './dto/update-seat.dto';
@@ -11,37 +6,6 @@ import { UpdateSeatDto } from './dto/update-seat.dto';
 @Injectable()
 export class SeatService {
   constructor(private prisma: PrismaService) {}
-
-  //   async create(data: CreateSeatDto) {
-  //     try {
-  //       const flight = await this.prisma.flight.findUnique({
-  //         where: { flightId: data.flightId },
-  //       });
-
-  //       if (!flight) {
-  //         return { resultCode: '09', resultMessage: `'Flight not found.'` };
-  //       }
-
-  //       const res = await this.prisma.seat.create({
-  //         data: {
-  //           row: data.row,
-  //           column: data.column,
-  //           flight: {
-  //             connect: { flightId: data.flightId },
-  //           },
-  //           isBooked: data.isBooked,
-  //         },
-  //       });
-  //       return {
-  //         resultCode: '00',
-  //         resultMessage: `Success`,
-  //         list: res,
-  //       };
-  //     } catch (err) {
-  //       console.error('An error occurred during seat creation:', err);
-  //       throw new InternalServerErrorException('Lỗi máy chủ nội bộ.');
-  //     }
-  //}
 
   async create(data: CreateSeatDto) {
     try {
@@ -65,7 +29,7 @@ export class SeatService {
         return {
           resultCode: '00',
           resultMessage: 'Created 1 seat successfully',
-          seat,
+          data: seat,
         };
       }
 
@@ -88,7 +52,7 @@ export class SeatService {
       };
     } catch (err) {
       console.error('An error occurred during seat creation:', err);
-      throw new InternalServerErrorException('Lỗi máy chủ nội bộ.');
+      throw err;
     }
   }
 
@@ -104,15 +68,25 @@ export class SeatService {
   async findOne(id: number) {
     const seat = await this.prisma.seat.findUnique({ where: { id } });
     if (!seat) {
-      throw new NotFoundException(`Seat with ID ${id} not found.`);
+      return {
+        resultCode: '01',
+        resultMessage: `Seat with ID ${id} not found.`,
+      };
     }
-    return seat;
+    return {
+      resultCode: '00',
+      resultMessage: 'Success',
+      data: seat,
+    };
   }
 
   async update(id: number, data: UpdateSeatDto) {
     const seat = await this.prisma.seat.findUnique({ where: { id } });
     if (!seat) {
-      throw new NotFoundException(`Seat with ID ${id} not found.`);
+      return {
+        resultCode: '01',
+        resultMessage: `Seat with ID ${id} not found.`,
+      };
     }
     return this.prisma.seat.update({ where: { id }, data });
   }
@@ -120,10 +94,16 @@ export class SeatService {
   async remove(id: number) {
     const seat = await this.prisma.seat.findUnique({ where: { id } });
     if (!seat) {
-      throw new NotFoundException(`Seat with ID ${id} not found.`);
+      return {
+        resultCode: '01',
+        resultMessage: `Seat with ID ${id} not found.`,
+      };
     }
     if (seat.isBooked) {
-      throw new BadRequestException('Cannot delete a booked seat.');
+      return {
+        resultCode: '02',
+        resultMessage: 'Cannot delete a booked seat.',
+      };
     }
     return this.prisma.seat.delete({ where: { id } });
   }

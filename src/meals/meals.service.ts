@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Meal, Prisma } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { PrismaService } from 'src/prisma.service';
@@ -42,8 +42,16 @@ export class MealService {
       where: { id },
       include: { flightMeals: true, mealOrders: true },
     });
-    if (!meal) throw new NotFoundException('Meal not found');
-    return meal;
+    if (!meal)
+      return {
+        resultCode: '01',
+        resultMessage: 'Meal not found',
+      };
+    return {
+      resultCode: '00',
+      resultMessage: 'Lấy món ăn thành công!',
+      data: meal,
+    };
   }
 
   async update(id: number, data: Prisma.MealUpdateInput) {

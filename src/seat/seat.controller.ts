@@ -19,11 +19,9 @@ export class SeatController {
   constructor(private readonly seatService: SeatService) {}
 
   @Post()
-  //   @HttpCode(HttpStatus.CREATED)
   async create(@Body() createSeatDto: CreateSeatDto) {
     return this.seatService.create(createSeatDto);
   }
-
   @Get()
   async findAll() {
     return this.seatService.findAll();

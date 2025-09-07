@@ -1,22 +1,17 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  InternalServerErrorException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma.service';
 import { Prisma, Role } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { generatePassword } from './hooks/randompw';
 import { UserResponseDto } from './dto/info-user-dto';
 import { formatUserResponse, toEpochDecimal } from 'src/common/helpers/hook';
 import { Decimal } from 'generated/prisma/runtime/library';
 import { MailService } from 'src/common/nodemailer/nodemailer.service';
 import { nowDecimal } from 'src/common/helpers/base.helper';
+import { UpdateUserInfoDto } from './dto/update-user.dto';
+import { UpdateUserFromAdminDto } from './dto/update-user-from-admin.dto';
 
 @Injectable()
 export class UsersService {
@@ -39,15 +34,16 @@ export class UsersService {
         id: true,
         email: true,
         name: true,
-        pictureUrl: true,
         rank: true,
         role: true,
         authType: true,
         userAlias: true,
-        loginFailCnt: true,
         accountLockYn: true,
         mfaEnabledYn: true,
-        mfaSecretKey: true,
+        attendance: true,
+        baseSalary: true,
+        department: true,
+        leaveRequest: true,
       },
     });
 
@@ -58,7 +54,37 @@ export class UsersService {
     };
   }
 
-  // Lấy user theo ID
+  async promoteRank(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) throw new Error('User not found');
+
+    const now = Date.now();
+    const hireDate = user.hireDate ? Number(user.hireDate) : Date.now();
+    const yearsWorked = (now - hireDate) / (1000 * 60 * 60 * 24 * 365);
+
+    let newRank = user.rank || 'NONE';
+
+    if (user.position === 'STAFF' && yearsWorked >= 2) newRank = 'MID';
+    else if (user.position === 'SENIOR' && yearsWorked >= 4) newRank = 'LEAD';
+    else if (user.position === 'MANAGER' && yearsWorked >= 5)
+      newRank = 'PRINCIPAL';
+    console.log({ userRank: user.rank, newRank, yearsWorked });
+
+    if (newRank !== user.rank) {
+      console.log(`Updating rank from ${user.rank} to ${newRank}`);
+      return await this.prisma.user.update({
+        where: { id: userId },
+        data: { rank: newRank || 'NONE' },
+      });
+    }
+    return {
+      resultCode: '00',
+      resultMessage: 'Update rank người dùng thành công!',
+    };
+  }
+
   async getUserById(
     id: number,
   ): Promise<BaseResponseDto<Partial<UserResponseDto>>> {
@@ -82,7 +108,7 @@ export class UsersService {
     return {
       resultCode: '00',
       resultMessage: 'Lấy danh sách người dùng thành công!',
-      data: user, // dùng list thay vì data vì là mảng
+      data: user,
     };
   }
 
@@ -105,9 +131,9 @@ export class UsersService {
         accountLockYn: true,
         loginFailCnt: true,
         lastLoginDate: true,
+        hireDate: true,
         createdAt: true,
         updatedAt: true,
-        transferAdmin: true,
         sessions: {
           select: {
             id: true,
@@ -142,9 +168,9 @@ export class UsersService {
     };
   }
 
-  findAll() {
-    return this.prisma.user.findMany();
-  }
+  // findAll() {
+  //   return this.prisma.user.findMany();
+  // }
 
   async requestTransfer(data: {
     userId: number;
@@ -207,9 +233,10 @@ export class UsersService {
       });
 
       if (!transfer) {
-        throw new NotFoundException(
-          `Không tìm thấy Transfer với userId = ${userId}`,
-        );
+        return {
+          resultCode: '01',
+          resultMessage: `Không tìm thấy Transfer với userId = ${userId}`,
+        };
       }
 
       return await this.prisma.transferAdmin.update({
@@ -218,7 +245,7 @@ export class UsersService {
       });
     } catch (error) {
       console.error('🔥 Error rejecting transfer:', error);
-      throw error; // để Postman nhận được lỗi chi tiết
+      throw error;
     }
   }
 
@@ -242,7 +269,7 @@ export class UsersService {
       };
     } catch (error) {
       console.error('Error finding all user requests:', error);
-      throw new InternalServerErrorException('Error finding all user requests');
+      throw error;
     }
   }
 
@@ -254,7 +281,10 @@ export class UsersService {
     });
 
     if (existing) {
-      throw new ConflictException('Email đã tồn tại');
+      return {
+        resultCode: '01',
+        resultMessage: 'Email đã tồn tại',
+      };
     }
 
     const defaultPassword = dto.password ?? generatePassword(true);
@@ -271,14 +301,14 @@ export class UsersService {
         role: dto.role as Role,
         authType: 'ID,PW',
         userAlias: '',
-        createdAt: toEpochDecimal(), // lưu Decimal
+        createdAt: toEpochDecimal(),
         updatedAt: toEpochDecimal(),
       },
     });
 
     try {
       await this.mailService.sendMail(
-        dto.email, // ✅ gửi đến email người dùng vừa tạo
+        dto.email,
         'Tài khoản của bạn đã được tạo',
         `Xin chào ${dto.name ?? 'bạn'},\n\nTài khoản của bạn đã được tạo thành công.\nMật khẩu mặc định: ${defaultPassword}`,
         `<p>Xin chào <b>${dto.name ?? 'bạn'}</b>,</p>
@@ -377,6 +407,7 @@ export class UsersService {
       where: { id: requestId },
       include: { user: true },
     });
+
     if (!req) {
       return {
         resultCode: '01',
@@ -398,6 +429,7 @@ export class UsersService {
         loginFailCnt: 0,
       },
     });
+
     await this.prisma.unlockRequest.update({
       where: { id: requestId },
       data: {
@@ -408,7 +440,7 @@ export class UsersService {
 
     return {
       resultCode: '00',
-      resultMessage: `yêu cầu đã được duyệt và mở khóa.`,
+      resultMessage: 'Yêu cầu đã được duyệt và mở khóa.',
     };
   }
 
@@ -451,7 +483,6 @@ export class UsersService {
     });
   }
 
-  // Admin từ chối
   async rejectUnlockRequest(requestId: number) {
     return this.prisma.unlockRequest.update({
       where: { id: requestId },
@@ -462,7 +493,7 @@ export class UsersService {
     });
   }
 
-  async updateUserById(id: number, updateUserDto: UpdateUserDto) {
+  async updateUserInfo(id: number, updateUserDto: UpdateUserInfoDto) {
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
@@ -482,19 +513,13 @@ export class UsersService {
       data: {
         name: updateUserDto.name,
         pictureUrl: updateUserDto.pictureUrl,
-        rank: updateUserDto.rank,
         role: updateUserDto.role,
         userAlias: updateUserDto.userAlias,
+        passport: updateUserDto.passport,
+        phone: updateUserDto.phone,
         updatedAt: toEpochDecimal(),
       },
-      select: {
-        id: true,
-        name: true,
-        pictureUrl: true,
-        rank: true,
-        role: true,
-        userAlias: true,
-      },
+      select: { id: true },
     });
 
     if (isRoleChangingToAdmin) {
@@ -519,9 +544,38 @@ export class UsersService {
       resultCode: '00',
       resultMessage: 'Cập nhật người dùng thành công!',
       data: updatedUser,
-      result: isRoleChangingToAdmin
-        ? 'Đã tạo request TransferAdmin'
-        : 'Không có thay đổi role',
+      result: isRoleChangingToAdmin ? 'Đã tạo request TransferAdmin' : '',
+    };
+  }
+
+  async updateUserFromAdmin(id: number, updateUserDto: UpdateUserFromAdminDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      return {
+        resultCode: '99',
+        resultMessage: `User with ID ${id} not found`,
+      };
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: {
+        status: updateUserDto.status,
+        department: updateUserDto.department,
+        position: updateUserDto.position,
+        baseSalary: updateUserDto.baseSalary,
+        hireDate: updateUserDto.hireDate,
+      },
+      select: { id: true },
+    });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Cập nhật người dùng thành công!',
+      data: updatedUser,
     };
   }
 
@@ -574,12 +628,90 @@ export class UsersService {
         resultCode: '00',
         resultMessage: `Đã delete success!`,
       };
-    } catch (err) {
-      console.error('Error:', err.message);
-      return {
-        resultCode: '99',
-        resultMessage: 'Có lỗi xảy ra khi xóa user!',
-      };
+    } catch (error) {
+      console.error('Error:', error);
+      throw error;
     }
+  }
+
+  async generatePayroll(
+    employeeId: number,
+    month: number,
+    year: number,
+    baseSalary: number,
+  ) {
+    const netPay = baseSalary;
+    return this.prisma.payroll.create({
+      data: {
+        employeeId,
+        month,
+        year,
+        baseSalary,
+        netPay,
+        status: 'DRAFT',
+        generatedAt: nowDecimal(),
+      },
+    });
+  }
+
+  async finalizePayroll(id: number) {
+    return this.prisma.payroll.update({
+      where: { id },
+      data: { status: 'FINALIZED' },
+    });
+  }
+
+  async checkIn(employeeId: number) {
+    return this.prisma.attendance.create({
+      data: {
+        employeeId,
+        date: nowDecimal(),
+        checkIn: nowDecimal(),
+        checkOut: new Prisma.Decimal(0),
+        status: 'PRESENT',
+        createdAt: nowDecimal(),
+      },
+    });
+  }
+
+  async checkOut(attendanceId: number) {
+    const checkOutTime = nowDecimal();
+    const record = await this.prisma.attendance.update({
+      where: { id: attendanceId },
+      data: { checkOut: checkOutTime },
+    });
+    return record;
+  }
+
+  async applyLeave(
+    employeeId: number,
+    leaveType: string,
+    start: Date,
+    end: Date,
+    reason?: string,
+  ) {
+    return this.prisma.leaveRequest.create({
+      data: {
+        employeeId,
+        leaveType,
+        startDate: new Prisma.Decimal(start.getTime()),
+        endDate: new Prisma.Decimal(end.getTime()),
+        days: (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+        reason,
+        appliedAt: nowDecimal(),
+      },
+    });
+  }
+
+  async approveLeave(id: number, approverId: number, note?: string) {
+    return this.prisma.leaveRequest.update({
+      where: { id },
+      data: {
+        status: 'APPROVED',
+        approverId,
+        approverNote: note,
+        decidedAt: nowDecimal(),
+      },
+    });
   }
 }
