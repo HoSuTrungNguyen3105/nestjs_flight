@@ -20,6 +20,11 @@ export class MealController {
     return this.mealService.create(data);
   }
 
+  @Post('create-many')
+  async createMeals(@Body() dataList: CreateMealDto[]) {
+    return this.mealService.createMany(dataList);
+  }
+
   @Get()
   findAll() {
     return this.mealService.findAll();

@@ -9,9 +9,10 @@ import { UserResponseDto } from './dto/info-user-dto';
 import { formatUserResponse, toEpochDecimal } from 'src/common/helpers/hook';
 import { Decimal } from 'generated/prisma/runtime/library';
 import { MailService } from 'src/common/nodemailer/nodemailer.service';
-import { nowDecimal } from 'src/common/helpers/base.helper';
+import { nowDecimal } from 'src/common/helpers/format';
 import { UpdateUserInfoDto } from './dto/update-user.dto';
 import { UpdateUserFromAdminDto } from './dto/update-user-from-admin.dto';
+import { v2 as cloudinary } from 'cloudinary';
 
 @Injectable()
 export class UsersService {
@@ -24,6 +25,7 @@ export class UsersService {
     const password = await generatePassword(true);
     return {
       resultCode: '00',
+      resultMessage: 'Lấy temp password thành công!',
       data: password,
     };
   }
@@ -132,6 +134,10 @@ export class UsersService {
         loginFailCnt: true,
         lastLoginDate: true,
         hireDate: true,
+        status: true,
+        baseSalary: true,
+        passport: true,
+        phone: true,
         createdAt: true,
         updatedAt: true,
         sessions: {
@@ -148,7 +154,6 @@ export class UsersService {
       return {
         resultCode: '01',
         resultMessage: 'Không tìm thấy người dùng',
-        data: null,
       };
     }
 
@@ -167,10 +172,6 @@ export class UsersService {
       data: safeUser,
     };
   }
-
-  // findAll() {
-  //   return this.prisma.user.findMany();
-  // }
 
   async requestTransfer(data: {
     userId: number;
@@ -217,8 +218,10 @@ export class UsersService {
       return {
         resultCode: '00',
         resultMessage: 'Transfer approved thành công',
-        transfer: updatedTransfer,
-        user: updatedUser,
+        data: {
+          transfer: updatedTransfer,
+          user: updatedUser,
+        },
       };
     } catch (error) {
       console.error('🔥 Error approving transfer:', error);
@@ -229,7 +232,7 @@ export class UsersService {
   async rejectTransfer(userId: number) {
     try {
       const transfer = await this.prisma.transferAdmin.findUnique({
-        where: { userId }, // 👈 tìm theo userId
+        where: { userId },
       });
 
       if (!transfer) {
@@ -265,7 +268,7 @@ export class UsersService {
       return {
         resultCode: '00',
         resultMessage: 'Transfer data',
-        data: transt,
+        list: transt,
       };
     } catch (error) {
       console.error('Error finding all user requests:', error);
@@ -327,9 +330,9 @@ export class UsersService {
     };
   }
 
-  findOne(id: number) {
-    return this.prisma.user.findUnique({ where: { id } });
-  }
+  // findOne(id: number) {
+  //   return this.prisma.user.findUnique({ where: { id } });
+  // }
 
   async requestUnlock(userId: number, reason: string) {
     const existing = await this.prisma.unlockRequest.findFirst({
@@ -507,12 +510,19 @@ export class UsersService {
 
     const isRoleChangingToAdmin =
       updateUserDto.role === Role.ADMIN && user.role !== Role.ADMIN;
-
+    // const uploadResponse = await cloudinary.uploader.upload(updateUserDto.pictureUrl as string);
+    let pictureUrl = user.pictureUrl;
+    if (updateUserDto.pictureUrl) {
+      const uploadResponse = await cloudinary.uploader.upload(
+        updateUserDto.pictureUrl as string,
+      );
+      pictureUrl = uploadResponse.secure_url;
+    }
     const updatedUser = await this.prisma.user.update({
       where: { id },
       data: {
         name: updateUserDto.name,
-        pictureUrl: updateUserDto.pictureUrl,
+        pictureUrl,
         role: updateUserDto.role,
         userAlias: updateUserDto.userAlias,
         passport: updateUserDto.passport,
@@ -544,7 +554,6 @@ export class UsersService {
       resultCode: '00',
       resultMessage: 'Cập nhật người dùng thành công!',
       data: updatedUser,
-      result: isRoleChangingToAdmin ? 'Đã tạo request TransferAdmin' : '',
     };
   }
 
@@ -580,11 +589,20 @@ export class UsersService {
   }
 
   async deleteAllUsers() {
-    await this.prisma.user.deleteMany({});
-    return {
-      resultCode: '00',
-      resultMessage: 'Xoá toàn bộ người dùng thành công!',
-    };
+    try {
+      const result = await this.prisma.user.deleteMany({});
+      return {
+        resultCode: '00',
+        resultMessage: `Xoá toàn bộ người dùng thành công! (Đã xoá ${result.count} user)`,
+      };
+    } catch (error) {
+      console.error('Error deleting users:', error);
+
+      return {
+        resultCode: '99',
+        resultMessage: error.message,
+      };
+    }
   }
 
   async setAccountLockChange(

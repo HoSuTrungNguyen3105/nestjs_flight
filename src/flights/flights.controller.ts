@@ -29,7 +29,6 @@ export class FlightsController {
 
   @Get()
   async findAll(): Promise<BaseResponseDto<Flight>> {
-    console.log('👉 Controller hit');
     return this.flightService.findAll();
   }
 
@@ -54,14 +53,12 @@ export class FlightsController {
 
   @Get('aircraft')
   async getAircraft() {
-    console.log('👉 Controller hit');
     return this.flightService.getAllAircraft();
   }
 
   @Get('getAllAircraftBasic')
   async getAllAircraftBasic() {
-    const res = await this.flightService.getAllAircraftBasic();
-    return res;
+    return this.flightService.getAllAircraftBasic();
   }
 
   @Get('aircraft/:id/seats')
@@ -71,7 +68,6 @@ export class FlightsController {
 
   @Get('airports')
   async getAirports() {
-    console.log('👉 Controller hit');
     return this.flightService.getAllAirports();
   }
 

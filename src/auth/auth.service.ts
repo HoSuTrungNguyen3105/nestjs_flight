@@ -5,11 +5,7 @@ import * as bcrypt from 'bcrypt';
 import { LoginDto, MfaLoginDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, Role } from 'generated/prisma';
-import {
-  decimalToDate,
-  nowDecimal,
-  TEN_DAYS,
-} from 'src/common/helpers/base.helper';
+import { decimalToDate, nowDecimal, TEN_DAYS } from 'src/common/helpers/format';
 import * as speakeasy from 'speakeasy';
 import * as QRCode from 'qrcode';
 import * as crypto from 'crypto';

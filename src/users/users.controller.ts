@@ -5,11 +5,13 @@ import {
   Body,
   Param,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserFromAdminDto } from './dto/update-user-from-admin.dto';
 import { UpdateUserInfoDto } from './dto/update-user.dto';
+import { JwtAuthGuard } from 'src/common/mfa/jwt-auth.guard';
 
 @Controller('sys/users')
 export class UsersController {
@@ -90,10 +92,13 @@ export class UsersController {
   ) {
     return this.userService.updateUserFromAdmin(dto.id, dto);
   }
-
-  @Post('updateUserInfo')
-  async updateUserInfo(@Body() dto: UpdateUserInfoDto & { id: number }) {
-    return this.userService.updateUserInfo(dto.id, dto);
+  // @UseGuards(JwtAuthGuard)
+  @Post('updateUserInfo/:id')
+  async updateUserInfo(
+    @Body() dto: UpdateUserInfoDto,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.userService.updateUserInfo(id, dto);
   }
 
   @Post('getUserIdByEmail')

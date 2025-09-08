@@ -1,30 +1,22 @@
-import {
-  IsString,
-  IsOptional,
-  IsNumber,
-  IsBoolean,
-  MinLength,
-  Min,
-} from 'class-validator';
+import { IsString, IsOptional, Min } from 'class-validator';
 
 export class CreateMealDto {
+  @IsOptional()
   @IsString()
-  @MinLength(2)
   name: string;
 
+  @IsOptional()
   @IsString()
   mealType: string;
 
   @IsOptional()
   @IsString()
-  description?: string;
+  description?: string | null;
 
   @IsOptional()
-  @IsNumber()
   @Min(0)
-  price?: number;
+  price?: number | null;
 
   @IsOptional()
-  @IsBoolean()
   isAvailable?: boolean;
 }

@@ -1,7 +1,7 @@
 import { Prisma, User } from 'generated/prisma';
 import { Decimal } from 'generated/prisma/runtime/library';
 import { UserResponseDto } from 'src/users/dto/info-user-dto';
-import { dateToDecimal } from './base.helper';
+import { dateToDecimal } from './format';
 import * as bcrypt from 'bcrypt';
 
 export function toEpochDecimal(): Prisma.Decimal {
@@ -44,7 +44,7 @@ export const formatUserResponse = (user: User): UserResponseDto => {
     mfaSecretKey: user.mfaSecretKey ?? undefined,
     isEmailVerified: user.isEmailVerified,
     prevPassword: user.prevPassword,
-    createdAt: toEpochNumber(user.createdAt), // ✅ Decimal → number (có dấu .)
+    createdAt: toEpochNumber(user.createdAt),
     updatedAt: toEpochNumber(user.updatedAt),
     lastLoginDate: user.lastLoginDate
       ? toEpochNumber(user.lastLoginDate)

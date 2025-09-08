@@ -25,6 +25,28 @@ export class MealService {
     };
   }
 
+  async createMany(dataList: CreateMealDto[]) {
+    const mealList: CreateMealDto[] = []; // khai báo rõ kiểu
+    for (const data of dataList) {
+      const res = await this.prisma.meal.create({
+        data: {
+          name: data.name,
+          mealType: data.mealType,
+          description: data.description,
+          price: data.price,
+          isAvailable: data.isAvailable ?? true,
+        },
+      });
+      mealList.push(res);
+    }
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Created multiple meals successfully!',
+      data: mealList,
+    };
+  }
+
   async findAll(): Promise<BaseResponseDto<Meal>> {
     const meals = await this.prisma.meal.findMany({
       include: { flightMeals: true },

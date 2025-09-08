@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { PrismaService } from 'src/prisma.service';
-import { nowDecimal } from 'src/common/helpers/base.helper';
+import { nowDecimal } from 'src/common/helpers/format';
 
 @Injectable()
 export class BookingService {
