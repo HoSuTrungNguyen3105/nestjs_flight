@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma.service';
-import { Prisma, Role } from 'generated/prisma';
+import { Department, Position, Prisma, Rank, Role } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { generatePassword } from './hooks/randompw';
 import { UserResponseDto } from './dto/info-user-dto';
@@ -101,7 +101,6 @@ export class UsersService {
         role: true,
         authType: true,
         isEmailVerified: true,
-        mfaEnabledYn: true,
         userAlias: true,
         accountLockYn: true,
       },
@@ -137,6 +136,8 @@ export class UsersService {
         status: true,
         baseSalary: true,
         passport: true,
+        attendance: true,
+        position: true,
         phone: true,
         createdAt: true,
         updatedAt: true,
@@ -279,55 +280,61 @@ export class UsersService {
   async createUserByAdmin(
     dto: CreateUserDto,
   ): Promise<BaseResponseDto<UserResponseDto | null>> {
-    const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-    });
-
-    if (existing) {
-      return {
-        resultCode: '01',
-        resultMessage: 'Email đã tồn tại',
-      };
-    }
-
-    const defaultPassword = dto.password ?? generatePassword(true);
-    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
-
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        password: hashedPassword,
-        tempPassword: hashedPassword,
-        name: dto.name ?? '',
-        pictureUrl: '',
-        rank: '',
-        role: dto.role as Role,
-        authType: 'ID,PW',
-        userAlias: '',
-        createdAt: toEpochDecimal(),
-        updatedAt: toEpochDecimal(),
-      },
-    });
-
     try {
-      await this.mailService.sendMail(
-        dto.email,
-        'Tài khoản của bạn đã được tạo',
-        `Xin chào ${dto.name ?? 'bạn'},\n\nTài khoản của bạn đã được tạo thành công.\nMật khẩu mặc định: ${defaultPassword}`,
-        `<p>Xin chào <b>${dto.name ?? 'bạn'}</b>,</p>
+      const existing = await this.prisma.user.findUnique({
+        where: { email: dto.email },
+      });
+
+      if (existing) {
+        return {
+          resultCode: '01',
+          resultMessage: 'Email đã tồn tại',
+        };
+      }
+
+      const defaultPassword = dto.password ?? generatePassword(true);
+      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+      const user = await this.prisma.user.create({
+        data: {
+          email: dto.email,
+          password: hashedPassword,
+          tempPassword: hashedPassword,
+          name: dto.name ?? '',
+          pictureUrl: '',
+          role: dto.role as Role,
+          authType: 'ID,PW',
+          userAlias: '',
+          createdAt: toEpochDecimal(),
+          updatedAt: toEpochDecimal(),
+        },
+      });
+
+      try {
+        await this.mailService.sendMail(
+          dto.email,
+          'Tài khoản của bạn đã được tạo',
+          `Xin chào ${dto.name ?? 'bạn'},\n\nTài khoản của bạn đã được tạo thành công.\nMật khẩu mặc định: ${defaultPassword}`,
+          `<p>Xin chào <b>${dto.name ?? 'bạn'}</b>,</p>
        <p>Tài khoản của bạn đã được tạo thành công.</p>
        <p><b>Mật khẩu mặc định:</b> ${defaultPassword}</p>
        <p>Vui lòng đăng nhập và đổi mật khẩu ngay.</p>`,
-      );
-    } catch (err) {
-      console.error('Gửi email thất bại:', err.message);
-    }
+        );
+      } catch (err) {
+        console.error('Gửi email thất bại:', err.message);
+      }
 
-    return {
-      resultCode: '00',
-      resultMessage: 'Tạo người dùng thành công!',
-      data: formatUserResponse(user),
-    };
+      return {
+        resultCode: '00',
+        resultMessage: 'Tạo người dùng thành công!',
+        data: formatUserResponse(user),
+      };
+    } catch (error) {
+      return {
+        resultCode: '99',
+        resultMessage: 'Tạo người dùng khong thành công!',
+      };
+    }
   }
 
   // findOne(id: number) {
@@ -573,8 +580,8 @@ export class UsersService {
       where: { id },
       data: {
         status: updateUserDto.status,
-        department: updateUserDto.department,
-        position: updateUserDto.position,
+        department: updateUserDto.department as Department,
+        position: updateUserDto.position as Position,
         baseSalary: updateUserDto.baseSalary,
         hireDate: updateUserDto.hireDate,
       },

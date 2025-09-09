@@ -86,7 +86,7 @@ export class BookingService {
       where: { flightId: flightId },
       include: {
         seats: {
-          orderBy: [{ row: 'asc' }, { column: 'asc' }],
+          orderBy: [{ seatRow: 'asc' }, { seatNumber: 'asc' }],
         },
       },
     });

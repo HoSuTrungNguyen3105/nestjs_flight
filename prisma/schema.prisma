@@ -285,15 +285,15 @@ model Booking {
 }
 
 model Seat {
-  id        Int      @id @default(autoincrement())
-  row       Int
-  column    String
-  isBooked  Boolean  @default(false)
-  flightId  Int
-  bookingId Int?     @unique
-  type      SeatType @default(ECONOMY)
-  booking   Booking? @relation(fields: [bookingId], references: [id])
-  flight    Flight   @relation(fields: [flightId], references: [flightId])
+  id         Int      @id @default(autoincrement())
+  seatNumber Int
+  seatRow    String
+  isBooked   Boolean  @default(false)
+  flightId   Int
+  bookingId  Int?     @unique
+  type       SeatType @default(ECONOMY)
+  booking    Booking? @relation(fields: [bookingId], references: [id])
+  flight     Flight   @relation(fields: [flightId], references: [flightId])
 
   @@index([flightId], map: "Seat_flightId_fkey")
 }

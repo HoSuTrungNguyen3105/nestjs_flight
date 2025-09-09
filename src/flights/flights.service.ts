@@ -101,41 +101,41 @@ export class FlightsService {
     }
   }
 
-  async generateSeats(flightId: number) {
-    const flight = await this.prisma.flight.findUnique({
-      where: { flightId },
-    });
-    if (!flight) throw new Error('Flight not found');
+  // async generateSeats(flightId: number) {
+  //   const flight = await this.prisma.flight.findUnique({
+  //     where: { flightId },
+  //   });
+  //   if (!flight) throw new Error('Flight not found');
 
-    const rows = 30;
-    const columns = ['A', 'B', 'C', 'D', 'E', 'F'];
+  //   const rows = 30;
+  //   const columns = ['A', 'B', 'C', 'D', 'E', 'F'];
 
-    const seats: Prisma.SeatCreateManyInput[] = [];
+  //   const seats: Prisma.SeatCreateManyInput[] = [];
 
-    for (let row = 1; row <= rows; row++) {
-      for (const col of columns) {
-        let seatType: SeatType;
-        if (row <= 2) seatType = SeatType.VIP;
-        else if (row <= 10) seatType = SeatType.BUSINESS;
-        else seatType = SeatType.ECONOMY;
+  //   for (let seatRow = 1; seatRow <= rows; seatRow++) {
+  //     for (const col of columns) {
+  //       let seatType: SeatType;
+  //       if (seatRow <= 2) seatType = SeatType.VIP;
+  //       else if (seatRow <= 10) seatType = SeatType.BUSINESS;
+  //       else seatType = SeatType.ECONOMY;
 
-        seats.push({
-          row,
-          column: col,
-          flightId,
-          type: seatType,
-          isBooked: false,
-        });
-      }
-    }
+  //       seats.push({
+  //         seatRow,
+  //         seatNumber: col,
+  //         flightId,
+  //         type: seatType,
+  //         isBooked: false,
+  //       });
+  //     }
+  //   }
 
-    await this.prisma.seat.createMany({ data: seats });
+  //   await this.prisma.seat.createMany({ data: seats });
 
-    return {
-      message: `Generated ${seats.length} seats for flight ${flightId}`,
-      total: seats.length,
-    };
-  }
+  //   return {
+  //     message: `Generated ${seats.length} seats for flight ${flightId}`,
+  //     total: seats.length,
+  //   };
+  // }
 
   async findOne(flightId: number) {
     console.log('👉 flightId nhận vào:', flightId, typeof flightId);
@@ -317,8 +317,8 @@ export class FlightsService {
         seats: {
           select: {
             id: true,
-            row: true,
-            column: true,
+            seatRow: true,
+            seatNumber: true,
             type: true,
             isBooked: true,
           },

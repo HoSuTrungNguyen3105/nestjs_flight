@@ -76,10 +76,10 @@ export class FlightsController {
     return this.flightService.createAirport(body);
   }
 
-  @Post('generate/:flightId')
-  async generateSeats(@Param('flightId') flightId: string) {
-    return this.flightService.generateSeats(Number(flightId));
-  }
+  // @Post('generate/:flightId')
+  // async generateSeats(@Param('flightId') flightId: string) {
+  //   return this.flightService.generateSeats(Number(flightId));
+  // }
 
   @Post('search')
   async searchFlights(@Body() dto: SearchFlightDto) {
