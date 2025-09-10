@@ -12,6 +12,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserFromAdminDto } from './dto/update-user-from-admin.dto';
 import { UpdateUserInfoDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from 'src/common/mfa/jwt-auth.guard';
+import { CreateLeaveRequestDto } from './dto/leave-request.dto';
 
 @Controller('sys/users')
 export class UsersController {
@@ -106,6 +107,16 @@ export class UsersController {
     return this.userService.getUserIdByEmail(email);
   }
 
+  @Post('leave-requests')
+  async createLeaveRequest(@Body() body: CreateLeaveRequestDto) {
+    return this.userService.createLeaveRequest(body);
+  }
+
+  @Get('leave-requests/all')
+  async getAllLeaveRequest() {
+    return this.userService.getAllLeaveRequests();
+  }
+
   @Post('deleteUser')
   async remove(@Body('id') id: number) {
     return this.userService.deleteUser(Number(id));
@@ -146,29 +157,38 @@ export class UsersController {
     return this.userService.checkOut(Number(id));
   }
 
-  @Post('leave/apply')
-  async applyLeave(
-    @Body('employeeId') employeeId: number,
-    @Body('leaveType') leaveType: string,
-    @Body('start') start: string,
-    @Body('end') end: string,
-    @Body('reason') reason?: string,
-  ) {
-    return this.userService.applyLeave(
-      employeeId,
-      leaveType,
-      new Date(start),
-      new Date(end),
-      reason,
-    );
-  }
+  // @Post('leave/apply')
+  // async applyLeave(
+  //   @Body('employeeId') employeeId: number,
+  //   @Body('leaveType') leaveType: string,
+  //   @Body('start') start: string,
+  //   @Body('end') end: string,
+  //   @Body('reason') reason?: string,
+  // ) {
+  //   return this.userService.applyLeave(
+  //     employeeId,
+  //     leaveType,
+  //     new Date(start),
+  //     new Date(end),
+  //     reason,
+  //   );
+  // }
 
-  @Post('leave/approve/:id')
-  async approveLeave(
+  @Post('leave-requests/approve/:id')
+  async approveLeaveRequest(
     @Param('id') id: string,
     @Body('approverId') approverId: number,
     @Body('note') note?: string,
   ) {
-    return this.userService.approveLeave(Number(id), approverId, note);
+    return this.userService.approveLeaveRequest(Number(id), approverId, note);
+  }
+
+  @Post('leave-requests/reject/:id')
+  async rejectLeaveRequest(
+    @Param('id') id: string,
+    @Body('approverId') approverId: number,
+    @Body('note') note?: string,
+  ) {
+    return this.userService.rejectLeaveRequest(Number(id), approverId, note);
   }
 }

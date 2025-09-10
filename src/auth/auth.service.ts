@@ -154,6 +154,14 @@ export class AuthService {
         };
       }
 
+      if (user.isEmailVerified === 'N') {
+        return {
+          resultCode: '09',
+          resultMessage: 'Email Tài khoản chua Verified!',
+          requireVerified: true, //todo
+        };
+      }
+
       if (
         user.tempPassword &&
         user.password !== '' &&

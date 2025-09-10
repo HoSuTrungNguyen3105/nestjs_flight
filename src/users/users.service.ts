@@ -13,6 +13,7 @@ import { nowDecimal } from 'src/common/helpers/format';
 import { UpdateUserInfoDto } from './dto/update-user.dto';
 import { UpdateUserFromAdminDto } from './dto/update-user-from-admin.dto';
 import { v2 as cloudinary } from 'cloudinary';
+import { CreateLeaveRequestDto } from './dto/leave-request.dto';
 
 @Injectable()
 export class UsersService {
@@ -45,7 +46,9 @@ export class UsersService {
         attendance: true,
         baseSalary: true,
         department: true,
-        leaveRequest: true,
+        position: true,
+        hireDate: true,
+        status: true,
       },
     });
 
@@ -708,29 +711,123 @@ export class UsersService {
     return record;
   }
 
-  async applyLeave(
-    employeeId: number,
-    leaveType: string,
-    start: Date,
-    end: Date,
-    reason?: string,
-  ) {
-    return this.prisma.leaveRequest.create({
+  async createLeaveRequest(createDto: CreateLeaveRequestDto) {
+    const employee = await this.prisma.user.findUnique({
+      where: { id: createDto.employeeId },
+    });
+
+    if (!employee) {
+      return {
+        resultCode: '01',
+        resultMessage: `Employee not found!`,
+      };
+    }
+
+    // Tạo đơn nghỉ phép
+    const leaveRequest = await this.prisma.leaveRequest.create({
       data: {
-        employeeId,
-        leaveType,
-        startDate: new Prisma.Decimal(start.getTime()),
-        endDate: new Prisma.Decimal(end.getTime()),
-        days: (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
-        reason,
+        ...createDto, // copy các field từ DTO
         appliedAt: nowDecimal(),
       },
     });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Leave request created successfully',
+      data: leaveRequest,
+    };
   }
 
-  async approveLeave(id: number, approverId: number, note?: string) {
-    return this.prisma.leaveRequest.update({
-      where: { id },
+  async getAllLeaveRequests() {
+    try {
+      const leaveRequests = await this.prisma.leaveRequest.findMany({
+        select: {
+          id: true,
+          leaveType: true,
+          reason: true,
+          startDate: true,
+          endDate: true,
+          days: true,
+          status: true,
+          employeeId: true,
+          appliedAt: true,
+          employee: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: {
+          appliedAt: 'desc',
+        },
+      });
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Success',
+        list: leaveRequests,
+      };
+    } catch (error) {
+      return {
+        resultCode: '99',
+        resultMessage: 'Error fetching leave requests',
+        error: error.message,
+      };
+    }
+  }
+
+  // async applyLeave(
+  //   employeeId: number,
+  //   leaveType: string,
+  //   start: Date,
+  //   end: Date,
+  //   reason?: string,
+  // ) {
+  //   return this.prisma.leaveRequest.create({
+  //     data: {
+  //       employeeId,
+  //       leaveType,
+  //       startDate: new Prisma.Decimal(start.getTime()),
+  //       endDate: new Prisma.Decimal(end.getTime()),
+  //       days: (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+  //       reason,
+  //       appliedAt: nowDecimal(),
+  //     },
+  //   });
+  // }
+
+  // async approveLeave(id: number, approverId: number, note?: string) {
+  //   return this.prisma.leaveRequest.update({
+  //     where: { id },
+  //     data: {
+  //       status: 'APPROVED',
+  //       approverId,
+  //       approverNote: note,
+  //       decidedAt: nowDecimal(),
+  //     },
+  //   });
+  // }
+
+  async approveLeaveRequest(
+    requestId: number,
+    approverId: number,
+    note?: string,
+  ) {
+    const request = await this.prisma.leaveRequest.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request) {
+      return {
+        resultCode: '01',
+        resultMessage: 'Leave request not found!',
+      };
+    }
+
+    await this.prisma.leaveRequest.update({
+      where: { id: requestId },
       data: {
         status: 'APPROVED',
         approverId,
@@ -738,5 +835,42 @@ export class UsersService {
         decidedAt: nowDecimal(),
       },
     });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Leave request approved',
+    };
+  }
+
+  async rejectLeaveRequest(
+    requestId: number,
+    approverId: number,
+    note?: string,
+  ) {
+    const request = await this.prisma.leaveRequest.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request) {
+      return {
+        resultCode: '01',
+        resultMessage: 'Leave request not found!',
+      };
+    }
+
+    await this.prisma.leaveRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'REJECTED',
+        approverId,
+        approverNote: note,
+        decidedAt: nowDecimal(),
+      },
+    });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Leave request rejected',
+    };
   }
 }

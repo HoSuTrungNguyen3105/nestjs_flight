@@ -16,5 +16,5 @@ export class MfaLoginDto {
 
   @IsString()
   @Length(6, 6)
-  code!: string; // mã 6 số từ Google Authenticator
+  code!: string;
 }

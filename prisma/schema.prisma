@@ -69,11 +69,11 @@ enum PayrollStatus {
 }
 
 enum Department {
-  HR // Nhân sự
-  IT // Công nghệ thông tin
-  FINANCE // Tài chính
-  OPS // Vận hành
-  SECURITY // An ninh
+  HR
+  IT
+  FINANCE
+  OPS
+  SECURITY
   OTHER
 }
 

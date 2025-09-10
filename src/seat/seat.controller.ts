@@ -13,6 +13,7 @@ import {
 import { SeatService } from './seat.service';
 import { CreateSeatDto } from './dto/create-seat.dto';
 import { UpdateSeatDto } from './dto/update-seat.dto';
+import { SeatType } from 'generated/prisma';
 
 @Controller('sys/seats')
 export class SeatController {
@@ -35,14 +36,19 @@ export class SeatController {
   @Put(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateSeatDto: UpdateSeatDto,
+    @Body() body: { type?: SeatType },
   ) {
-    return this.seatService.update(id, updateSeatDto);
+    return this.seatService.updateSeat(id, body);
   }
 
-  @Delete(':id')
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    await this.seatService.remove(id);
+  // @Delete(':id')
+  // async remove(@Param('id', ParseIntPipe) id: number) {
+  //   await this.seatService.remove(id);
+  // }
+
+  @Post('flight/:flightId')
+  async deleteAllSeats(@Param('flightId') flightId: number) {
+    return this.seatService.deleteAllByFlight(Number(flightId));
   }
 
   @Post('delete-all')
