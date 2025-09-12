@@ -1,18 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
-import { Aircraft, Flight, Prisma, SeatType } from 'generated/prisma';
+import { Aircraft, Flight, Prisma } from 'generated/prisma';
 import { AirportDto } from './dto/create-airport.dto';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { SearchFlightDto } from './dto/SearchFlightDto';
 import { Decimal } from 'generated/prisma/runtime/library';
+import { UpdateFlightDto } from './dto/update-flight.dto';
+import { CreateFlightDto } from './dto/create-flight.dto';
 
 @Injectable()
 export class FlightsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(
-    data: Omit<Flight, 'flightId'>,
-  ): Promise<BaseResponseDto<Partial<Flight>>> {
+  async create(data: CreateFlightDto): Promise<BaseResponseDto<Flight>> {
     try {
       const flight = await this.prisma.flight.create({ data: { ...data } });
       return {
@@ -101,47 +101,17 @@ export class FlightsService {
     }
   }
 
-  // async generateSeats(flightId: number) {
-  //   const flight = await this.prisma.flight.findUnique({
-  //     where: { flightId },
-  //   });
-  //   if (!flight) throw new Error('Flight not found');
-
-  //   const rows = 30;
-  //   const columns = ['A', 'B', 'C', 'D', 'E', 'F'];
-
-  //   const seats: Prisma.SeatCreateManyInput[] = [];
-
-  //   for (let seatRow = 1; seatRow <= rows; seatRow++) {
-  //     for (const col of columns) {
-  //       let seatType: SeatType;
-  //       if (seatRow <= 2) seatType = SeatType.VIP;
-  //       else if (seatRow <= 10) seatType = SeatType.BUSINESS;
-  //       else seatType = SeatType.ECONOMY;
-
-  //       seats.push({
-  //         seatRow,
-  //         seatNumber: col,
-  //         flightId,
-  //         type: seatType,
-  //         isBooked: false,
-  //       });
-  //     }
-  //   }
-
-  //   await this.prisma.seat.createMany({ data: seats });
-
-  //   return {
-  //     message: `Generated ${seats.length} seats for flight ${flightId}`,
-  //     total: seats.length,
-  //   };
-  // }
-
-  async findOne(flightId: number) {
-    console.log('👉 flightId nhận vào:', flightId, typeof flightId);
+  async findOne(flightId: number): Promise<BaseResponseDto<Flight>> {
     const flight = await this.prisma.flight.findUnique({
       where: { flightId: flightId },
-      include: { aircraft: true },
+      include: {
+        aircraft: true,
+        arrivalAirportRel: true,
+        departureAirportRel: true,
+        meals: true,
+        seats: true,
+        flightStatuses: true,
+      },
     });
 
     if (!flight) {
@@ -151,16 +121,70 @@ export class FlightsService {
       };
     }
 
-    return flight;
+    return {
+      resultCode: '00',
+      resultMessage: `Flight with ID ${flightId} is found`,
+      data: flight,
+    };
   }
 
-  async update(flightId: number, data: Partial<Flight>) {
+  // async update(flightId: number, data: Partial<UpdateFlightDto>) {
+  //   try {
+  //     await this.findOne(flightId);
+  //     return await this.prisma.flight.update({
+  //       where: { flightId },
+  //       data,
+  //     });
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
+
+  async update(flightId: number, data: Partial<UpdateFlightDto>) {
     try {
       await this.findOne(flightId);
-      return await this.prisma.flight.update({
+
+      const updateData = {
+        flightNo: data.flightNo,
+        flightType: data.flightType,
+        departureAirport: data.departureAirport,
+        arrivalAirport: data.arrivalAirport,
+        status: data.status,
+        aircraftCode: data.aircraftCode,
+        scheduledDeparture: data.scheduledDeparture
+          ? new Prisma.Decimal(data.scheduledDeparture)
+          : undefined,
+        scheduledArrival: data.scheduledArrival
+          ? new Prisma.Decimal(data.scheduledArrival)
+          : undefined,
+        actualDeparture: data.actualDeparture
+          ? new Prisma.Decimal(data.actualDeparture)
+          : undefined,
+        actualArrival: data.actualArrival
+          ? new Prisma.Decimal(data.actualArrival)
+          : undefined,
+        priceEconomy: data.priceEconomy,
+        priceBusiness: data.priceBusiness,
+        priceFirst: data.priceFirst,
+        maxCapacity: data.maxCapacity,
+        gate: data.gate,
+        terminal: data.terminal,
+        isCancelled: data.isCancelled,
+        delayMinutes: data.delayMinutes,
+      };
+
+      const filteredData = Object.fromEntries(
+        Object.entries(updateData).filter(([_, value]) => value !== undefined),
+      );
+
+      await this.prisma.flight.update({
         where: { flightId },
-        data,
+        data: filteredData,
       });
+      return {
+        resultCode: '00',
+        resultMessage: 'Đã update toàn bộ chuyến bay thành công',
+      };
     } catch (error) {
       throw error;
     }

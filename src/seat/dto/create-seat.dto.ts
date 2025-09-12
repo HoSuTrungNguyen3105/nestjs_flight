@@ -9,11 +9,11 @@ import {
 export class CreateSeatDto {
   @IsInt()
   @IsNotEmpty()
-  seatNumber: number; // Ví dụ: 1, 2, 3...
+  seatNumber: number;
 
   @IsString()
   @IsNotEmpty()
-  seatRow: string; // Ví dụ: "A", "B", "C"...
+  seatRow: string;
 
   @IsInt()
   @IsNotEmpty()
@@ -21,5 +21,5 @@ export class CreateSeatDto {
 
   @IsBoolean()
   @IsOptional()
-  isBooked?: boolean; // Mặc định false
+  isBooked?: boolean;
 }

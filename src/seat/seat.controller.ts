@@ -33,18 +33,27 @@ export class SeatController {
     return this.seatService.findOne(id);
   }
 
-  @Put(':id')
-  async update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: { type?: SeatType },
-  ) {
-    return this.seatService.updateSeat(id, body);
+  @Get('getFlightSeat/:id')
+  async getFlightSeat(@Param('id', ParseIntPipe) id: number) {
+    return this.seatService.findAllByFlightId(id);
   }
 
-  // @Delete(':id')
-  // async remove(@Param('id', ParseIntPipe) id: number) {
-  //   await this.seatService.remove(id);
-  // }
+  @Post('updateMultipleSeatsByIds')
+  async updateMultipleSeatsWithBody(
+    @Body()
+    body: {
+      seatIds: number[];
+      type?: SeatType;
+      seatRow?: string;
+      seatNumber?: number;
+    },
+  ) {
+    return this.seatService.updateMultipleSeats(body.seatIds, {
+      type: body.type,
+      seatRow: body.seatRow,
+      seatNumber: body.seatNumber,
+    });
+  }
 
   @Post('flight/:flightId')
   async deleteAllSeats(@Param('flightId') flightId: number) {

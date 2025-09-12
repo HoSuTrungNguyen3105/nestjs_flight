@@ -158,6 +158,7 @@ export class AuthService {
         return {
           resultCode: '09',
           resultMessage: 'Email Tài khoản chua Verified!',
+          userId: user.id,
           requireVerified: true, //todo
         };
       }

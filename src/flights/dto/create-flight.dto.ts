@@ -1,91 +1,78 @@
-// import { IsDateString, IsOptional, IsString } from 'class-validator';
-
-// export class CreateFlightDto {
-//   @IsString()
-//   flightNo: string;
-
-//   @IsDateString()
-//   scheduledDeparture: Date;
-
-//   @IsDateString()
-//   scheduledArrival: Date;
-
-//   @IsString()
-//   departureAirport: string;
-
-//   @IsString()
-//   arrivalAirport: string;
-
-//   @IsString()
-//   status: string;
-
-//   @IsString()
-//   aircraftCode: string;
-
-//   @IsOptional()
-//   @IsDateString()
-//   actualDeparture?: Date;
-
-//   @IsOptional()
-//   @IsDateString()
-//   actualArrival?: Date;
-// }
 import {
   IsString,
   IsNumber,
   IsOptional,
   IsBoolean,
-  IsIn,
+  IsDecimal,
+  IsNotEmpty,
+  Min,
+  IsPositive,
 } from 'class-validator';
 
 export class CreateFlightDto {
+  @IsNumber()
+  @IsNotEmpty()
+  flightId: number;
+
   @IsString()
+  @IsNotEmpty()
   flightNo: string;
 
   @IsString()
-  flightType: 'oneway' | 'roundtrip';
+  @IsNotEmpty()
+  flightType: string;
 
   @IsString()
+  @IsNotEmpty()
   departureAirport: string;
 
   @IsString()
+  @IsNotEmpty()
   arrivalAirport: string;
 
   @IsString()
+  @IsNotEmpty()
   status: string;
 
   @IsString()
+  @IsNotEmpty()
   aircraftCode: string;
 
-  @IsNumber()
-  scheduledDeparture: number; // timestamp in ms
-
-  @IsNumber()
-  scheduledArrival: number; // timestamp in ms
-
   @IsOptional()
   @IsNumber()
-  actualDeparture?: number;
-
-  @IsOptional()
-  @IsNumber()
-  actualArrival?: number;
-
-  @IsOptional()
-  @IsNumber()
+  @Min(0)
   priceEconomy?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   priceBusiness?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   priceFirst?: number;
 
   @IsOptional()
   @IsNumber()
+  @IsPositive()
   maxCapacity?: number;
+
+  @IsDecimal()
+  @IsNotEmpty()
+  scheduledDeparture: string;
+
+  @IsDecimal()
+  @IsNotEmpty()
+  scheduledArrival: string;
+
+  @IsOptional()
+  @IsDecimal()
+  actualDeparture?: string;
+
+  @IsOptional()
+  @IsDecimal()
+  actualArrival?: string;
 
   @IsOptional()
   @IsString()
@@ -97,9 +84,10 @@ export class CreateFlightDto {
 
   @IsOptional()
   @IsBoolean()
-  isCancelled?: boolean;
+  isCancelled: boolean;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   delayMinutes?: number;
 }

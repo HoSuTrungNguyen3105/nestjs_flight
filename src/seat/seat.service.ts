@@ -239,6 +239,56 @@ export class SeatService {
     }
   }
 
+  async findAllByFlightId(flightId: number) {
+    try {
+      const flight = await this.prisma.flight.findUnique({
+        where: { flightId: flightId },
+      });
+
+      if (!flight) {
+        return { resultCode: '09', resultMessage: 'Flight not found.' };
+      }
+
+      const seats = await this.prisma.seat.findMany({
+        where: { flightId: flightId },
+        orderBy: [{ seatNumber: 'asc' }, { seatRow: 'asc' }],
+      });
+
+      const formattedSeats = seats.map((seat) => ({
+        id: seat.id,
+        seatNumber: seat.seatNumber,
+        seatRow: seat.seatRow,
+        type: this.determineSeatType(seat.seatNumber, seat.seatRow),
+        isBooked: seat.isBooked,
+        isWindow: this.isWindowSeat(seat.seatRow),
+        nearRestroom: this.isNearRestroom(seat.seatNumber),
+      }));
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Seats retrieved successfully',
+        data: formattedSeats,
+      };
+    } catch (err) {
+      console.error('An error occurred during seat retrieval:', err);
+      throw err;
+    }
+  }
+
+  private determineSeatType(seatNumber: number, seatRow: string): string {
+    if (seatNumber <= 2) return 'VIP';
+    if (seatNumber <= 5) return 'BUSINESS';
+    return 'ECONOMY';
+  }
+
+  private isWindowSeat(seatRow: string): boolean {
+    return seatRow === 'A' || seatRow === 'F';
+  }
+
+  private isNearRestroom(seatNumber: number): boolean {
+    return seatNumber === 1 || seatNumber === 15 || seatNumber === 30;
+  }
+
   async deleteAllSeats() {
     try {
       const deleted = await this.prisma.seat.deleteMany({});
@@ -276,35 +326,115 @@ export class SeatService {
     };
   }
 
-  // async update(id: number, data: UpdateSeatDto) {
-  //   const seat = await this.prisma.seat.findUnique({ where: { id } });
-  //   if (!seat) {
+  // async updateSeat(seatId: number, data: { type?: SeatType }) {
+  //   // isBooked?: boolean
+  //   try {
+  //     const seat = await this.prisma.seat.update({
+  //       where: { id: seatId },
+  //       data,
+  //     });
+
   //     return {
-  //       resultCode: '01',
-  //       resultMessage: `Seat with ID ${id} not found.`,
+  //       resultCode: '00',
+  //       resultMessage: 'Seat updated successfully',
+  //       data: seat,
   //     };
+  //   } catch (err) {
+  //     console.error('Error updating seat:', err);
+  //     throw err;
   //   }
-  //   return this.prisma.seat.update({ where: { id }, data });
   // }
 
-  async updateSeat(seatId: number, data: { type?: SeatType }) {
-    // isBooked?: boolean
+  async updateMultipleSeats(
+    seatIds: number[],
+    data: { type?: SeatType; seatRow?: string; seatNumber?: number },
+  ) {
     try {
-      const seat = await this.prisma.seat.update({
-        where: { id: seatId },
-        data,
+      if (!seatIds || seatIds.length === 0) {
+        return {
+          resultCode: '01',
+          resultMessage: 'No seat IDs provided',
+          data: [],
+        };
+      }
+
+      const updatedSeats = await this.prisma.seat.updateMany({
+        where: {
+          id: {
+            in: seatIds,
+          },
+        },
+        data: {
+          type: data.type,
+          seatRow: data.seatRow,
+          seatNumber: data.seatNumber,
+        },
+      });
+
+      const seats = await this.prisma.seat.findMany({
+        where: {
+          id: {
+            in: seatIds,
+          },
+        },
       });
 
       return {
         resultCode: '00',
-        resultMessage: 'Seat updated successfully',
-        data: seat,
+        resultMessage: `${updatedSeats.count} seats updated successfully`,
+        data: seats,
       };
     } catch (err) {
-      console.error('Error updating seat:', err);
+      console.error('Error updating multiple seats:', err);
       throw err;
     }
   }
+
+  // src/seat/seat.service.ts
+  // async updateMultipleSeats(seatIds: number[], data: { type?: SeatType }) {
+  //   try {
+  //     // Kiểm tra nếu mảng seatIds rỗng
+  //     if (!seatIds || seatIds.length === 0) {
+  //       return {
+  //         resultCode: '01',
+  //         resultMessage: 'No seat IDs provided',
+  //         data: [],
+  //       };
+  //     }
+
+  //     // Update nhiều seats cùng lúc
+  //     const updatedSeats = await this.prisma.seat.updateMany({
+  //       where: {
+  //         id: {
+  //           in: seatIds, // Sử dụng operator 'in' để update nhiều records
+  //         },
+  //       },
+  //       data: {
+  //         type: data.type,
+  //         // isBooked: data.isBooked, // Bỏ comment nếu cần
+  //         // Có thể thêm các trường khác cần update
+  //       },
+  //     });
+
+  //     // Lấy thông tin chi tiết của các seats đã update
+  //     const seats = await this.prisma.seat.findMany({
+  //       where: {
+  //         id: {
+  //           in: seatIds,
+  //         },
+  //       },
+  //     });
+
+  //     return {
+  //       resultCode: '00',
+  //       resultMessage: `${updatedSeats.count} seats updated successfully`,
+  //       data: seats,
+  //     };
+  //   } catch (err) {
+  //     console.error('Error updating multiple seats:', err);
+  //     throw err;
+  //   }
+  // }
 
   async remove(id: number) {
     const seat = await this.prisma.seat.findUnique({ where: { id } });
