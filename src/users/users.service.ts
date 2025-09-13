@@ -667,19 +667,35 @@ export class UsersService {
     month: number,
     year: number,
     baseSalary: number,
+    allowances = 0,
+    deductions = 0,
+    tax = 0,
   ) {
-    const netPay = baseSalary;
-    return this.prisma.payroll.create({
+    const netPay = baseSalary + allowances - deductions - tax;
+
+    const payroll = await this.prisma.payroll.create({
       data: {
         employeeId,
         month,
         year,
         baseSalary,
+        allowances,
+        deductions,
+        tax,
         netPay,
         status: 'DRAFT',
         generatedAt: nowDecimal(),
       },
+      include: {
+        employee: { select: { id: true, name: true, employeeNo: true } },
+      },
     });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Payroll generated successfully',
+      data: payroll,
+    };
   }
 
   async finalizePayroll(id: number) {
@@ -687,6 +703,32 @@ export class UsersService {
       where: { id },
       data: { status: 'FINALIZED' },
     });
+  }
+
+  async findByEmployee(
+    employeeId: number,
+    month?: number,
+    year?: number,
+  ): Promise<BaseResponseDto<any>> {
+    const where: any = { employeeId };
+    if (month && year) {
+      where.month = month;
+      where.year = year;
+    }
+
+    const payrolls = await this.prisma.payroll.findMany({
+      where,
+      include: {
+        employee: { select: { id: true, name: true, employeeNo: true } },
+      },
+      orderBy: { generatedAt: 'desc' },
+    });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Fetched payroll records',
+      list: payrolls,
+    };
   }
 
   async checkIn(employeeId: number) {

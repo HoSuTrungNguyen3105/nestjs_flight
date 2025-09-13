@@ -166,6 +166,64 @@ export class SeatService {
   //   });
   // }
 
+  // async create(data: CreateSeatDto) {
+  //   try {
+  //     const flight = await this.prisma.flight.findUnique({
+  //       where: { flightId: data.flightId },
+  //     });
+
+  //     if (!flight) {
+  //       return { resultCode: '09', resultMessage: 'Flight not found.' };
+  //     }
+
+  //     // Trường hợp tạo 1 seat cụ thể
+  //     if (data.seatRow && data.seatNumber) {
+  //       const seat = await this.prisma.seat.create({
+  //         data: {
+  //           seatRow: data.seatRow, // A-F
+  //           seatNumber: data.seatNumber, // 1-40
+  //           flightId: data.flightId,
+  //           isBooked: data.isBooked ?? false,
+  //         },
+  //       });
+
+  //       return {
+  //         resultCode: '00',
+  //         resultMessage: 'Created 1 seat successfully',
+  //         data: seat,
+  //       };
+  //     }
+
+  //     const columns = ['A', 'B', 'C', 'D', 'E', 'F'];
+  //     const seats: Prisma.SeatCreateManyInput[] = [];
+
+  //     for (let row = 1; row <= 40; row++) {
+  //       for (const col of columns) {
+  //         seats.push({
+  //           seatRow: col,
+  //           seatNumber: row,
+  //           flightId: data.flightId,
+  //           isBooked: false,
+  //         });
+  //       }
+  //     }
+
+  //     const res = await this.prisma.seat.createMany({
+  //       data: seats,
+  //       skipDuplicates: true,
+  //     });
+
+  //     return {
+  //       resultCode: '00',
+  //       resultMessage: `Created ${res.count} seats successfully (A-F × 1-40).`,
+  //       data: res,
+  //     };
+  //   } catch (err) {
+  //     console.error('An error occurred during seat creation:', err);
+  //     throw err;
+  //   }
+  // }
+
   async create(data: CreateSeatDto) {
     try {
       const flight = await this.prisma.flight.findUnique({
@@ -176,12 +234,11 @@ export class SeatService {
         return { resultCode: '09', resultMessage: 'Flight not found.' };
       }
 
-      // Trường hợp tạo 1 seat cụ thể
       if (data.seatRow && data.seatNumber) {
         const seat = await this.prisma.seat.create({
           data: {
-            seatRow: data.seatRow, // A-F
-            seatNumber: data.seatNumber, // 1-40
+            seatRow: data.seatRow.toUpperCase(),
+            seatNumber: data.seatNumber,
             flightId: data.flightId,
             isBooked: data.isBooked ?? false,
           },
@@ -190,36 +247,43 @@ export class SeatService {
         return {
           resultCode: '00',
           resultMessage: 'Created 1 seat successfully',
-          data: seat,
         };
       }
 
       const columns = ['A', 'B', 'C', 'D', 'E', 'F'];
       const seats: Prisma.SeatCreateManyInput[] = [];
 
-      for (let row = 1; row <= 40; row++) {
-        for (const col of columns) {
+      for (let number = 1; number <= 40; number++) {
+        for (const row of columns) {
           seats.push({
-            seatRow: col,
-            seatNumber: row,
+            seatRow: row,
+            seatNumber: number,
             flightId: data.flightId,
             isBooked: false,
           });
         }
       }
 
-      const res = await this.prisma.seat.createMany({
+      await this.prisma.seat.createMany({
         data: seats,
         skipDuplicates: true,
       });
 
+      const createdSeats = await this.prisma.seat.findMany({
+        where: { flightId: data.flightId },
+        orderBy: [{ seatRow: 'asc' }, { seatNumber: 'asc' }],
+      });
+
       return {
         resultCode: '00',
-        resultMessage: `Created ${res.count} seats successfully (A-F × 1-40).`,
+        resultMessage: `Created ${createdSeats.length} seats successfully (A-F × 1-40).`,
       };
     } catch (err) {
-      console.error('An error occurred during seat creation:', err);
-      throw err;
+      console.error('❌ Error creating seats:', err);
+      return {
+        resultCode: '99',
+        resultMessage: 'Internal server error',
+      };
     }
   }
 
