@@ -127,24 +127,59 @@ export class UsersController {
     return this.userService.rejectTransfer(userId);
   }
 
+  // @Post('payroll/generate')
+  // async generatePayroll(
+  //   @Body('employeeId') employeeId: number,
+  //   @Body('month') month: number,
+  //   @Body('year') year: number,
+  //   @Body('baseSalary') baseSalary: number,
+  // ) {
+  //   return this.userService.generatePayroll(
+  //     employeeId,
+  //     month,
+  //     year,
+  //     baseSalary,
+  //   );
+  // }
+
+  // @Post('payroll/finalize/:id')
+  // async finalizePayroll(@Param('id') id: string) {
+  //   return this.userService.finalizePayroll(Number(id));
+  // }
+
   @Post('payroll/generate')
-  async generatePayroll(
+  async generate(
     @Body('employeeId') employeeId: number,
     @Body('month') month: number,
     @Body('year') year: number,
     @Body('baseSalary') baseSalary: number,
+    @Body('allowances') allowances?: number,
+    @Body('deductions') deductions?: number,
+    @Body('tax') tax?: number,
   ) {
     return this.userService.generatePayroll(
       employeeId,
       month,
       year,
       baseSalary,
+      allowances,
+      deductions,
+      tax,
     );
   }
 
   @Post('payroll/finalize/:id')
-  async finalizePayroll(@Param('id') id: string) {
+  async finalize(@Param('id') id: number) {
     return this.userService.finalizePayroll(Number(id));
+  }
+
+  @Get('employee/:employeeId')
+  async findByEmployee(
+    @Param('employeeId') employeeId: number,
+    @Body('month') month?: number,
+    @Body('year') year?: number,
+  ) {
+    return this.userService.findByEmployee(Number(employeeId), month, year);
   }
 
   @Post('attendance/check-in')

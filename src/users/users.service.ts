@@ -265,6 +265,8 @@ export class UsersService {
               id: true,
               transferAdmin: true,
               role: true,
+              email: true,
+              name: true,
             },
           },
         },
