@@ -8,7 +8,7 @@ export class SearchFlightDto {
   to: string; // arrivalAirport
 
   @IsOptional()
-  departDate?: number; // ISO string hoặc yyyy-MM-dd
+  departDate?: number;
 
   @IsOptional()
   returnDate?: number;
@@ -22,6 +22,6 @@ export class SearchFlightDto {
   flightType?: 'oneway' | 'roundtrip';
 
   @IsOptional()
-  @IsIn(['economy', 'business', 'first'])
-  cabinClass?: 'economy' | 'business' | 'first';
+  @IsIn(['ECONOMY', 'BUSINESS', 'VIP']) // hoặc ['economy', 'business', 'first'] VIP
+  cabinClass?: 'ECONOMY' | 'BUSINESS' | 'VIP';
 }

@@ -1,66 +1,24 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Prisma } from 'generated/prisma';
+import { Decimal } from 'generated/prisma/runtime/library';
 
 export class FlightResponseDto {
-  @ApiProperty()
   flightId: number;
-
-  @ApiProperty()
   flightNo: string;
-
-  @ApiProperty()
   flightType: string;
-
-  @ApiProperty()
   departureAirport: string;
-
-  @ApiProperty()
   arrivalAirport: string;
-
-  @ApiProperty()
   status: string;
-
-  @ApiProperty()
   aircraftCode: string;
-
-  @ApiProperty({ required: false })
-  priceEconomy?: number;
-
-  @ApiProperty({ required: false })
-  priceBusiness?: number;
-
-  @ApiProperty({ required: false })
-  priceFirst?: number;
-
-  @ApiProperty({ required: false })
-  maxCapacity?: number;
-
-  @ApiProperty()
-  scheduledDeparture: string;
-
-  @ApiProperty()
-  scheduledArrival: string;
-
-  @ApiProperty({ required: false })
-  actualDeparture?: string;
-
-  @ApiProperty({ required: false })
-  actualArrival?: string;
-
-  @ApiProperty({ required: false })
-  gate?: string;
-
-  @ApiProperty({ required: false })
-  terminal?: string;
-
-  @ApiProperty()
-  isCancelled: boolean;
-
-  @ApiProperty({ required: false })
-  delayMinutes?: number;
-
-  @ApiProperty()
-  createdAt: number;
-
-  @ApiProperty()
-  updatedAt: number;
+  priceEconomy?: number | null;
+  priceBusiness?: number | null;
+  priceFirst?: number | null;
+  scheduledDeparture: Prisma.Decimal | null;
+  scheduledArrival: Prisma.Decimal | null;
+  actualDeparture?: Prisma.Decimal | null;
+  actualArrival?: Prisma.Decimal | null;
+  gate?: string | null;
+  terminal?: string | null;
+  isCancelled: boolean | null;
+  delayMinutes?: number | null;
 }

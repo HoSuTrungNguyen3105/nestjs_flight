@@ -3,22 +3,45 @@ import { PrismaService } from 'src/prisma.service';
 import { Aircraft, Flight, Prisma } from 'generated/prisma';
 import { AirportDto } from './dto/create-airport.dto';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
-import { SearchFlightDto } from './dto/SearchFlightDto';
+import { SearchFlightDto } from './dto/search.flight.dto';
 import { Decimal } from 'generated/prisma/runtime/library';
 import { UpdateFlightDto } from './dto/update-flight.dto';
 import { CreateFlightDto } from './dto/create-flight.dto';
+import { FlightResponseDto } from './dto/flight-response.dto';
 
 @Injectable()
 export class FlightsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: CreateFlightDto): Promise<BaseResponseDto<Flight>> {
+  async create(
+    data: CreateFlightDto,
+  ): Promise<BaseResponseDto<FlightResponseDto>> {
     try {
+      const flightExists = await this.prisma.flight.findUnique({
+        where: { flightId: data.flightId },
+      });
+      if (flightExists) {
+        return {
+          resultCode: '01',
+          resultMessage: `Flight with ID ${data.flightId} already exists`,
+        };
+      }
       const flight = await this.prisma.flight.create({ data: { ...data } });
+
+      const formattedFlight = {
+        ...flight,
+        scheduledArrival: flight.scheduledArrival
+          ? new Prisma.Decimal(flight.scheduledArrival)
+          : null,
+        scheduledDeparture: flight.scheduledDeparture
+          ? new Prisma.Decimal(flight.scheduledDeparture)
+          : null,
+      };
+
       return {
         resultCode: '00',
         resultMessage: 'Thành công',
-        data: flight,
+        data: formattedFlight,
       };
     } catch (error) {
       console.error('error', error);
@@ -27,55 +50,140 @@ export class FlightsService {
   }
 
   async searchFlights(dto: SearchFlightDto) {
-    const { from, to, departDate, returnDate, flightType } = dto;
+    const {
+      from,
+      to,
+      departDate,
+      returnDate,
+      flightType,
+      passengers,
+      cabinClass,
+    } = dto;
+
+    // Validate required fields
     if (!departDate) {
       throw new Error('departDate is required');
     }
-    const departDateObj = new Date(departDate);
+    try {
+      // Convert timestamps to Date objects
+      const departDateObj = new Date(departDate);
+      const departStart = new Date(departDateObj.setHours(0, 0, 0, 0));
+      const departEnd = new Date(departDateObj.setHours(23, 59, 59, 999));
 
-    const departStart = new Decimal(departDateObj.setHours(0, 0, 0, 0));
-    const departEnd = new Decimal(departDateObj.setHours(23, 59, 59, 999));
+      // Convert to Prisma Decimal for database comparison
+      const departStartDecimal = new Prisma.Decimal(departStart.getTime());
+      const departEndDecimal = new Prisma.Decimal(departEnd.getTime());
 
-    const outbound = await this.prisma.flight.findMany({
-      where: {
+      // Build where condition for seats
+      const seatsWhere: Prisma.SeatWhereInput = {
+        isBooked: true,
+        ...(cabinClass && { type: cabinClass }),
+      };
+
+      // If passengers specified, ensure we have enough available seats
+      if (passengers) {
+        seatsWhere.AND = [
+          { isBooked: true },
+          { bookingId: null }, // Ensure seat is not booked
+        ];
+      }
+
+      // Include seats with filtering
+      const includeSeats: Prisma.FlightInclude = {
+        seats: {
+          where: seatsWhere,
+        },
+      };
+
+      // Build where condition for outbound flights
+      const outboundWhere: Prisma.FlightWhereInput = {
         departureAirport: from,
         arrivalAirport: to,
         scheduledDeparture: {
-          gte: departStart,
-          lte: departEnd,
+          gte: departStartDecimal,
+          lte: departEndDecimal,
         },
-      },
-      include: {
-        seats: true,
-      },
-    });
+        status: 'scheduled',
+      };
 
-    if (flightType === 'oneway') return { outbound };
-    if (!returnDate) {
-      throw new Error('returnDate is required');
-    }
-    const returnDateObj = new Date(returnDate);
-    const returnStart = new Decimal(returnDateObj.setHours(0, 0, 0, 0));
-    const returnEnd = new Decimal(returnDateObj.setHours(23, 59, 59, 999));
+      // Find outbound flights
+      const outbound = await this.prisma.flight.findMany({
+        where: outboundWhere,
+        include: includeSeats,
+      });
 
-    const inbound = await this.prisma.flight.findMany({
-      where: {
+      // Filter flights with enough available seats if passengers specified
+      let filteredOutbound = outbound;
+      if (passengers) {
+        filteredOutbound = outbound.filter(
+          (flight) => flight.seats.length >= passengers,
+        );
+      }
+
+      // For oneway flights
+      if (flightType === 'oneway') {
+        return {
+          resultCode: '00',
+          resultMessage: 'Thành công',
+          data: {
+            outbound: filteredOutbound,
+            inbound: null,
+          },
+        };
+      }
+
+      // For roundtrip flights
+      if (!returnDate) {
+        throw new Error('returnDate is required for roundtrip flights');
+      }
+
+      const returnDateObj = new Date(returnDate);
+      const returnStart = new Date(returnDateObj.setHours(0, 0, 0, 0));
+      const returnEnd = new Date(returnDateObj.setHours(23, 59, 59, 999));
+
+      const returnStartDecimal = new Prisma.Decimal(returnStart.getTime());
+      const returnEndDecimal = new Prisma.Decimal(returnEnd.getTime());
+
+      // Build where condition for inbound flights
+      const inboundWhere: Prisma.FlightWhereInput = {
         departureAirport: to,
         arrivalAirport: from,
         scheduledDeparture: {
-          gte: returnStart,
-          lte: returnEnd,
+          gte: returnStartDecimal,
+          lte: returnEndDecimal,
         },
-      },
-      include: {
-        seats: true,
-      },
-    });
+        status: 'scheduled',
+      };
 
-    return { outbound, inbound };
+      // Find inbound flights
+      const inbound = await this.prisma.flight.findMany({
+        where: inboundWhere,
+        include: includeSeats,
+      });
+
+      // Filter inbound flights with enough available seats
+      let filteredInbound = inbound;
+      if (passengers) {
+        filteredInbound = inbound.filter(
+          (flight) => flight.seats.length >= passengers,
+        );
+      }
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Thành công',
+        data: {
+          outbound: filteredOutbound,
+          inbound: filteredInbound,
+        },
+      };
+    } catch (error) {
+      console.error('Error searching flights:', error);
+      throw error;
+    }
   }
 
-  async findAll() {
+  async findAll(): Promise<BaseResponseDto<FlightResponseDto>> {
     try {
       const flights = await this.prisma.flight.findMany({
         include: {
@@ -128,18 +236,6 @@ export class FlightsService {
     };
   }
 
-  // async update(flightId: number, data: Partial<UpdateFlightDto>) {
-  //   try {
-  //     await this.findOne(flightId);
-  //     return await this.prisma.flight.update({
-  //       where: { flightId },
-  //       data,
-  //     });
-  //   } catch (error) {
-  //     throw error;
-  //   }
-  // }
-
   async update(flightId: number, data: Partial<UpdateFlightDto>) {
     try {
       await this.findOne(flightId);
@@ -151,12 +247,6 @@ export class FlightsService {
         arrivalAirport: data.arrivalAirport,
         status: data.status,
         aircraftCode: data.aircraftCode,
-        scheduledDeparture: data.scheduledDeparture
-          ? new Prisma.Decimal(data.scheduledDeparture)
-          : undefined,
-        scheduledArrival: data.scheduledArrival
-          ? new Prisma.Decimal(data.scheduledArrival)
-          : undefined,
         actualDeparture: data.actualDeparture
           ? new Prisma.Decimal(data.actualDeparture)
           : undefined,
@@ -166,12 +256,17 @@ export class FlightsService {
         priceEconomy: data.priceEconomy,
         priceBusiness: data.priceBusiness,
         priceFirst: data.priceFirst,
-        maxCapacity: data.maxCapacity,
         gate: data.gate,
         terminal: data.terminal,
         isCancelled: data.isCancelled,
         delayMinutes: data.delayMinutes,
+        delayReason: data.delayReason,
+        cancellationReason: data.cancellationReason,
       };
+
+      if (data.isCancelled || data.delayMinutes) {
+        // todo
+      }
 
       const filteredData = Object.fromEntries(
         Object.entries(updateData).filter(([_, value]) => value !== undefined),
@@ -181,6 +276,7 @@ export class FlightsService {
         where: { flightId },
         data: filteredData,
       });
+
       return {
         resultCode: '00',
         resultMessage: 'Đã update toàn bộ chuyến bay thành công',
@@ -200,7 +296,12 @@ export class FlightsService {
         };
       }
 
-      return await this.prisma.flight.delete({ where: { flightId } });
+      await this.prisma.flight.delete({ where: { flightId } });
+
+      return {
+        resultCode: '00',
+        resultMessage: `Flight with ID ${flightId} successfully deleted`,
+      };
     } catch (error) {
       throw error;
     }
@@ -235,6 +336,7 @@ export class FlightsService {
       return { resultCode: '01', resultMessage: 'Aircraft already exists' };
     }
   }
+
   async getAllAircraft() {
     const res = await this.prisma.aircraft.findMany({
       select: {

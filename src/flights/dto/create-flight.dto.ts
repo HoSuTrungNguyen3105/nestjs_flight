@@ -6,7 +6,6 @@ import {
   IsDecimal,
   IsNotEmpty,
   Min,
-  IsPositive,
 } from 'class-validator';
 
 export class CreateFlightDto {
@@ -53,11 +52,6 @@ export class CreateFlightDto {
   @Min(0)
   priceFirst?: number;
 
-  @IsOptional()
-  @IsNumber()
-  @IsPositive()
-  maxCapacity?: number;
-
   @IsDecimal()
   @IsNotEmpty()
   scheduledDeparture: string;
@@ -67,27 +61,10 @@ export class CreateFlightDto {
   scheduledArrival: string;
 
   @IsOptional()
-  @IsDecimal()
-  actualDeparture?: string;
-
-  @IsOptional()
-  @IsDecimal()
-  actualArrival?: string;
-
-  @IsOptional()
   @IsString()
   gate?: string;
 
   @IsOptional()
   @IsString()
   terminal?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isCancelled: boolean;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  delayMinutes?: number;
 }

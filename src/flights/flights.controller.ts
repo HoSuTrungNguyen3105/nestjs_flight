@@ -14,10 +14,11 @@ import { FlightsService } from './flights.service';
 import { Aircraft, Airport, Flight } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { AirportDto } from './dto/create-airport.dto';
-import { SearchFlightDto } from './dto/SearchFlightDto';
+import { SearchFlightDto } from './dto/search.flight.dto';
 import { UpdateFlightDto } from './dto/update-flight.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { CreateFlightDto } from './dto/create-flight.dto';
+import { FlightResponseDto } from './dto/flight-response.dto';
 // import { ApiOperation } from '@nestjs/swagger';
 
 @Controller('sys/flights')
@@ -38,7 +39,7 @@ export class FlightsController {
 
   // @UseGuards(AuthGuard('jwt'))
   @Get()
-  async findAll(): Promise<BaseResponseDto<Flight>> {
+  async findAll(): Promise<BaseResponseDto<FlightResponseDto>> {
     return this.flightService.findAll();
   }
 
@@ -49,8 +50,6 @@ export class FlightsController {
 
   @Post('updateFlight/:flightId')
   updateFlight(@Param('flightId') id: string, @Body() data: UpdateFlightDto) {
-    console.log('id', id);
-    console.log('res', data);
     return this.flightService.update(+id, data);
   }
 
