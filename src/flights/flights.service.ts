@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
-import { Aircraft, Flight, Prisma } from 'generated/prisma';
+import { Aircraft, Flight, Prisma, SeatType } from 'generated/prisma';
 import { AirportDto } from './dto/create-airport.dto';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { SearchFlightDto } from './dto/search.flight.dto';
@@ -56,131 +56,148 @@ export class FlightsService {
       departDate,
       returnDate,
       flightType,
-      passengers,
       cabinClass,
+      aircraftCode,
+      status,
+      minPrice,
+      maxPrice,
+      gate,
+      terminal,
+      flightNo,
+      minDelayMinutes,
+      maxDelayMinutes,
+      includeCancelled = false,
     } = dto;
 
-    // Validate required fields
-    if (!departDate) {
-      throw new Error('departDate is required');
-    }
-    try {
-      // Convert timestamps to Date objects
-      const departDateObj = new Date(departDate);
-      const departStart = new Date(departDateObj.setHours(0, 0, 0, 0));
-      const departEnd = new Date(departDateObj.setHours(23, 59, 59, 999));
+    // Build where condition cho outbound flights
+    const outboundWhere: Prisma.FlightWhereInput = {
+      // Điều kiện cơ bản
+      ...(from && { departureAirport: from.toUpperCase() }),
+      ...(to && { arrivalAirport: to.toUpperCase() }),
 
-      // Convert to Prisma Decimal for database comparison
-      const departStartDecimal = new Prisma.Decimal(departStart.getTime());
-      const departEndDecimal = new Prisma.Decimal(departEnd.getTime());
+      // Các điều kiện optional từ dữ liệu của bạn
+      ...(flightNo && { flightNo: { contains: flightNo.toUpperCase() } }),
+      ...(flightType && { flightType: flightType.toLowerCase() }),
+      ...(status && { status: status.toUpperCase() }),
+      ...(aircraftCode && { aircraftCode: aircraftCode.toUpperCase() }),
+      ...(gate && { gate: { contains: gate.toUpperCase() } }),
+      ...(terminal && { terminal: { contains: terminal.toUpperCase() } }),
 
-      // Build where condition for seats
-      const seatsWhere: Prisma.SeatWhereInput = {
-        isBooked: true,
-        ...(cabinClass && { type: cabinClass }),
-      };
+      // Điều kiện price
+      ...(minPrice !== undefined && { priceEconomy: { gte: minPrice } }),
+      ...(maxPrice !== undefined && { priceEconomy: { lte: maxPrice } }),
+      ...(minPrice !== undefined && { priceBusiness: { gte: minPrice } }),
+      ...(maxPrice !== undefined && { priceBusiness: { lte: maxPrice } }),
+      ...(minPrice !== undefined && { priceFirst: { gte: minPrice } }),
+      ...(maxPrice !== undefined && { priceFirst: { lte: maxPrice } }),
 
-      // If passengers specified, ensure we have enough available seats
-      if (passengers) {
-        seatsWhere.AND = [
-          { isBooked: true },
-          { bookingId: null }, // Ensure seat is not booked
-        ];
-      }
+      // Điều kiện delay minutes
+      ...(minDelayMinutes !== undefined && {
+        delayMinutes: { gte: minDelayMinutes },
+      }),
+      ...(maxDelayMinutes !== undefined && {
+        delayMinutes: { lte: maxDelayMinutes },
+      }),
 
-      // Include seats with filtering
-      const includeSeats: Prisma.FlightInclude = {
-        seats: {
-          where: seatsWhere,
-        },
-      };
+      // Điều kiện cancelled
+      ...(!includeCancelled && { isCancelled: false }),
 
-      // Build where condition for outbound flights
-      const outboundWhere: Prisma.FlightWhereInput = {
-        departureAirport: from,
-        arrivalAirport: to,
+      // Điều kiện ngày nếu có
+      ...(departDate && {
         scheduledDeparture: {
-          gte: departStartDecimal,
-          lte: departEndDecimal,
+          gte: new Prisma.Decimal(departDate),
+          lte: new Prisma.Decimal(departDate + 86399999),
         },
-        status: 'scheduled',
-      };
+      }),
+    };
 
-      // Find outbound flights
-      const outbound = await this.prisma.flight.findMany({
-        where: outboundWhere,
-        include: includeSeats,
-      });
-
-      // Filter flights with enough available seats if passengers specified
-      let filteredOutbound = outbound;
-      if (passengers) {
-        filteredOutbound = outbound.filter(
-          (flight) => flight.seats.length >= passengers,
-        );
-      }
-
-      // For oneway flights
-      if (flightType === 'oneway') {
-        return {
-          resultCode: '00',
-          resultMessage: 'Thành công',
-          data: {
-            outbound: filteredOutbound,
-            inbound: null,
-          },
-        };
-      }
-
-      // For roundtrip flights
-      if (!returnDate) {
-        throw new Error('returnDate is required for roundtrip flights');
-      }
-
-      const returnDateObj = new Date(returnDate);
-      const returnStart = new Date(returnDateObj.setHours(0, 0, 0, 0));
-      const returnEnd = new Date(returnDateObj.setHours(23, 59, 59, 999));
-
-      const returnStartDecimal = new Prisma.Decimal(returnStart.getTime());
-      const returnEndDecimal = new Prisma.Decimal(returnEnd.getTime());
-
-      // Build where condition for inbound flights
-      const inboundWhere: Prisma.FlightWhereInput = {
-        departureAirport: to,
-        arrivalAirport: from,
-        scheduledDeparture: {
-          gte: returnStartDecimal,
-          lte: returnEndDecimal,
+    // Include các relation
+    const includeRelations: Prisma.FlightInclude = {
+      departureAirportRel: {
+        select: {
+          code: true,
+          name: true,
+          city: true,
+          coordinates: true,
+          timezone: true,
         },
-        status: 'scheduled',
-      };
+      },
+      arrivalAirportRel: {
+        select: {
+          code: true,
+          name: true,
+          city: true,
+          coordinates: true,
+          timezone: true,
+        },
+      },
+      aircraft: {
+        select: {
+          code: true,
+          model: true,
+          range: true,
+        },
+      },
+      seats: {
+        where: {
+          isAvailable: true,
+          ...(cabinClass && {
+            type: SeatType[cabinClass.toUpperCase() as keyof typeof SeatType],
+          }),
+        },
+      },
+    };
 
-      // Find inbound flights
-      const inbound = await this.prisma.flight.findMany({
-        where: inboundWhere,
-        include: includeSeats,
-      });
+    // Tìm outbound flights
+    const outbound = await this.prisma.flight.findMany({
+      where: outboundWhere,
+      include: includeRelations,
+      orderBy: {
+        scheduledDeparture: 'asc',
+      },
+    });
 
-      // Filter inbound flights with enough available seats
-      let filteredInbound = inbound;
-      if (passengers) {
-        filteredInbound = inbound.filter(
-          (flight) => flight.seats.length >= passengers,
-        );
-      }
-
+    // Nếu là oneway hoặc không có returnDate
+    if (flightType === 'oneway' || !returnDate) {
       return {
         resultCode: '00',
         resultMessage: 'Thành công',
         data: {
-          outbound: filteredOutbound,
-          inbound: filteredInbound,
+          outbound: outbound,
+          inbound: null,
         },
       };
-    } catch (error) {
-      console.error('Error searching flights:', error);
-      throw error;
     }
+
+    // Tìm inbound flights cho roundtrip
+    const inboundWhere: Prisma.FlightWhereInput = {
+      ...outboundWhere,
+      departureAirport: to.toUpperCase(),
+      arrivalAirport: from.toUpperCase(),
+      ...(returnDate && {
+        scheduledDeparture: {
+          gte: new Prisma.Decimal(returnDate),
+          lte: new Prisma.Decimal(returnDate + 86399999),
+        },
+      }),
+    };
+
+    const inbound = await this.prisma.flight.findMany({
+      where: inboundWhere,
+      include: includeRelations,
+      orderBy: {
+        scheduledDeparture: 'asc',
+      },
+    });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Thành công',
+      data: {
+        outbound: outbound ? inbound : [],
+        inbound: inbound,
+      },
+    };
   }
 
   async findAll(): Promise<BaseResponseDto<FlightResponseDto>> {
@@ -193,6 +210,7 @@ export class FlightsService {
           meals: {
             select: { id: true },
           },
+          seats: true,
         },
       });
 

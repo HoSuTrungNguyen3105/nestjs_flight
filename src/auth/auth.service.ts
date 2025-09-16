@@ -11,8 +11,9 @@ import * as QRCode from 'qrcode';
 import * as crypto from 'crypto';
 import { MailService } from 'src/common/nodemailer/nodemailer.service';
 import { Decimal } from 'generated/prisma/runtime/library';
-import { generatePassword } from 'src/users/hooks/randompw';
 import { generateOtp, hashPassword } from 'src/common/helpers/hook';
+import { VerifyPasswordResponseDto } from './dto/verifypw.dto';
+import { BaseResponseDto } from 'src/baseResponse/response.dto';
 
 @Injectable()
 export class AuthService {
@@ -73,6 +74,58 @@ export class AuthService {
         userId: user.id,
       },
     };
+  }
+
+  async verifyPasswordToAdmin(
+    userId: number,
+    password: string,
+  ): Promise<BaseResponseDto<VerifyPasswordResponseDto>> {
+    try {
+      if (!userId || !password) {
+        return {
+          resultCode: '99',
+          resultMessage: 'User and password not have output',
+        };
+      }
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: Number(userId) },
+        select: { password: true },
+      });
+
+      if (!user) {
+        return {
+          resultCode: '01',
+          resultMessage: 'User not found',
+          data: {
+            isValid: false,
+          },
+        };
+      }
+
+      const isValid = await bcrypt.compare(password, user.password);
+
+      if (isValid) {
+        return {
+          resultCode: '00',
+          resultMessage: 'Password verified successfully',
+          data: {
+            isValid: true,
+          },
+        };
+      } else {
+        return {
+          resultCode: '01',
+          resultMessage: 'Invalid password',
+          data: {
+            isValid: false,
+          },
+        };
+      }
+    } catch (error) {
+      console.error('error', error);
+      throw error;
+    }
   }
 
   async verifyOtp(userId: number, otp: string) {
@@ -235,7 +288,7 @@ export class AuthService {
         data: { id: user.id },
       };
     } catch (err) {
-      console.error('🔥 Lỗi loginUser:', err);
+      console.error('Lỗi loginUser:', err);
       throw err;
     }
   }
@@ -443,7 +496,7 @@ export class AuthService {
         data: { id: user.id },
       };
     } catch (err) {
-      console.error('🔥 Lỗi mfaLogin:', err);
+      console.error('Lỗi mfaLogin:', err);
       throw err;
     }
   }
@@ -544,6 +597,75 @@ export class AuthService {
       resultMessage: 'Da xac thuc mfa',
     };
   }
+
+  //  async sendMultiEmail(emails: string[], titles: string[], contents: string[], options?: {
+  //   batchSize?: number;
+  //   delayBetweenBatches?: number;
+  //   maxRetries?: number;
+  // }) {
+  //   const {
+  //     batchSize = 50,
+  //     delayBetweenBatches = 1000,
+  //     maxRetries = 3
+  //   } = options || {};
+
+  //   // Kiểm tra dữ liệu đầu vào
+  //   if (emails.length !== titles.length || emails.length !== contents.length) {
+  //     throw new Error('Số lượng email, tiêu đề và nội dung không khớp');
+  //   }
+
+  //   const results = [];
+
+  //   // Hàm gửi email với retry
+  //   const sendEmailWithRetry = async (email: string, title: string, content: string, retries = maxRetries) => {
+  //     for (let attempt = 1; attempt <= retries; attempt++) {
+  //       try {
+  //         await this.mailer.sendMail(email, title, content);
+  //         return { success: true, attempt };
+  //       } catch (error) {
+  //         if (attempt === retries) {
+  //           throw error;
+  //         }
+  //         await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+  //       }
+  //     }
+  //     return { success: false };
+  //   };
+
+  //   for (let i = 0; i < emails.length; i += batchSize) {
+  //     const batchEmails = emails.slice(i, i + batchSize);
+  //     const batchTitles = titles.slice(i, i + batchSize);
+  //     const batchContents = contents.slice(i, i + batchSize);
+
+  //     const batchPromises = batchEmails.map((email, index) =>
+  //       sendEmailWithRetry(email, batchTitles[index], batchContents[index])
+  //         .then(result => ({
+  //           email,
+  //           success: result.success,
+  //           attempt: result.attempt
+  //         }))
+  //         .catch(error => ({
+  //           email,
+  //           success: false,
+  //           error: error.message
+  //         }))
+  //     );
+
+  //     const batchResults = await Promise.all(batchPromises);
+  //     results.push(...batchResults);
+
+  //     if (i + batchSize < emails.length) {
+  //       await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+  //     }
+  //   }
+
+  //   return {
+  //     total: emails.length,
+  //     successful: results.filter(r => r.success).length,
+  //     failed: results.filter(r => !r.success).length,
+  //     results
+  //   };
+  // }
 
   async forgotPasswordWithMfa(email: string, mfaCode: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });

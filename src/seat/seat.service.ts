@@ -3,6 +3,7 @@ import { PrismaService } from 'src/prisma.service';
 import { CreateSeatDto } from './dto/create-seat.dto';
 import { UpdateSeatDto } from './dto/update-seat.dto';
 import { Prisma, Seat, SeatType } from 'generated/prisma';
+import { SeatTypeDto, SeatTypesResponseDto } from './dto/seat-dto';
 
 @Injectable()
 export class SeatService {
@@ -390,24 +391,140 @@ export class SeatService {
     };
   }
 
-  // async updateSeat(seatId: number, data: { type?: SeatType }) {
-  //   // isBooked?: boolean
-  //   try {
-  //     const seat = await this.prisma.seat.update({
-  //       where: { id: seatId },
-  //       data,
-  //     });
+  async getAllSeatTypes(): Promise<SeatTypesResponseDto> {
+    try {
+      const seatTypes = await this.prisma.seat.groupBy({
+        by: ['type'],
+        _count: {
+          id: true,
+        },
+        orderBy: {
+          type: 'asc',
+        },
+      });
 
-  //     return {
-  //       resultCode: '00',
-  //       resultMessage: 'Seat updated successfully',
-  //       data: seat,
-  //     };
-  //   } catch (err) {
-  //     console.error('Error updating seat:', err);
-  //     throw err;
-  //   }
-  // }
+      const result: SeatTypeDto[] = seatTypes.map((item) => ({
+        type: item.type,
+        count: item._count.id,
+      }));
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Successfully retrieved all seat types',
+        data: result,
+      };
+    } catch (error) {
+      return {
+        resultCode: '99',
+        resultMessage: 'Error retrieving seat types',
+        error: error.message,
+      };
+    }
+  }
+
+  async getSeatTypesByFlight(flightId: number): Promise<SeatTypesResponseDto> {
+    try {
+      const seatTypes = await this.prisma.seat.groupBy({
+        by: ['type'],
+        where: {
+          flightId: flightId,
+        },
+        _count: {
+          id: true,
+        },
+        orderBy: {
+          type: 'asc',
+        },
+      });
+
+      const result: SeatTypeDto[] = seatTypes.map((item) => ({
+        type: item.type,
+        count: item._count.id,
+      }));
+
+      return {
+        resultCode: '00',
+        resultMessage: `Successfully retrieved seat types for flight ${flightId}`,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        resultCode: '99',
+        resultMessage: 'Error retrieving seat types by flight',
+        error: error.message,
+      };
+    }
+  }
+
+  async getAvailableSeatTypes(
+    flightId?: number,
+  ): Promise<SeatTypesResponseDto> {
+    try {
+      const whereCondition: any = {
+        isAvailable: true,
+        isBooked: false,
+      };
+
+      if (flightId) {
+        whereCondition.flightId = flightId;
+      }
+
+      const seatTypes = await this.prisma.seat.groupBy({
+        by: ['type'],
+        where: whereCondition,
+        _count: {
+          id: true,
+        },
+        orderBy: {
+          type: 'asc',
+        },
+      });
+
+      const result: SeatTypeDto[] = seatTypes.map((item) => ({
+        type: item.type,
+        count: item._count.id,
+      }));
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Successfully retrieved available seat types',
+        data: result,
+      };
+    } catch (error) {
+      return {
+        resultCode: '99',
+        resultMessage: 'Error retrieving available seat types',
+        error: error.message,
+      };
+    }
+  }
+  async getDistinctSeatTypes() {
+    try {
+      const distinctTypes = await this.prisma.seat.findMany({
+        select: {
+          type: true,
+        },
+        distinct: ['type'],
+        orderBy: {
+          type: 'asc',
+        },
+      });
+
+      const types = distinctTypes.map((item) => item.type);
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Successfully retrieved distinct seat types',
+        data: types,
+      };
+    } catch (error) {
+      return {
+        resultCode: '99',
+        resultMessage: 'Error retrieving distinct seat types',
+        data: [],
+      };
+    }
+  }
 
   async updateMultipleSeats(
     seatIds: number[],

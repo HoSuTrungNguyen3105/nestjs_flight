@@ -53,7 +53,7 @@ export class UsersController {
     return this.userService.getUserById(id);
   }
 
-  @Get('/getUserInfo/:id')
+  @Get('getUserInfo/:id')
   async getUserInfo(@Param('id', ParseIntPipe) id: number) {
     return this.userService.getUserInfo(id);
   }
@@ -93,6 +93,7 @@ export class UsersController {
   ) {
     return this.userService.updateUserFromAdmin(dto.id, dto);
   }
+
   // @UseGuards(JwtAuthGuard)
   @Post('updateUserInfo/:id')
   async updateUserInfo(
@@ -117,6 +118,16 @@ export class UsersController {
     return this.userService.getAllLeaveRequests();
   }
 
+  @Post('leave-requests/delete-all')
+  async deleteAllLeaveRequest() {
+    return this.userService.deleteAllLeaveRequests();
+  }
+
+  @Get('leave-requests/checkLeaveRequest')
+  async checkEmployeeLeaveRequest(@Body('id') id: number) {
+    return this.userService.checkEmployeeLeaveRequest(id);
+  }
+
   @Post('deleteUser')
   async remove(@Body('id') id: number) {
     return this.userService.deleteUser(Number(id));
@@ -127,25 +138,20 @@ export class UsersController {
     return this.userService.rejectTransfer(userId);
   }
 
-  // @Post('payroll/generate')
-  // async generatePayroll(
-  //   @Body('employeeId') employeeId: number,
-  //   @Body('month') month: number,
-  //   @Body('year') year: number,
-  //   @Body('baseSalary') baseSalary: number,
-  // ) {
-  //   return this.userService.generatePayroll(
-  //     employeeId,
-  //     month,
-  //     year,
-  //     baseSalary,
-  //   );
-  // }
+  @Get('payroll')
+  async getPayrolls() {
+    return this.userService.getAllPayrolls();
+  }
 
-  // @Post('payroll/finalize/:id')
-  // async finalizePayroll(@Param('id') id: string) {
-  //   return this.userService.finalizePayroll(Number(id));
-  // }
+  @Get('payroll/getById/:id')
+  async getPayrollsById(@Param('id') id: number) {
+    return this.userService.getPayrollById(id);
+  }
+
+  @Get('payroll/summary')
+  async getSummary() {
+    return this.userService.getPayrollSummary();
+  }
 
   @Post('payroll/generate')
   async generate(
@@ -191,23 +197,6 @@ export class UsersController {
   async checkOut(@Param('id') id: string) {
     return this.userService.checkOut(Number(id));
   }
-
-  // @Post('leave/apply')
-  // async applyLeave(
-  //   @Body('employeeId') employeeId: number,
-  //   @Body('leaveType') leaveType: string,
-  //   @Body('start') start: string,
-  //   @Body('end') end: string,
-  //   @Body('reason') reason?: string,
-  // ) {
-  //   return this.userService.applyLeave(
-  //     employeeId,
-  //     leaveType,
-  //     new Date(start),
-  //     new Date(end),
-  //     reason,
-  //   );
-  // }
 
   @Post('leave-requests/approve/:id')
   async approveLeaveRequest(

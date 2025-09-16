@@ -2,7 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma.service';
-import { Department, Position, Prisma, Rank, Role } from 'generated/prisma';
+import {
+  Department,
+  PayrollStatus,
+  Position,
+  Prisma,
+  Rank,
+  Role,
+} from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { generatePassword } from './hooks/randompw';
 import { UserResponseDto } from './dto/info-user-dto';
@@ -75,10 +82,7 @@ export class UsersService {
     else if (user.position === 'SENIOR' && yearsWorked >= 4) newRank = 'LEAD';
     else if (user.position === 'MANAGER' && yearsWorked >= 5)
       newRank = 'PRINCIPAL';
-    console.log({ userRank: user.rank, newRank, yearsWorked });
-
     if (newRank !== user.rank) {
-      console.log(`Updating rank from ${user.rank} to ${newRank}`);
       return await this.prisma.user.update({
         where: { id: userId },
         data: { rank: newRank || 'NONE' },
@@ -280,6 +284,159 @@ export class UsersService {
       console.error('Error finding all user requests:', error);
       throw error;
     }
+  }
+
+  // async getAllPayrolls() {
+  //   try {
+  //     const res = await this.prisma.payroll.findMany({
+  //       include: {
+  //         employee: {
+  //           select: {
+  //             id: true,
+  //             name: true,
+  //             email: true,
+  //             employeeNo: true,
+  //             position: true,
+  //             department: true,
+  //           },
+  //         },
+  //       },
+  //       orderBy: [{ year: 'desc' }, { month: 'desc' }],
+  //     });
+  //     console.log(res);
+  //     return {
+  //       res,
+  //     };
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
+
+  async getAllPayrolls() {
+    try {
+      const payrolls = await this.prisma.payroll.findMany({
+        include: {
+          employee: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              employeeNo: true,
+              position: true,
+              department: true,
+            },
+          },
+        },
+        orderBy: [{ year: 'desc' }, { month: 'desc' }],
+      });
+
+      console.log('Payrolls data:', payrolls);
+
+      // Format response đúng cách cho Decimal fields
+      const formattedPayrolls = payrolls.map((payroll) => {
+        // Kiểm tra và convert Decimal properties
+        const formattedData: any = { ...payroll };
+
+        // Convert generatedAt từ Decimal sang number hoặc string
+        if (
+          formattedData.generatedAt &&
+          typeof formattedData.generatedAt === 'object' &&
+          'toNumber' in formattedData.generatedAt
+        ) {
+          formattedData.generatedAt = formattedData.generatedAt.toNumber();
+        }
+
+        // Convert các trường Decimal khác nếu có
+        const decimalFields = [
+          'baseSalary',
+          'allowances',
+          'deductions',
+          'tax',
+          'netPay',
+        ];
+        decimalFields.forEach((field) => {
+          if (
+            formattedData[field] &&
+            typeof formattedData[field] === 'object' &&
+            'toNumber' in formattedData[field]
+          ) {
+            formattedData[field] = formattedData[field].toNumber();
+          }
+        });
+
+        return formattedData;
+      });
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Thành công',
+        data: formattedPayrolls,
+      };
+    } catch (error) {
+      console.error('Error getting payrolls:', error);
+      return {
+        resultCode: '01',
+        resultMessage: 'Lỗi khi lấy dữ liệu payroll',
+        data: null,
+      };
+    }
+  }
+  // Hiển thị payroll theo ID
+  async getPayrollById(id: number) {
+    return await this.prisma.payroll.findUnique({
+      where: { id },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            employeeNo: true,
+            email: true,
+            name: true,
+            position: true,
+            department: true,
+            payrolls: true,
+            hireDate: true,
+          },
+        },
+      },
+    });
+  }
+
+  async getPayrollSummary() {
+    const payrolls = await this.prisma.payroll.findMany({
+      where: {
+        status: PayrollStatus.FINALIZED, // Chỉ tính approved payrolls
+      },
+      include: {
+        employee: {
+          select: {
+            department: true,
+          },
+        },
+      },
+    });
+
+    const totalPayroll = payrolls.reduce(
+      (sum, payroll) => sum + payroll.netPay,
+      0,
+    );
+    const totalTax = payrolls.reduce((sum, payroll) => sum + payroll.tax, 0);
+
+    // Group by department
+    const byDepartment = payrolls.reduce((acc, payroll) => {
+      const dept = payroll.employee.department || 'Unknown';
+      if (!acc[dept]) acc[dept] = 0;
+      acc[dept] += payroll.netPay;
+      return acc;
+    }, {});
+
+    return {
+      totalPayroll,
+      totalTax,
+      averagePay: totalPayroll / payrolls.length,
+      byDepartment,
+      count: payrolls.length,
+    };
   }
 
   async createUserByAdmin(
@@ -822,43 +979,88 @@ export class UsersService {
     }
   }
 
-  // async applyLeave(
-  //   employeeId: number,
-  //   leaveType: string,
-  //   start: Date,
-  //   end: Date,
-  //   reason?: string,
-  // ) {
-  //   return this.prisma.leaveRequest.create({
-  //     data: {
-  //       employeeId,
-  //       leaveType,
-  //       startDate: new Prisma.Decimal(start.getTime()),
-  //       endDate: new Prisma.Decimal(end.getTime()),
-  //       days: (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
-  //       reason,
-  //       appliedAt: nowDecimal(),
-  //     },
-  //   });
-  // }
+  async deleteAllLeaveRequests() {
+    try {
+      // Xóa tất cả leave requests
+      const deleteResult = await this.prisma.leaveRequest.deleteMany({});
 
-  // async approveLeave(id: number, approverId: number, note?: string) {
-  //   return this.prisma.leaveRequest.update({
-  //     where: { id },
-  //     data: {
-  //       status: 'APPROVED',
-  //       approverId,
-  //       approverNote: note,
-  //       decidedAt: nowDecimal(),
-  //     },
-  //   });
-  // }
+      return {
+        resultCode: '00',
+        resultMessage: `Đã xóa ${deleteResult.count} leave requests thành công`,
+      };
+    } catch (error) {
+      return {
+        resultCode: '99',
+        resultMessage: error,
+      };
+    }
+  }
+
+  async checkEmployeeLeaveRequest(employeeId: number) {
+    try {
+      const currentTimestamp = new Date().getTime();
+      const existingRequest = await this.prisma.leaveRequest.findFirst({
+        where: {
+          employeeId: employeeId,
+          OR: [
+            { status: 'PENDING' },
+            {
+              status: 'APPROVED',
+              startDate: { gte: new Prisma.Decimal(currentTimestamp) },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          leaveType: true,
+          status: true,
+          appliedAt: true,
+          startDate: true,
+          endDate: true,
+        },
+        orderBy: {
+          appliedAt: 'desc',
+        },
+      });
+
+      if (existingRequest) {
+        return {
+          resultCode: '00',
+          resultMessage: 'Đã tạo leave request',
+          request: {
+            ...existingRequest,
+            appliedAt: existingRequest.appliedAt.toNumber(),
+            startDate: existingRequest.startDate.toNumber(),
+            endDate: existingRequest.endDate?.toNumber(),
+          },
+        };
+      } else {
+        return {
+          resultCode: '09',
+          resultMessage: 'Chưa tạo leave request',
+        };
+      }
+    } catch (error) {
+      return {
+        resultCode: '99',
+        resultMessage: 'Lỗi khi kiểm tra leave request',
+        error: error.message,
+      };
+    }
+  }
 
   async approveLeaveRequest(
     requestId: number,
     approverId: number,
     note?: string,
   ) {
+    if (!requestId || !approverId) {
+      return {
+        resultCode: '03',
+        resultMessage: 'Request ID and Approver ID are required',
+      };
+    }
+
     const request = await this.prisma.leaveRequest.findUnique({
       where: { id: requestId },
     });
@@ -867,6 +1069,22 @@ export class UsersService {
       return {
         resultCode: '01',
         resultMessage: 'Leave request not found!',
+      };
+    }
+
+    if (request.status !== 'PENDING') {
+      return {
+        resultCode: '02',
+        resultMessage: `Cannot approve request that is already ${request.status.toLowerCase()}`,
+        currentStatus: request.status,
+      };
+    }
+
+    // 4. Kiểm tra approver không phải là chính employee
+    if (request.employeeId === approverId) {
+      return {
+        resultCode: '04',
+        resultMessage: 'Approver cannot be the same as the requester',
       };
     }
 

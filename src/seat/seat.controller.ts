@@ -9,11 +9,13 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { SeatService } from './seat.service';
 import { CreateSeatDto } from './dto/create-seat.dto';
 import { UpdateSeatDto } from './dto/update-seat.dto';
 import { SeatType } from 'generated/prisma';
+import { SeatTypesResponseDto } from './dto/seat-dto';
 
 @Controller('sys/seats')
 export class SeatController {
@@ -60,8 +62,38 @@ export class SeatController {
     return this.seatService.deleteAllByFlight(Number(flightId));
   }
 
-  @Post('delete-all')
+  @Delete('delete-all')
   async deleteAll() {
     await this.seatService.deleteAllSeats();
+  }
+
+  @Get()
+  async getAllSeatTypes(): Promise<SeatTypesResponseDto> {
+    return this.seatService.getAllSeatTypes();
+  }
+
+  @Get('flight/:flightId')
+  async getSeatTypesByFlight(
+    @Param('flightId') flightId: string,
+  ): Promise<SeatTypesResponseDto> {
+    return this.seatService.getSeatTypesByFlight(parseInt(flightId));
+  }
+
+  @Get('available')
+  async getAvailableSeatTypes(
+    @Query('flightId') flightId?: string,
+  ): Promise<SeatTypesResponseDto> {
+    return this.seatService.getAvailableSeatTypes(
+      flightId ? parseInt(flightId) : undefined,
+    );
+  }
+
+  @Get('distinct')
+  async getDistinctSeatTypes(): Promise<{
+    resultCode: string;
+    resultMessage: string;
+    data: string[];
+  }> {
+    return this.seatService.getDistinctSeatTypes();
   }
 }
