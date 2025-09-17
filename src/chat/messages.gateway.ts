@@ -4,158 +4,154 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
   SubscribeMessage,
+  OnGatewayInit,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { JwtService } from '@nestjs/jwt';
+import { Injectable, Logger } from '@nestjs/common';
 
 @WebSocketGateway({
   cors: {
     origin: 'http://localhost:5173',
     methods: ['GET', 'POST'],
+    credentials: true,
   },
 })
+@Injectable()
 export class MessagesGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
+  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
 {
   @WebSocketServer()
   server: Server;
 
-  private connectedClients = new Map<string, number>(); // Lưu trữ clientId -> userId
+  private readonly logger = new Logger(MessagesGateway.name);
+  private connectedClients = new Map<string, number>();
 
-  // Khi client kết nối
-  handleConnection(client: Socket) {
-    console.log('Client connected:', client.id);
+  constructor(private jwtService: JwtService) {}
 
-    // Client gửi userId khi kết nối
-    client.on('register_user', (userId: number) => {
-      // Kiểm tra nếu client đã đăng ký rồi thì không xử lý lại
-      if (this.connectedClients.get(client.id) === userId) {
+  afterInit(server: Server) {
+    this.logger.log('WebSocket Gateway initialized');
+  }
+
+  async handleConnection(client: Socket) {
+    try {
+      this.logger.log(`Client connecting: ${client.id}`);
+
+      // Lấy token từ query parameters hoặc handshake auth
+      const token = client.handshake.auth.token;
+
+      if (!token) {
+        this.logger.warn(`Client ${client.id} connected without token`);
+        client.disconnect();
         return;
       }
 
-      // Lưu thông tin client
+      // Xác thực JWT token
+      const payload = await this.jwtService.verifyAsync(token, {
+        secret: process.env.JWT_SECRET,
+      });
+
+      const userId = payload.sub;
+
+      if (!userId) {
+        this.logger.warn(`Client ${client.id} has invalid token`);
+        client.disconnect();
+        return;
+      }
+
+      // Lưu thông tin user
       this.connectedClients.set(client.id, userId);
       client.join(`user_${userId}`);
-      console.log(`User ${userId} joined room: user_${userId}`);
-    });
-  }
 
-  // Khi client ngắt kết nối
-  handleDisconnect(client: Socket) {
-    console.log('Client disconnected:', client.id);
+      this.logger.log(`User ${userId} connected with client ${client.id}`);
 
-    // Xóa client khỏi danh sách
-    const userId = this.connectedClients.get(client.id);
-    if (userId) {
-      console.log(`User ${userId} disconnected`);
-      this.connectedClients.delete(client.id);
+      // Gửi sự kiện xác nhận kết nối thành công
+      client.emit('connection_success', { userId });
+    } catch (error) {
+      this.logger.error(
+        `Authentication failed for client ${client.id}:`,
+        error,
+      );
+      client.emit('connection_error', { message: 'Authentication failed' });
+      client.disconnect();
     }
   }
 
-  // Phát tin nhắn mới đến các room
-  broadcastNewMessage(message: any) {
-    this.server.to(`user_${message.senderId}`).emit('new_message', message);
-    this.server.to(`user_${message.receiverId}`).emit('new_message', message);
-    console.log('Message broadcasted to rooms:', {
-      senderRoom: `user_${message.senderId}`,
-      receiverRoom: `user_${message.receiverId}`,
-      messageId: message.id,
-    });
+  handleDisconnect(client: Socket) {
+    const userId = this.connectedClients.get(client.id);
+    if (userId) {
+      this.logger.log(`User ${userId} disconnected`);
+      this.connectedClients.delete(client.id);
+    } else {
+      this.logger.log(`Unknown client disconnected: ${client.id}`);
+    }
   }
 
-  // Lắng nghe sự kiện typing
-  @SubscribeMessage('typing_start')
-  handleTypingStart(
-    client: Socket,
-    data: { senderId: number; receiverId: number },
-  ) {
+  // Kiểm tra user đã đăng nhập
+  private getUserIdFromClient(client: Socket): number | null {
     const userId = this.connectedClients.get(client.id);
+    if (!userId) {
+      client.emit('error', { message: 'User not authenticated' });
+      return null;
+    }
+    return userId;
+  }
+
+  @SubscribeMessage('send_message')
+  async handleSendMessage(client: Socket, data: any) {
+    const userId = this.getUserIdFromClient(client);
     if (!userId) return;
 
-    client.to(`user_${data.receiverId}`).emit('user_typing', {
-      senderId: data.senderId,
+    // Kiểm tra người gửi có phải là user đang đăng nhập không
+    if (data.senderId !== userId) {
+      client.emit('error', { message: 'Unauthorized: senderId mismatch' });
+      return;
+    }
+
+    this.logger.log(`User ${userId} sent message to ${data.receiverId}`);
+
+    // Xử lý tin nhắn và broadcast
+    this.broadcastNewMessage(data);
+  }
+
+  broadcastNewMessage(message: any) {
+    const { senderId, receiverId } = message;
+
+    this.server.to(`user_${senderId}`).emit('new_message', message);
+    this.server.to(`user_${receiverId}`).emit('new_message', message);
+
+    this.logger.log(`Message broadcasted to users: ${senderId}, ${receiverId}`);
+  }
+
+  @SubscribeMessage('typing_start')
+  handleTypingStart(client: Socket, data: { receiverId: number }) {
+    const userId = this.getUserIdFromClient(client);
+    if (!userId) return;
+
+    this.server.to(`user_${data.receiverId}`).emit('user_typing', {
+      senderId: userId,
       typing: true,
     });
   }
 
   @SubscribeMessage('typing_stop')
-  handleTypingStop(
-    client: Socket,
-    data: { senderId: number; receiverId: number },
-  ) {
-    const userId = this.connectedClients.get(client.id);
+  handleTypingStop(client: Socket, data: { receiverId: number }) {
+    const userId = this.getUserIdFromClient(client);
     if (!userId) return;
 
-    client.to(`user_${data.receiverId}`).emit('user_typing', {
-      senderId: data.senderId,
+    this.server.to(`user_${data.receiverId}`).emit('user_typing', {
+      senderId: userId,
       typing: false,
     });
   }
+
+  // API để lấy danh sách user online
+  @SubscribeMessage('get_online_users')
+  handleGetOnlineUsers(client: Socket) {
+    const userId = this.getUserIdFromClient(client);
+    if (!userId) return;
+
+    const onlineUsers = Array.from(this.connectedClients.values());
+    client.emit('online_users', onlineUsers);
+  }
 }
-
-// import {
-//   WebSocketGateway,
-//   WebSocketServer,
-//   OnGatewayConnection,
-//   OnGatewayDisconnect,
-//   SubscribeMessage,
-// } from '@nestjs/websockets';
-// import { Server, Socket } from 'socket.io';
-
-// @WebSocketGateway({
-//   cors: {
-//     origin: 'http://localhost:5173', // Frontend URL
-//     methods: ['GET', 'POST'],
-//   },
-// })
-// export class MessagesGateway
-//   implements OnGatewayConnection, OnGatewayDisconnect
-// {
-//   @WebSocketServer()
-//   server: Server;
-
-//   // Khi client kết nối
-//   handleConnection(client: Socket) {
-//     console.log('Client connected:', client.id);
-
-//     // Client gửi userId khi kết nối
-//     client.on('register_user', (userId: number) => {
-//       client.join(`user_${userId}`);
-//       console.log(`User ${userId} joined room: user_${userId}`);
-//     });
-//   }
-
-//   // Khi client ngắt kết nối
-//   handleDisconnect(client: Socket) {
-//     console.log('Client disconnected:', client.id);
-//   }
-
-//   // Phát tin nhắn mới đến các room
-//   broadcastNewMessage(message: any) {
-//     this.server.to(`user_${message.senderId}`).emit('new_message', message);
-//     this.server.to(`user_${message.receiverId}`).emit('new_message', message);
-//     console.log('Message broadcasted:', message);
-//   }
-
-//   // Lắng nghe sự kiện typing
-//   @SubscribeMessage('typing_start')
-//   handleTypingStart(
-//     client: Socket,
-//     data: { senderId: number; receiverId: number },
-//   ) {
-//     client.to(`user_${data.receiverId}`).emit('user_typing', {
-//       senderId: data.senderId,
-//       typing: true,
-//     });
-//   }
-
-//   @SubscribeMessage('typing_stop')
-//   handleTypingStop(
-//     client: Socket,
-//     data: { senderId: number; receiverId: number },
-//   ) {
-//     client.to(`user_${data.receiverId}`).emit('user_typing', {
-//       senderId: data.senderId,
-//       typing: false,
-//     });
-//   }
-// }
