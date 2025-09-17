@@ -133,6 +133,23 @@ model User {
   payrolls          Payroll[]
   attendance        Attendance[]
   leaveRequest      LeaveRequest[]
+
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+}
+
+model Message {
+  id         Int     @id @default(autoincrement())
+  content    String  @db.Text
+  createdAt  Decimal @db.Decimal(20, 3)
+  sender     User    @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId   Int
+  receiver   User    @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  receiverId Int
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@map("messages")
 }
 
 model UserSession {

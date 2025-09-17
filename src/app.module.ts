@@ -10,6 +10,7 @@ import { MealsModule } from './meals/meals.module';
 // import { PassengerModule } from './passenger/passenger.module';
 import { BookingModule } from './booking/booking.module';
 import { SeatModule } from './seat/seat.module';
+import { MessagesModule } from './chat/messages.module';
 
 @Module({
   controllers: [AppController],
@@ -21,9 +22,9 @@ import { SeatModule } from './seat/seat.module';
     UsersModule,
     FlightMealModule,
     MealsModule,
-    // PassengerModule,
     BookingModule,
     SeatModule,
+    MessagesModule,
   ],
 })
 export class AppModule {}

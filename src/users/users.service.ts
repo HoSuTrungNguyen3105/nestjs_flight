@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma.service';
 import {
   Department,
+  EmployeeStatus,
   PayrollStatus,
   Position,
   Prisma,
@@ -21,6 +22,8 @@ import { UpdateUserInfoDto } from './dto/update-user.dto';
 import { UpdateUserFromAdminDto } from './dto/update-user-from-admin.dto';
 import { v2 as cloudinary } from 'cloudinary';
 import { CreateLeaveRequestDto } from './dto/leave-request.dto';
+import { SearchUserDto } from './dto/search-user.dto';
+import { PaginatedUserResponse } from './dto/user-response.dto';
 
 @Injectable()
 export class UsersService {
@@ -1135,4 +1138,163 @@ export class UsersService {
       resultMessage: 'Leave request rejected',
     };
   }
+
+  //   async searchUsers(searchDto: SearchUserDto): Promise<PaginatedUserResponse> {
+  //     const {
+  //       name,
+  //       email,
+  //       employeeNo,
+  //       role,
+  //       status,
+  //       department,
+  //       position,
+  //       page = 1,
+  //       limit = 10,
+  //       sortBy,
+  //       sortOrder = 'asc',
+  //     } = searchDto;
+
+  //     const skip = (page - 1) * limit;
+
+  //     const where: any = {
+  //       ...(name && { name: { contains: name, mode: 'insensitive' } }),
+  //       ...(email && { email: { contains: email, mode: 'insensitive' } }),
+  //       ...(employeeNo && {
+  //         employeeNo: { contains: employeeNo, mode: 'insensitive' },
+  //       }),
+  //       ...(role && { role }),
+  //       ...(status && { status }),
+  //       ...(department && { department }),
+  //       ...(position && { position }),
+  //     };
+
+  //     const orderBy = sortBy ? { [sortBy]: sortOrder } : undefined;
+
+  //     const [users, total] = await Promise.all([
+  //       this.prisma.user.findMany({
+  //         where,
+  //         skip,
+  //         take: limit,
+  //         orderBy,
+  //         // include: {
+  //         //   attendance: { select: { employeeId: true } },
+  //         // },
+  //       }),
+  //       this.prisma.user.count({ where }),
+  //     ]);
+
+  //     const userDtos: UserResponseDto[] = users.map((user) => ({
+  //       id: user.id,
+  //       employeeNo: user.employeeNo,
+  //       email: user.email,
+  //       name: user.name,
+  //       role: user.role as Role,
+  //       pictureUrl: user.pictureUrl,
+  //       rank: user.rank,
+  //       department: user.department as Department,
+  //       position: user.position as Position,
+  //       status: user.status as EmployeeStatus,
+  //       lastLoginDate: user.lastLoginDate ? user.lastLoginDate.toNumber() : null, // Decimal → number
+  //       mfaEnabledYn: user.mfaEnabledYn,
+  //       phone: user.phone,
+  //       createdAt: user.createdAt.toNumber(),
+  //       updatedAt: user.updatedAt.toNumber(),
+
+  //       userAlias: user.userAlias,
+  //       authType: user.authType,
+  //       loginFailCnt: user.loginFailCnt ?? null,
+  //       accountLockYn: user.accountLockYn,
+  //     isEmailVerified: user.isEmailVerified ? 'Y' : 'N',
+  //     }));
+
+  //     return {
+  //       users: userDtos,
+  //       total,
+  //       page,
+  //       limit,
+  //       totalPages: Math.ceil(total / limit),
+  //     };
+  //   }
+  //   async getMessages (req: any, res: any) {
+  //   try {
+  //     const { senderId, receiverId } = req.params;
+
+  //     const messages = await this.prisma.message.findMany({
+  //       where: {
+  //         OR: [
+  //           { senderId: parseInt(senderId), receiverId: parseInt(receiverId) },
+  //           { senderId: parseInt(receiverId), receiverId: parseInt(senderId) }
+  //         ]
+  //       },
+  //       include: {
+  //         sender: {
+  //           select: {
+  //             id: true,
+  //             name: true,
+  //             email: true,
+  //             pictureUrl: true
+  //           }
+  //         },
+  //         receiver: {
+  //           select: {
+  //             id: true,
+  //             name: true,
+  //             email: true,
+  //                         pictureUrl: true
+  //           }
+  //         }
+  //       },
+  //       orderBy: {
+  //         createdAt: 'asc'
+  //       }
+  //     });
+
+  //     res.json(messages);
+  //   } catch (error) {
+  //     console.error('Error fetching messages:', error);
+  //     res.status(500).json({ error: 'Internal server error' });
+  //   }
+  // };
+
+  // // Gửi tin nhắn mới
+  //  async sendMessage (io: Server, data: any) {
+  //   try {
+  //     const { content, senderId, receiverId } = data;
+
+  //     // Tạo tin nhắn mới trong database
+  //     const newMessage = await prisma.message.create({
+  //       data: {
+  //         content,
+  //         senderId: parseInt(senderId),
+  //         receiverId: parseInt(receiverId),
+  //         createdAt: new Date().getTime().toString() // Chuyển thành Decimal
+  //       },
+  //       include: {
+  //         sender: {
+  //           select: {
+  //             id: true,
+  //             name: true,
+  //             avatar: true
+  //           }
+  //         },
+  //         receiver: {
+  //           select: {
+  //             id: true,
+  //             name: true,
+  //             avatar: true
+  //           }
+  //         }
+  //       }
+  //     });
+
+  //     // Phát tin nhắn mới đến người nhận và người gửi
+  //     io.to(`user_${receiverId}`).emit('new_message', newMessage);
+  //     io.to(`user_${senderId}`).emit('new_message', newMessage);
+
+  //     return newMessage;
+  //   } catch (error) {
+  //     console.error('Error sending message:', error);
+  //     throw new Error('Failed to send message');
+  //   }
+  // };
 }
