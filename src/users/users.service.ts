@@ -569,34 +569,38 @@ export class UsersService {
   }
 
   async updateUserFromAdmin(id: number, updateUserDto: UpdateUserFromAdminDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-    });
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id },
+      });
 
-    if (!user) {
+      if (!user) {
+        return {
+          resultCode: '99',
+          resultMessage: `User with ID ${id} not found`,
+        };
+      }
+
+      const updatedUser = await this.prisma.user.update({
+        where: { id },
+        data: {
+          status: updateUserDto.status,
+          department: updateUserDto.department as Department,
+          position: updateUserDto.position as Position,
+          baseSalary: updateUserDto.baseSalary,
+          // hireDate: updateUserDto.hireDate,
+        },
+        select: { id: true },
+      });
+
       return {
-        resultCode: '99',
-        resultMessage: `User with ID ${id} not found`,
+        resultCode: '00',
+        resultMessage: 'Cập nhật người dùng thành công!',
+        data: updatedUser,
       };
+    } catch (error) {
+      throw error;
     }
-
-    const updatedUser = await this.prisma.user.update({
-      where: { id },
-      data: {
-        status: updateUserDto.status,
-        department: updateUserDto.department as Department,
-        position: updateUserDto.position as Position,
-        baseSalary: updateUserDto.baseSalary,
-        hireDate: updateUserDto.hireDate,
-      },
-      select: { id: true },
-    });
-
-    return {
-      resultCode: '00',
-      resultMessage: 'Cập nhật người dùng thành công!',
-      data: updatedUser,
-    };
   }
 
   async deleteAllUsers() {

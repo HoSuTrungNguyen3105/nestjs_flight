@@ -12,7 +12,7 @@ import {
 import { nowDecimal } from 'src/common/helpers/format';
 
 @Injectable()
-export class FlightsService {
+export class GatesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createGateDto: CreateGateDto) {
@@ -266,45 +266,6 @@ export class FlightsService {
 
     return assignment;
   }
-
-  //   async findAll(query: GateAssignmentQueryDto) {
-  //     const { gateId, flightId, page, limit } = query;
-  //     const skip = (page - 1) * limit;
-
-  //     const where: any = {};
-
-  //     if (gateId) {
-  //       where.gateId = gateId;
-  //     }
-
-  //     if (flightId) {
-  //       where.flightId = flightId;
-  //     }
-
-  //     const [assignments, total] = await Promise.all([
-  //       this.prisma.gateAssignment.findMany({
-  //         where,
-  //         skip,
-  //         take: limit,
-  //         include: {
-  //           gate: true,
-  //           flight: true,
-  //         },
-  //         orderBy: { assignedAt: 'desc' },
-  //       }),
-  //       this.prisma.gateAssignment.count({ where }),
-  //     ]);
-
-  //     return {
-  //       data: assignments,
-  //       meta: {
-  //         page,
-  //         limit,
-  //         total,
-  //         pages: Math.ceil(total / limit),
-  //       },
-  //     };
-  //   }
 
   async findGateAssignmentById(id: string) {
     const assignment = await this.prisma.gateAssignment.findUnique({

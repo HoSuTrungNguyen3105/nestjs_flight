@@ -11,10 +11,6 @@ export class UpdateUserFromAdminDto {
   position?: string;
 
   @IsOptional()
-  @IsNumber()
-  hireDate?: number;
-
-  @IsOptional()
   @IsEnum(EmployeeStatus)
   status?: EmployeeStatus;
 

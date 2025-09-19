@@ -343,7 +343,7 @@ export class AuthService {
 
       if (!hasRegisterEmail) {
         return {
-          resultCode: '01',
+          resultCode: '09',
           resultMessage: 'Khong phai email da dang ki truoc do',
         };
       }

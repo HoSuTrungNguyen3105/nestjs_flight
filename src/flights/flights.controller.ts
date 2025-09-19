@@ -62,10 +62,10 @@ export class FlightsController {
     return this.flightService.update(+id, data);
   }
 
-  @Delete(':flightId')
-  remove(@Param('flightId') id: string) {
-    return this.flightService.delete(+id);
-  }
+  // @Post('delete/:flightId')
+  // deleteFlight(@Param('flightId') id: string) {
+  //   return this.flightService.deleteFlight(+id);
+  // }
   @Delete('all')
   async deleteAllFlights() {
     return this.flightService.deleteAll();
@@ -74,6 +74,12 @@ export class FlightsController {
   @Get('aircraft')
   async getAircraft() {
     return this.flightService.getAllAircraft();
+  }
+
+  @Post('aircraft/batch')
+  async createBatch(@Body() createBatchAircraftDto: CreateAircraftDto[]) {
+    const result = await this.flightService.createBatch(createBatchAircraftDto);
+    return result;
   }
 
   @Get('getAllAircraftBasic')

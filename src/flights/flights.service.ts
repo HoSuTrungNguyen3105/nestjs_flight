@@ -401,26 +401,26 @@ export class FlightsService {
     }
   }
 
-  async delete(flightId: number) {
-    try {
-      const hasFlight = await this.findOne(flightId);
-      if (!hasFlight) {
-        return {
-          resultCode: '01',
-          resultMessage: `Flight with ID ${flightId} not found`,
-        };
-      }
+  // async deleteFlight(flightId: number) {
+  //   try {
+  //     const hasFlight = await this.prisma.flight.findUnique(flightId);
+  //     if (!hasFlight) {
+  //       return {
+  //         resultCode: '01',
+  //         resultMessage: `Flight with ID ${flightId} not found`,
+  //       };
+  //     }
 
-      await this.prisma.flight.delete({ where: { flightId } });
+  //     await this.prisma.flight.delete({ where: { flightId } });
 
-      return {
-        resultCode: '00',
-        resultMessage: `Flight with ID ${flightId} successfully deleted`,
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
+  //     return {
+  //       resultCode: '00',
+  //       resultMessage: `Flight with ID ${flightId} successfully deleted`,
+  //     };
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
 
   async deleteAll() {
     try {
@@ -446,11 +446,85 @@ export class FlightsService {
 
   async createAircraft(data: CreateAircraftDto) {
     try {
-      return await this.prisma.aircraft.create({ data });
+      const res = await this.prisma.aircraft.create({ data });
+      return {
+        resultCode: '01',
+        resultMessage: 'Aircraft creaty success!!!',
+        data: res,
+      };
     } catch (error) {
       return { resultCode: '01', resultMessage: 'Aircraft already exists' };
     }
   }
+
+  async createBatch(createBatchAircraftDto: CreateAircraftDto[]) {
+    const tasks = createBatchAircraftDto.map(async (aircraftData) => {
+      try {
+        // Kiểm tra duplicate trước khi insert
+        const duplicateAircraftCode = await this.prisma.aircraft.findUnique({
+          where: { code: aircraftData.code },
+        });
+
+        if (duplicateAircraftCode) {
+          return { resultCode: '01', resultMessage: 'Aircraft already exists' };
+        }
+
+        // Nếu không trùng thì insert
+        const aircraft = await this.prisma.aircraft.create({
+          data: aircraftData,
+        });
+
+        return {
+          code: aircraft.code,
+          model: aircraft.model,
+          range: aircraft.range,
+        };
+      } catch (error) {
+        return {
+          code: aircraftData.code,
+          model: aircraftData.model,
+          range: aircraftData.range,
+        };
+      }
+    });
+
+    const results = await Promise.all(tasks);
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Batch aircraft creation completed',
+      data: results,
+    };
+  }
+
+  // async createBatch(createBatchAircraftDto: CreateAircraftDto[]) {
+  //   const results: CreateAircraftDto[] = [];
+
+  //   for (const aircraftData of createBatchAircraftDto) {
+  //     try {
+  //       const aircraft = await this.prisma.aircraft.create({
+  //         data: aircraftData,
+  //       });
+  //       results.push({
+  //         code: aircraftData.code,
+  //         model: aircraftData.model,
+  //         range: aircraftData.range,
+  //       });
+  //     } catch (error) {
+  //       results.push({
+  //         code: aircraftData.code,
+  //         model: aircraftData.model,
+  //         range: aircraftData.range,
+  //       });
+  //     }
+  //   }
+
+  //   return {
+  //     resultCode: '00',
+  //     resultMessage: 'Batch aircraft creation completed',
+  //     data: results,
+  //   };
+  // }
 
   async getAllAircraft() {
     const res = await this.prisma.aircraft.findMany({
@@ -466,7 +540,7 @@ export class FlightsService {
         },
       },
     });
-    return { resultCode: '00', resultMessage: 'Aircraft', data: res };
+    return { resultCode: '00', resultMessage: 'Aircraft', list: res };
   }
 
   async findAircraftById(code: string) {
@@ -505,7 +579,7 @@ export class FlightsService {
       });
     } catch (error) {
       return {
-        resultCode: '00',
+        resultCode: '09',
         resultMessage: `Aircraft with code ${code} not found`,
       };
     }
@@ -514,7 +588,7 @@ export class FlightsService {
   async getAllAirports() {
     try {
       const res = await this.prisma.airport.findMany();
-      return { resultCode: '00', resultMessage: 'Airport', data: res };
+      return { resultCode: '00', resultMessage: 'Airport', list: res };
     } catch (error) {
       return { resultCode: '01', resultMessage: 'Error Airport' };
     }
@@ -620,6 +694,7 @@ export class FlightsService {
       list: res,
     };
   }
+
   async getSeatsByAircraftId(aircraftId: string) {
     const res = await this.prisma.flight.findMany({
       where: { aircraftCode: aircraftId },
@@ -695,7 +770,7 @@ export class FlightsService {
     }
   }
 
-  async remove(id: string) {
+  async removeTerminal(id: string) {
     try {
       return await this.prisma.terminal.delete({
         where: { id },
