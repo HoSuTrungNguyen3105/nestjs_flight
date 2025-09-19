@@ -3,9 +3,10 @@ import {
   IsNumber,
   IsOptional,
   IsBoolean,
-  IsDecimal,
   IsNotEmpty,
   Min,
+  IsInt,
+  IsDecimal,
 } from 'class-validator';
 
 export class CreateFlightDto {
@@ -60,11 +61,36 @@ export class CreateFlightDto {
   @IsNotEmpty()
   scheduledArrival: string;
 
+  @IsString()
+  airline: string;
+
+  @IsString()
+  origin: string;
+
+  @IsString()
+  destination: string;
+
   @IsOptional()
   @IsString()
-  gate?: string;
+  gateId?: string;
 
   @IsOptional()
   @IsString()
   terminal?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isCancelled?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  delayMinutes?: number;
+
+  @IsOptional()
+  @IsString()
+  cancellationReason?: string;
+
+  @IsOptional()
+  @IsString()
+  delayReason?: string;
 }

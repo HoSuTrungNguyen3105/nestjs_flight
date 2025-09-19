@@ -4,154 +4,124 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
   SubscribeMessage,
-  OnGatewayInit,
+  MessageBody,
+  ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { JwtService } from '@nestjs/jwt';
-import { Injectable, Logger } from '@nestjs/common';
+import { nowDecimal } from 'src/common/helpers/format';
+import { PrismaService } from 'src/prisma.service';
 
 @WebSocketGateway({
   cors: {
     origin: 'http://localhost:5173',
     methods: ['GET', 'POST'],
-    credentials: true,
   },
 })
-@Injectable()
 export class MessagesGateway
-  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
+  implements OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer()
   server: Server;
-
-  private readonly logger = new Logger(MessagesGateway.name);
+  constructor(private prisma: PrismaService) {}
   private connectedClients = new Map<string, number>();
 
-  constructor(private jwtService: JwtService) {}
-
-  afterInit(server: Server) {
-    this.logger.log('WebSocket Gateway initialized');
-  }
-
-  async handleConnection(client: Socket) {
-    try {
-      this.logger.log(`Client connecting: ${client.id}`);
-
-      // Lấy token từ query parameters hoặc handshake auth
-      const token = client.handshake.auth.token;
-
-      if (!token) {
-        this.logger.warn(`Client ${client.id} connected without token`);
-        client.disconnect();
+  handleConnection(client: Socket) {
+    const token = client.handshake.auth.token || client.handshake.query.token;
+    console.log('Client connected:', client.id);
+    console.log('token connected:', token);
+    if (!token) {
+      console.log('No token, disconnecting client:', client.id);
+      client.disconnect(true); // true: close ngay lập tức
+      return;
+    }
+    client.on('register_user', (userId: number) => {
+      if (this.connectedClients.get(client.id) === userId) {
         return;
       }
 
-      // Xác thực JWT token
-      const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET,
-      });
-
-      const userId = payload.sub;
-
-      if (!userId) {
-        this.logger.warn(`Client ${client.id} has invalid token`);
-        client.disconnect();
-        return;
-      }
-
-      // Lưu thông tin user
       this.connectedClients.set(client.id, userId);
       client.join(`user_${userId}`);
-
-      this.logger.log(`User ${userId} connected with client ${client.id}`);
-
-      // Gửi sự kiện xác nhận kết nối thành công
-      client.emit('connection_success', { userId });
-    } catch (error) {
-      this.logger.error(
-        `Authentication failed for client ${client.id}:`,
-        error,
-      );
-      client.emit('connection_error', { message: 'Authentication failed' });
-      client.disconnect();
-    }
+      console.log(`User ${userId} joined room: user_${userId}`);
+    });
   }
 
   handleDisconnect(client: Socket) {
+    console.log('Client disconnected:', client.id);
     const userId = this.connectedClients.get(client.id);
     if (userId) {
-      this.logger.log(`User ${userId} disconnected`);
+      console.log(`User ${userId} disconnected`);
       this.connectedClients.delete(client.id);
-    } else {
-      this.logger.log(`Unknown client disconnected: ${client.id}`);
     }
-  }
-
-  // Kiểm tra user đã đăng nhập
-  private getUserIdFromClient(client: Socket): number | null {
-    const userId = this.connectedClients.get(client.id);
-    if (!userId) {
-      client.emit('error', { message: 'User not authenticated' });
-      return null;
-    }
-    return userId;
-  }
-
-  @SubscribeMessage('send_message')
-  async handleSendMessage(client: Socket, data: any) {
-    const userId = this.getUserIdFromClient(client);
-    if (!userId) return;
-
-    // Kiểm tra người gửi có phải là user đang đăng nhập không
-    if (data.senderId !== userId) {
-      client.emit('error', { message: 'Unauthorized: senderId mismatch' });
-      return;
-    }
-
-    this.logger.log(`User ${userId} sent message to ${data.receiverId}`);
-
-    // Xử lý tin nhắn và broadcast
-    this.broadcastNewMessage(data);
   }
 
   broadcastNewMessage(message: any) {
-    const { senderId, receiverId } = message;
-
-    this.server.to(`user_${senderId}`).emit('new_message', message);
-    this.server.to(`user_${receiverId}`).emit('new_message', message);
-
-    this.logger.log(`Message broadcasted to users: ${senderId}, ${receiverId}`);
-  }
-
-  @SubscribeMessage('typing_start')
-  handleTypingStart(client: Socket, data: { receiverId: number }) {
-    const userId = this.getUserIdFromClient(client);
-    if (!userId) return;
-
-    this.server.to(`user_${data.receiverId}`).emit('user_typing', {
-      senderId: userId,
-      typing: true,
+    this.server.to(`user_${message.senderId}`).emit('new_message', message);
+    this.server.to(`user_${message.receiverId}`).emit('new_message', message);
+    console.log('Message broadcasted to rooms:', {
+      senderRoom: `user_${message.senderId}`,
+      receiverRoom: `user_${message.receiverId}`,
+      messageId: message.id,
     });
   }
 
-  @SubscribeMessage('typing_stop')
-  handleTypingStop(client: Socket, data: { receiverId: number }) {
-    const userId = this.getUserIdFromClient(client);
-    if (!userId) return;
+  // @SubscribeMessage('typing_start')
+  // handleTypingStart(
+  //   client: Socket,
+  //   data: { senderId: number; receiverId: number },
+  // ) {
+  //   const userId = this.connectedClients.get(client.id);
+  //   if (!userId) return;
 
-    this.server.to(`user_${data.receiverId}`).emit('user_typing', {
-      senderId: userId,
-      typing: false,
+  //   client.to(`user_${data.receiverId}`).emit('user_typing', {
+  //     senderId: data.senderId,
+  //     typing: true,
+  //   });
+  // }
+
+  // @SubscribeMessage('typing_stop')
+  // handleTypingStop(
+  //   client: Socket,
+  //   data: { senderId: number; receiverId: number },
+  // ) {
+  //   const userId = this.connectedClients.get(client.id);
+  //   if (!userId) return;
+
+  //   client.to(`user_${data.receiverId}`).emit('user_typing', {
+  //     senderId: data.senderId,
+  //     typing: false,
+  //   });
+  // }
+
+  @SubscribeMessage('send_message')
+  async handleMessage(
+    @MessageBody()
+    data: { senderId: number; receiverId: number; content: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const now = nowDecimal();
+    const message = await this.prisma.message.create({
+      data: {
+        senderId: data.senderId,
+        receiverId: data.receiverId,
+        content: data.content,
+        createdAt: now,
+      },
     });
+
+    this.server.to(`user_${data.receiverId}`).emit('receive_message', message);
+
+    client.emit('message_sent', message);
   }
 
-  // API để lấy danh sách user online
-  @SubscribeMessage('get_online_users')
-  handleGetOnlineUsers(client: Socket) {
-    const userId = this.getUserIdFromClient(client);
-    if (!userId) return;
+  // handleConnection(client: Socket) {
+  //   const userId = client.handshake.auth.userId;
+  //   if (userId) {
+  //     client.join(`user_${userId}`);
+  //     console.log(`User ${userId} connected`);
+  //   }
+  // }
 
-    const onlineUsers = Array.from(this.connectedClients.values());
-    client.emit('online_users', onlineUsers);
-  }
+  // handleDisconnect(client: Socket) {
+  //   console.log('Client disconnected:', client.id);
+  // }
 }

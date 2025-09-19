@@ -1,13 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { Aircraft, Flight, Prisma, SeatType } from 'generated/prisma';
-import { AirportDto } from './dto/create-airport.dto';
+import { AirportDto, UpdateAirportDto } from './dto/create-airport.dto';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { SearchFlightDto } from './dto/search.flight.dto';
-import { Decimal } from 'generated/prisma/runtime/library';
 import { UpdateFlightDto } from './dto/update-flight.dto';
 import { CreateFlightDto } from './dto/create-flight.dto';
 import { FlightResponseDto } from './dto/flight-response.dto';
+import { nowDecimal } from 'src/common/helpers/format';
+import {
+  CreateAircraftDto,
+  UpdateAircraftDto,
+} from './dto/create-aircraft.dto';
+import {
+  CreateTerminalDto,
+  UpdateTerminalDto,
+} from './dto/create-terminal.dto';
 
 @Injectable()
 export class FlightsService {
@@ -49,6 +57,95 @@ export class FlightsService {
     }
   }
 
+  // async createMany(
+  //   data: CreateFlightDto[],
+  // ): Promise<BaseResponseDto<FlightResponseDto[]>> {
+  //   try {
+  //     const createdFlights: FlightResponseDto[] = [];
+
+  //     for (const flightData of data) {
+  //       const flightExists = await this.prisma.flight.findUnique({
+  //         where: { flightNo: flightData.flightNo }, // nên check bằng flightNo thay vì flightId
+  //       });
+
+  //       if (flightExists) {
+  //         console.warn(
+  //           `Flight ${flightData.flightNo} already exists, skipping`,
+  //         );
+  //         continue;
+  //       }
+
+  //       const flight = await this.prisma.flight.create({
+  //         data: { ...flightData },
+  //       });
+
+  //       const formattedFlight = {
+  //         ...flight,
+  //         scheduledArrival: flight.scheduledArrival
+  //           ? new Prisma.Decimal(flight.scheduledArrival)
+  //           : null,
+  //         scheduledDeparture: flight.scheduledDeparture
+  //           ? new Prisma.Decimal(flight.scheduledDeparture)
+  //           : null,
+  //       };
+
+  //       createdFlights.push(formattedFlight);
+  //     }
+
+  //     return {
+  //       resultCode: '00',
+  //       resultMessage: 'Thêm nhiều chuyến bay thành công',
+  //       data: createdFlights,
+  //     };
+  //   } catch (error) {
+  //     console.error('error', error);
+  //     throw error;
+  //   }
+  // }
+
+  async createMany(
+    data: CreateFlightDto[],
+  ): Promise<BaseResponseDto<FlightResponseDto[]>> {
+    try {
+      const createdFlights: FlightResponseDto[] = [];
+
+      for (const flightData of data) {
+        const flightExists = await this.prisma.flight.findUnique({
+          where: { flightId: flightData.flightId },
+        });
+
+        if (flightExists) {
+          continue; // bỏ qua nếu flight đã tồn tại
+        }
+
+        const flight = await this.prisma.flight.create({
+          data: { ...flightData },
+        });
+
+        const formattedFlight = {
+          ...flight,
+          scheduledArrival: flight.scheduledArrival
+            ? new Prisma.Decimal(flight.scheduledArrival)
+            : null,
+          scheduledDeparture: flight.scheduledDeparture
+            ? new Prisma.Decimal(flight.scheduledDeparture)
+            : null,
+        };
+
+        createdFlights.push(formattedFlight);
+      }
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Tạo nhiều flight thành công',
+        data: createdFlights,
+      };
+    } catch (error) {
+      console.error('error', error);
+      throw error;
+    }
+  }
+
   async searchFlights(dto: SearchFlightDto) {
     const {
       from,
@@ -80,7 +177,7 @@ export class FlightsService {
       ...(flightType && { flightType: flightType.toLowerCase() }),
       ...(status && { status: status.toUpperCase() }),
       ...(aircraftCode && { aircraftCode: aircraftCode.toUpperCase() }),
-      ...(gate && { gate: { contains: gate.toUpperCase() } }),
+      // ...(gate && { gate: { contains: gate.toUpperCase() } }),
       ...(terminal && { terminal: { contains: terminal.toUpperCase() } }),
 
       // Điều kiện price
@@ -118,8 +215,8 @@ export class FlightsService {
           code: true,
           name: true,
           city: true,
-          coordinates: true,
-          timezone: true,
+          arrivals: true,
+          country: true,
         },
       },
       arrivalAirportRel: {
@@ -127,8 +224,8 @@ export class FlightsService {
           code: true,
           name: true,
           city: true,
-          coordinates: true,
-          timezone: true,
+          arrivals: true,
+          country: true,
         },
       },
       aircraft: {
@@ -347,7 +444,7 @@ export class FlightsService {
     });
   }
 
-  async createAircraft(data: Aircraft) {
+  async createAircraft(data: CreateAircraftDto) {
     try {
       return await this.prisma.aircraft.create({ data });
     } catch (error) {
@@ -369,8 +466,49 @@ export class FlightsService {
         },
       },
     });
-    console.log('Data', res);
     return { resultCode: '00', resultMessage: 'Aircraft', data: res };
+  }
+
+  async findAircraftById(code: string) {
+    const aircraft = await this.prisma.aircraft.findUnique({
+      where: { code },
+    });
+
+    if (!aircraft) {
+      return {
+        resultCode: '00',
+        resultMessage: `Aircraft with code ${code} not found`,
+      };
+    }
+
+    return aircraft;
+  }
+
+  async updateAircraft(code: string, updateAircraftDto: UpdateAircraftDto) {
+    try {
+      return await this.prisma.aircraft.update({
+        where: { code },
+        data: updateAircraftDto,
+      });
+    } catch (error) {
+      return {
+        resultCode: '00',
+        resultMessage: `Aircraft with code ${code} not found`,
+      };
+    }
+  }
+
+  async removeAircraft(code: string) {
+    try {
+      return await this.prisma.aircraft.delete({
+        where: { code },
+      });
+    } catch (error) {
+      return {
+        resultCode: '00',
+        resultMessage: `Aircraft with code ${code} not found`,
+      };
+    }
   }
 
   async getAllAirports() {
@@ -399,8 +537,8 @@ export class FlightsService {
           code: data.code,
           name: data.name,
           city: data.city,
-          coordinates: data.coordinates,
-          timezone: data.timezone,
+          country: data.country,
+          createdAt: nowDecimal(),
         },
       });
       return {
@@ -412,6 +550,19 @@ export class FlightsService {
       return {
         resultCode: '99',
         resultMessage: 'Không thể tạo airport, xem log để biết chi tiết!',
+      };
+    }
+  }
+
+  async removeAirport(code: string) {
+    try {
+      return await this.prisma.airport.delete({
+        where: { code },
+      });
+    } catch (error) {
+      return {
+        resultCode: '99',
+        resultMessage: error,
       };
     }
   }
@@ -436,6 +587,23 @@ export class FlightsService {
       resultMessage: 'Danh sách code máy bay',
       list: flights,
     };
+  }
+
+  async updateAirport(code: string, updateAirportDto: UpdateAirportDto) {
+    try {
+      return await this.prisma.airport.update({
+        where: { code },
+        data: {
+          ...updateAirportDto,
+          updatedAt: nowDecimal(),
+        },
+      });
+    } catch (error) {
+      return {
+        resultCode: '99',
+        resultMessage: error.message,
+      };
+    }
   }
 
   async getAllAircraftBasic() {
@@ -471,5 +639,80 @@ export class FlightsService {
     });
 
     return { resultCode: '00', resultMessage: 'Danh sách ghế', data: res };
+  }
+
+  async createTerminal(createTerminalDto: CreateTerminalDto) {
+    return this.prisma.terminal.create({
+      data: {
+        ...createTerminalDto,
+        createdAt: nowDecimal(),
+        updatedAt: nowDecimal(),
+      },
+    });
+  }
+
+  async findAllTerminal() {
+    return this.prisma.terminal.findMany({
+      include: {
+        airport: true,
+        gates: true,
+        facilities: true,
+      },
+    });
+  }
+
+  async findOneTerminal(id: string) {
+    const terminal = await this.prisma.terminal.findUnique({
+      where: { id },
+      include: {
+        airport: true,
+        gates: true,
+        facilities: true,
+      },
+    });
+
+    if (!terminal) {
+      return {
+        resultCode: '00',
+        resultMessage: `Terminal with id ${id} not found`,
+      };
+    }
+    return { resultCode: '00', resultMessage: 'Success' };
+  }
+
+  async updateTerminal(id: string, updateTerminalDto: UpdateTerminalDto) {
+    try {
+      return await this.prisma.terminal.update({
+        where: { id },
+        data: {
+          ...updateTerminalDto,
+          updatedAt: nowDecimal(),
+        },
+      });
+    } catch (error) {
+      throw error;
+      // throw new NotFoundException(`Terminal with id ${id} not found`);
+    }
+  }
+
+  async remove(id: string) {
+    try {
+      return await this.prisma.terminal.delete({
+        where: { id },
+      });
+    } catch (error) {
+      throw error;
+      // throw new NotFoundException(`Terminal with id ${id} not found`);
+    }
+  }
+
+  async findByAirportCode(airportCode: string) {
+    return this.prisma.terminal.findMany({
+      where: { airportId: airportCode },
+      include: {
+        gates: true,
+        facilities: true,
+      },
+    });
   }
 }

@@ -1,0 +1,224 @@
+import { Injectable } from '@nestjs/common';
+import { CreatePayrollDto } from './dto/create-payroll.dto';
+import { PrismaService } from 'src/prisma.service';
+import { nowDecimal } from 'src/common/helpers/format';
+import { BaseResponseDto } from 'src/baseResponse/response.dto';
+import { PayrollStatus } from 'generated/prisma';
+
+@Injectable()
+export class PayrollService {
+  constructor(private prisma: PrismaService) {}
+
+  async create(data: CreatePayrollDto) {
+    const {
+      baseSalary,
+      allowances = 0,
+      deductions = 0,
+      tax = 0,
+      ...rest
+    } = data;
+
+    const netPay = baseSalary + allowances - deductions - tax;
+
+    return this.prisma.payroll.create({
+      data: {
+        ...rest,
+        baseSalary,
+        allowances,
+        deductions,
+        tax,
+        netPay,
+        generatedAt: nowDecimal(), // Prisma sẽ convert sang Decimal
+      },
+    });
+  }
+  async findByEmployee(
+    employeeId: number,
+    month?: number,
+    year?: number,
+  ): Promise<BaseResponseDto<any>> {
+    const where: any = { employeeId };
+    if (month && year) {
+      where.month = month;
+      where.year = year;
+    }
+
+    const payrolls = await this.prisma.payroll.findMany({
+      where,
+      include: {
+        employee: { select: { id: true, name: true, employeeNo: true } },
+      },
+      orderBy: { generatedAt: 'desc' },
+    });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Fetched payroll records',
+      list: payrolls,
+    };
+  }
+
+  async getAllPayrolls() {
+    try {
+      const payrolls = await this.prisma.payroll.findMany({
+        include: {
+          employee: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              employeeNo: true,
+              position: true,
+              department: true,
+            },
+          },
+        },
+        orderBy: [{ year: 'desc' }, { month: 'desc' }],
+      });
+
+      console.log('Payrolls data:', payrolls);
+
+      const formattedPayrolls = payrolls.map((payroll) => {
+        const formattedData: any = { ...payroll };
+        if (
+          formattedData.generatedAt &&
+          typeof formattedData.generatedAt === 'object' &&
+          'toNumber' in formattedData.generatedAt
+        ) {
+          formattedData.generatedAt = formattedData.generatedAt.toNumber();
+        }
+        const decimalFields = [
+          'baseSalary',
+          'allowances',
+          'deductions',
+          'tax',
+          'netPay',
+        ];
+        decimalFields.forEach((field) => {
+          if (
+            formattedData[field] &&
+            typeof formattedData[field] === 'object' &&
+            'toNumber' in formattedData[field]
+          ) {
+            formattedData[field] = formattedData[field].toNumber();
+          }
+        });
+
+        return formattedData;
+      });
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Thành công',
+        data: formattedPayrolls,
+      };
+    } catch (error) {
+      console.error('Error getting payrolls:', error);
+      return {
+        resultCode: '01',
+        resultMessage: 'Lỗi khi lấy dữ liệu payroll',
+        data: null,
+      };
+    }
+  }
+
+  async getPayrollById(id: number) {
+    return await this.prisma.payroll.findUnique({
+      where: { id },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            employeeNo: true,
+            email: true,
+            name: true,
+            position: true,
+            department: true,
+            payrolls: true,
+            hireDate: true,
+          },
+        },
+      },
+    });
+  }
+
+  async finalizePayroll(id: number) {
+    return this.prisma.payroll.update({
+      where: { id },
+      data: { status: 'FINALIZED' },
+    });
+  }
+
+  async generatePayroll(
+    employeeId: number,
+    month: number,
+    year: number,
+    baseSalary: number,
+    allowances = 0,
+    deductions = 0,
+    tax = 0,
+  ) {
+    const netPay = baseSalary + allowances - deductions - tax;
+
+    const payroll = await this.prisma.payroll.create({
+      data: {
+        employeeId,
+        month,
+        year,
+        baseSalary,
+        allowances,
+        deductions,
+        tax,
+        netPay,
+        status: 'DRAFT',
+        generatedAt: nowDecimal(),
+      },
+      include: {
+        employee: { select: { id: true, name: true, employeeNo: true } },
+      },
+    });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Payroll generated successfully',
+      data: payroll,
+    };
+  }
+
+  async getPayrollSummary() {
+    const payrolls = await this.prisma.payroll.findMany({
+      where: {
+        status: PayrollStatus.FINALIZED,
+      },
+      include: {
+        employee: {
+          select: {
+            department: true,
+          },
+        },
+      },
+    });
+
+    const totalPayroll = payrolls.reduce(
+      (sum, payroll) => sum + payroll.netPay,
+      0,
+    );
+    const totalTax = payrolls.reduce((sum, payroll) => sum + payroll.tax, 0);
+
+    // Group by department
+    const byDepartment = payrolls.reduce((acc, payroll) => {
+      const dept = payroll.employee.department || 'Unknown';
+      if (!acc[dept]) acc[dept] = 0;
+      acc[dept] += payroll.netPay;
+      return acc;
+    }, {});
+
+    return {
+      totalPayroll,
+      totalTax,
+      averagePay: totalPayroll / payrolls.length,
+      byDepartment,
+      count: payrolls.length,
+    };
+  }
+}

@@ -19,6 +19,10 @@ import { UpdateFlightDto } from './dto/update-flight.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { CreateFlightDto } from './dto/create-flight.dto';
 import { FlightResponseDto } from './dto/flight-response.dto';
+import {
+  CreateAircraftDto,
+  UpdateAircraftDto,
+} from './dto/create-aircraft.dto';
 // import { ApiOperation } from '@nestjs/swagger';
 
 @Controller('sys/flights')
@@ -32,8 +36,13 @@ export class FlightsController {
     return this.flightService.create(data);
   }
 
+  @Post('bulk-create')
+  async createMany(@Body() createFlightsDto: CreateFlightDto[]) {
+    return this.flightService.createMany(createFlightsDto);
+  }
+
   @Post('aircraft')
-  createAircraft(@Body() data: Aircraft) {
+  createAircraft(@Body() data: CreateAircraftDto) {
     return this.flightService.createAircraft(data);
   }
 
@@ -75,6 +84,24 @@ export class FlightsController {
   @Get('aircraft/:id/seats')
   async getSeatsByAircraft(@Param('id') id: string) {
     return this.flightService.getSeatsByAircraftId(id);
+  }
+
+  @Get('aircraft/:code')
+  findAircraftById(@Param('code') code: string) {
+    return this.flightService.findAircraftById(code);
+  }
+
+  @Post('aircraft/update/:code')
+  updateAircraft(
+    @Param('code') code: string,
+    @Body() updateAircraftDto: UpdateAircraftDto,
+  ) {
+    return this.flightService.updateAircraft(code, updateAircraftDto);
+  }
+
+  @Post('aircraft/remove/:code')
+  removeAircraft(@Param('code') code: string) {
+    return this.flightService.removeAircraft(code);
   }
 
   @Get('airports')

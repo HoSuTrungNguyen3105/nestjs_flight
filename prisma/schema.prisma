@@ -95,6 +95,38 @@ enum Rank {
   NONE
 }
 
+enum TerminalType {
+  INTERNATIONAL
+  DOMESTIC
+  BUSINESS
+}
+
+enum GateStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+  CLOSED
+}
+
+enum FacilityType {
+  RESTAURANT
+  SHOP
+  LOUNGE
+  INFORMATION
+  SECURITY
+  TRANSPORTATION
+  OTHER
+}
+
+enum FlightStatusValue {
+  SCHEDULED
+  BOARDING
+  DEPARTED
+  ARRIVED
+  DELAYED
+  CANCELLED
+}
+
 model User {
   id                Int             @id @default(autoincrement())
   employeeNo        String?         @unique
@@ -238,22 +270,30 @@ model UnlockRequest {
 }
 
 model Flight {
-  flightId           Int      @id @default(autoincrement())
-  flightNo           String   @unique @db.VarChar(10)
-  flightType         String   @db.VarChar(10)
-  departureAirport   String   @db.VarChar(10)
-  arrivalAirport     String   @db.VarChar(10)
-  status             String   @db.VarChar(20)
-  aircraftCode       String   @db.VarChar(10)
-  priceEconomy       Float?
-  priceBusiness      Float?
-  priceFirst         Float?
+  flightId         Int    @id @default(autoincrement())
+  flightNo         String @unique @db.VarChar(10)
+  flightType       String @db.VarChar(10)
+  departureAirport String @db.VarChar(10)
+  arrivalAirport   String @db.VarChar(10)
+  status           String @db.VarChar(20)
+  aircraftCode     String @db.VarChar(10)
+  priceEconomy     Float?
+  priceBusiness    Float?
+  priceFirst       Float?
   // maxCapacity        Int?
+
+  airline     String
+  origin      String
+  destination String
+
   scheduledDeparture Decimal  @db.Decimal(20, 3)
   scheduledArrival   Decimal  @db.Decimal(20, 3)
   actualDeparture    Decimal? @db.Decimal(20, 3)
   actualArrival      Decimal? @db.Decimal(20, 3)
-  gate               String?
+  // gate               String?
+  // Flight giữ FK gateId -> Gate.id (Gate không chứa field FK)
+  gateId             String?  @unique
+  gate               Gate?    @relation(fields: [gateId], references: [id])
   terminal           String?
   isCancelled        Boolean  @default(false)
   delayMinutes       Int?
@@ -262,16 +302,18 @@ model Flight {
   delayReason        String? @db.VarChar(255)
 
   bookings            Booking[]
-  aircraft            Aircraft       @relation(fields: [aircraftCode], references: [code])
-  arrivalAirportRel   Airport        @relation("ArrivalRelation", fields: [arrivalAirport], references: [code])
-  departureAirportRel Airport        @relation("DepartureRelation", fields: [departureAirport], references: [code])
+  aircraft            Aircraft         @relation(fields: [aircraftCode], references: [code])
+  arrivalAirportRel   Airport          @relation("ArrivalRelation", fields: [arrivalAirport], references: [code])
+  departureAirportRel Airport          @relation("DepartureRelation", fields: [departureAirport], references: [code])
   meals               FlightMeal[]
   flightStatuses      FlightStatus[]
   seats               Seat[]
+  gateAssignments     GateAssignment[]
 
   @@index([aircraftCode], map: "Flight_aircraftCode_fkey")
   @@index([arrivalAirport], map: "Flight_arrivalAirport_fkey")
   @@index([departureAirport], map: "Flight_departureAirport_fkey")
+  @@index([gateId]) // Thêm index cho gateId
 }
 
 model Aircraft {
@@ -282,13 +324,77 @@ model Aircraft {
 }
 
 model Airport {
-  code        String   @id
+  code      String     @id
+  name      String
+  city      String
+  country   String
+  terminals Terminal[]
+
+  createdAt Decimal  @db.Decimal(20, 3)
+  updatedAt Decimal? @db.Decimal(20, 3)
+
+  arrivals   Flight[] @relation("ArrivalRelation")
+  departures Flight[] @relation("DepartureRelation")
+}
+
+model Terminal {
+  id          String       @id @default(cuid())
+  code        String // A, B, D
   name        String
-  city        String
-  coordinates String
-  timezone    String
-  arrivals    Flight[] @relation("ArrivalRelation")
-  departures  Flight[] @relation("DepartureRelation")
+  description String?
+  type        TerminalType // INTERNATIONAL, DOMESTIC, BUSINESS
+  airportId   String
+  airport     Airport      @relation(fields: [airportId], references: [code], onDelete: Cascade)
+  gates       Gate[]
+  facilities  Facility[]
+  createdAt   Decimal      @db.Decimal(20, 3)
+  updatedAt   Decimal      @db.Decimal(20, 3)
+
+  @@unique([airportId, code])
+}
+
+model Facility {
+  id           String       @id @default(cuid())
+  name         String
+  type         FacilityType
+  description  String?
+  terminalId   String
+  terminal     Terminal     @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+  location     String? // Vị trí trong terminal
+  openingHours String?
+  createdAt    Decimal      @db.Decimal(20, 3)
+  updatedAt    Decimal      @db.Decimal(20, 3)
+}
+
+model GateAssignment {
+  id         String  @id @default(cuid())
+  gateId     String
+  gate       Gate    @relation(fields: [gateId], references: [id], onDelete: Cascade)
+  flightId   Int
+  flight     Flight  @relation(fields: [flightId], references: [flightId], onDelete: Cascade)
+  assignedAt Decimal @db.Decimal(20, 3)
+  releasedAt Decimal @db.Decimal(20, 3)
+  createdAt  Decimal @db.Decimal(20, 3)
+  updatedAt  Decimal @db.Decimal(20, 3)
+
+  @@unique([gateId, flightId])
+}
+
+model Gate {
+  id          String           @id @default(cuid())
+  code        String
+  terminalId  String
+  terminal    Terminal         @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+  status      GateStatus       @default(AVAILABLE)
+  assignments GateAssignment[]
+
+  // Quan hệ ngược lại với Flight - không định nghĩa fields/references ở đây
+  currentFlight Flight?
+
+  createdAt Decimal @db.Decimal(20, 3)
+  updatedAt Decimal @db.Decimal(20, 3)
+
+  @@unique([terminalId, code])
 }
 
 model Booking {

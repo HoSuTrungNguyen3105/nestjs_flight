@@ -138,56 +138,6 @@ export class UsersController {
     return this.userService.rejectTransfer(userId);
   }
 
-  @Get('payroll')
-  async getPayrolls() {
-    return this.userService.getAllPayrolls();
-  }
-
-  @Get('payroll/getById/:id')
-  async getPayrollsById(@Param('id') id: number) {
-    return this.userService.getPayrollById(id);
-  }
-
-  @Get('payroll/summary')
-  async getSummary() {
-    return this.userService.getPayrollSummary();
-  }
-
-  @Post('payroll/generate')
-  async generate(
-    @Body('employeeId') employeeId: number,
-    @Body('month') month: number,
-    @Body('year') year: number,
-    @Body('baseSalary') baseSalary: number,
-    @Body('allowances') allowances?: number,
-    @Body('deductions') deductions?: number,
-    @Body('tax') tax?: number,
-  ) {
-    return this.userService.generatePayroll(
-      employeeId,
-      month,
-      year,
-      baseSalary,
-      allowances,
-      deductions,
-      tax,
-    );
-  }
-
-  @Post('payroll/finalize/:id')
-  async finalize(@Param('id') id: number) {
-    return this.userService.finalizePayroll(Number(id));
-  }
-
-  @Get('employee/:employeeId')
-  async findByEmployee(
-    @Param('employeeId') employeeId: number,
-    @Body('month') month?: number,
-    @Body('year') year?: number,
-  ) {
-    return this.userService.findByEmployee(Number(employeeId), month, year);
-  }
-
   @Post('attendance/check-in')
   async checkIn(@Body('employeeId') employeeId: number) {
     return this.userService.checkIn(employeeId);

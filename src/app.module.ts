@@ -11,6 +11,7 @@ import { MealsModule } from './meals/meals.module';
 import { BookingModule } from './booking/booking.module';
 import { SeatModule } from './seat/seat.module';
 import { MessagesModule } from './chat/messages.module';
+import { PayrollModule } from './payroll/payroll.module';
 
 @Module({
   controllers: [AppController],
@@ -25,6 +26,7 @@ import { MessagesModule } from './chat/messages.module';
     BookingModule,
     SeatModule,
     MessagesModule,
+    PayrollModule,
   ],
 })
 export class AppModule {}
