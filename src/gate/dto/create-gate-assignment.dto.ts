@@ -15,27 +15,22 @@ export class CreateGateAssignmentDto {
 
   @IsInt()
   @IsNotEmpty()
-  @Type(() => Number)
   flightId: number;
 
   @IsOptional()
   @IsNumber()
-  @Type(() => Number)
   assignedAt?: number;
 
   @IsOptional()
   @IsNumber()
-  @Type(() => Number)
   releasedAt?: number;
 
   @IsOptional()
   @IsNumber()
-  @Type(() => Number)
   createdAt?: number;
 
   @IsOptional()
   @IsNumber()
-  @Type(() => Number)
   updatedAt?: number;
 }
 
@@ -44,6 +39,5 @@ export class UpdateGateAssignmentDto extends PartialType(
 ) {
   @IsOptional()
   @IsNumber()
-  @Type(() => Number)
   updatedAt?: number;
 }

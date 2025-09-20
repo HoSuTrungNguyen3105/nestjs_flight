@@ -25,17 +25,7 @@ export class FlightsService {
     data: CreateFlightDto,
   ): Promise<BaseResponseDto<FlightResponseDto>> {
     try {
-      // const flightExists = await this.prisma.flight.findUnique({
-      //   where: { flightId: data.flightId },
-      // });
-      // if (flightExists) {
-      //   return {
-      //     resultCode: '01',
-      //     resultMessage: `Flight with ID ${data.flightId} already exists`,
-      //   };
-      // }
       const flight = await this.prisma.flight.create({ data: { ...data } });
-
       const formattedFlight = {
         ...flight,
         scheduledArrival: flight.scheduledArrival
@@ -56,52 +46,6 @@ export class FlightsService {
       throw error;
     }
   }
-
-  // async createMany(
-  //   data: CreateFlightDto[],
-  // ): Promise<BaseResponseDto<FlightResponseDto[]>> {
-  //   try {
-  //     const createdFlights: FlightResponseDto[] = [];
-
-  //     for (const flightData of data) {
-  //       const flightExists = await this.prisma.flight.findUnique({
-  //         where: { flightNo: flightData.flightNo }, // nên check bằng flightNo thay vì flightId
-  //       });
-
-  //       if (flightExists) {
-  //         console.warn(
-  //           `Flight ${flightData.flightNo} already exists, skipping`,
-  //         );
-  //         continue;
-  //       }
-
-  //       const flight = await this.prisma.flight.create({
-  //         data: { ...flightData },
-  //       });
-
-  //       const formattedFlight = {
-  //         ...flight,
-  //         scheduledArrival: flight.scheduledArrival
-  //           ? new Prisma.Decimal(flight.scheduledArrival)
-  //           : null,
-  //         scheduledDeparture: flight.scheduledDeparture
-  //           ? new Prisma.Decimal(flight.scheduledDeparture)
-  //           : null,
-  //       };
-
-  //       createdFlights.push(formattedFlight);
-  //     }
-
-  //     return {
-  //       resultCode: '00',
-  //       resultMessage: 'Thêm nhiều chuyến bay thành công',
-  //       data: createdFlights,
-  //     };
-  //   } catch (error) {
-  //     console.error('error', error);
-  //     throw error;
-  //   }
-  // }
 
   async createMany(
     data: CreateFlightDto[],

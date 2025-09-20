@@ -22,6 +22,7 @@ import {
   CreateAircraftDto,
   UpdateAircraftDto,
 } from './dto/create-aircraft.dto';
+import { CreateTerminalDto } from './dto/create-terminal.dto';
 // import { ApiOperation } from '@nestjs/swagger';
 
 @Controller('sys/flights')
@@ -43,6 +44,11 @@ export class FlightsController {
   @Post('aircraft')
   createAircraft(@Body() data: CreateAircraftDto) {
     return this.flightService.createAircraft(data);
+  }
+
+  @Post('createTerminal')
+  createTerminal(@Body() data: CreateTerminalDto) {
+    return this.flightService.createTerminal(data);
   }
 
   // @UseGuards(AuthGuard('jwt'))
