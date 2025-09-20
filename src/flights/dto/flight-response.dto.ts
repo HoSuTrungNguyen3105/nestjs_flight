@@ -1,6 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
 import { Prisma } from 'generated/prisma';
-import { Decimal } from 'generated/prisma/runtime/library';
 
 export class FlightResponseDto {
   flightId: number;

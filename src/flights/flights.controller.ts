@@ -16,7 +16,6 @@ import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { AirportDto } from './dto/create-airport.dto';
 import { SearchFlightDto } from './dto/search.flight.dto';
 import { UpdateFlightDto } from './dto/update-flight.dto';
-import { AuthGuard } from '@nestjs/passport';
 import { CreateFlightDto } from './dto/create-flight.dto';
 import { FlightResponseDto } from './dto/flight-response.dto';
 import {
@@ -66,6 +65,7 @@ export class FlightsController {
   // deleteFlight(@Param('flightId') id: string) {
   //   return this.flightService.deleteFlight(+id);
   // }
+
   @Delete('all')
   async deleteAllFlights() {
     return this.flightService.deleteAll();
@@ -113,6 +113,11 @@ export class FlightsController {
   @Get('airports')
   async getAirports() {
     return this.flightService.getAllAirports();
+  }
+
+  @Get('getAllCode')
+  async getAllCode() {
+    return this.flightService.getAllCode();
   }
 
   @Post('airports')

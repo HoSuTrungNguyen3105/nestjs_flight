@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { PayrollService } from './payroll.service';
 import { CreatePayrollDto } from './dto/create-payroll.dto';
 
-@Controller('payrolls')
+@Controller('sys/payrolls')
 export class PayrollController {
   constructor(private readonly payrollService: PayrollService) {}
 

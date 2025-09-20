@@ -10,28 +10,68 @@ export class PayrollService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: CreatePayrollDto) {
-    const {
-      baseSalary,
-      allowances = 0,
-      deductions = 0,
-      tax = 0,
-      ...rest
-    } = data;
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: data.employeeId },
+      });
 
-    const netPay = baseSalary + allowances - deductions - tax;
+      if (!user) {
+        return {
+          resultCode: '99',
+          resultMessage: `User with ID ${data.employeeId} not found`,
+        };
+      }
 
-    return this.prisma.payroll.create({
-      data: {
-        ...rest,
+      const existingPayroll = await this.prisma.payroll.findUnique({
+        where: {
+          employeeId_month_year: {
+            employeeId: data.employeeId,
+            month: data.month,
+            year: data.year,
+          },
+        },
+      });
+
+      if (existingPayroll) {
+        return {
+          resultCode: '03',
+          resultMessage: `Payroll already exists for employee ${data.employeeId} in ${data.month}/${data.year}`,
+          data: existingPayroll,
+        };
+      }
+
+      const {
         baseSalary,
-        allowances,
-        deductions,
-        tax,
-        netPay,
-        generatedAt: nowDecimal(), // Prisma sẽ convert sang Decimal
-      },
-    });
+        allowances = 0,
+        deductions = 0,
+        tax = 0,
+        ...rest
+      } = data;
+
+      const netPay = baseSalary + allowances - deductions - tax;
+
+      const res = await this.prisma.payroll.create({
+        data: {
+          ...rest,
+          baseSalary,
+          allowances,
+          deductions,
+          tax,
+          netPay,
+          generatedAt: nowDecimal(),
+        },
+      });
+      return {
+        resultCode: '00',
+        resultMessage: 'Create Success',
+        data: res,
+      };
+    } catch (error) {
+      console.error('error', error);
+      throw error;
+    }
   }
+
   async findByEmployee(
     employeeId: number,
     month?: number,
@@ -158,31 +198,36 @@ export class PayrollService {
     deductions = 0,
     tax = 0,
   ) {
-    const netPay = baseSalary + allowances - deductions - tax;
+    try {
+      const netPay = baseSalary + allowances - deductions - tax;
 
-    const payroll = await this.prisma.payroll.create({
-      data: {
-        employeeId,
-        month,
-        year,
-        baseSalary,
-        allowances,
-        deductions,
-        tax,
-        netPay,
-        status: 'DRAFT',
-        generatedAt: nowDecimal(),
-      },
-      include: {
-        employee: { select: { id: true, name: true, employeeNo: true } },
-      },
-    });
+      const payroll = await this.prisma.payroll.create({
+        data: {
+          employeeId,
+          month,
+          year,
+          baseSalary,
+          allowances,
+          deductions,
+          tax,
+          netPay,
+          status: 'DRAFT',
+          generatedAt: nowDecimal(),
+        },
+        include: {
+          employee: { select: { id: true, name: true, employeeNo: true } },
+        },
+      });
 
-    return {
-      resultCode: '00',
-      resultMessage: 'Payroll generated successfully',
-      data: payroll,
-    };
+      return {
+        resultCode: '00',
+        resultMessage: 'Payroll generated successfully',
+        data: payroll,
+      };
+    } catch (error) {
+      console.error('error', error);
+      throw error;
+    }
   }
 
   async getPayrollSummary() {

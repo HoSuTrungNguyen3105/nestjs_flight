@@ -16,17 +16,18 @@ export class GatesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createGateDto: CreateGateDto) {
-    // Check if terminal exists
     const terminal = await this.prisma.terminal.findUnique({
       where: { id: createGateDto.terminalId },
     });
 
     if (!terminal) {
-      return;
-      //throw new NotFoundException(`Terminal with id ${createGateDto.terminalId} not found`);
+      return {
+        resultCode: '01',
+        resultMessage: `Terminal with id ${createGateDto.terminalId} not found`,
+        data: terminal,
+      };
     }
 
-    // Check if gate code already exists for this terminal
     const existingGate = await this.prisma.gate.findFirst({
       where: {
         terminalId: createGateDto.terminalId,
@@ -39,7 +40,6 @@ export class GatesService {
         resultCode: '01',
         resultMessage: `Gate with code ${createGateDto.code} already exists in terminal ${createGateDto.terminalId}`,
       };
-      //   throw new ConflictException(`Gate with code ${createGateDto.code} already exists in terminal ${createGateDto.terminalId}`);
     }
 
     return this.prisma.gate.create({

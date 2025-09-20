@@ -25,15 +25,15 @@ export class FlightsService {
     data: CreateFlightDto,
   ): Promise<BaseResponseDto<FlightResponseDto>> {
     try {
-      const flightExists = await this.prisma.flight.findUnique({
-        where: { flightId: data.flightId },
-      });
-      if (flightExists) {
-        return {
-          resultCode: '01',
-          resultMessage: `Flight with ID ${data.flightId} already exists`,
-        };
-      }
+      // const flightExists = await this.prisma.flight.findUnique({
+      //   where: { flightId: data.flightId },
+      // });
+      // if (flightExists) {
+      //   return {
+      //     resultCode: '01',
+      //     resultMessage: `Flight with ID ${data.flightId} already exists`,
+      //   };
+      // }
       const flight = await this.prisma.flight.create({ data: { ...data } });
 
       const formattedFlight = {
@@ -589,6 +589,33 @@ export class FlightsService {
     try {
       const res = await this.prisma.airport.findMany();
       return { resultCode: '00', resultMessage: 'Airport', list: res };
+    } catch (error) {
+      return { resultCode: '01', resultMessage: 'Error Airport' };
+    }
+  }
+
+  async getAllCode() {
+    try {
+      const resAirport = await this.prisma.airport.findMany({
+        select: {
+          code: true,
+        },
+      });
+      const resAircraft = await this.prisma.aircraft.findMany({
+        select: {
+          code: true,
+        },
+      });
+      console.log('resAircraft', resAircraft);
+      console.log('resAirport', resAirport);
+      return {
+        resultCode: '00',
+        resultMessage: 'Success',
+        data: {
+          aircraft: resAircraft,
+          airport: resAirport,
+        },
+      };
     } catch (error) {
       return { resultCode: '01', resultMessage: 'Error Airport' };
     }
