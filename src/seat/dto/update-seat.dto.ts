@@ -1,9 +1,14 @@
-import { IsInt, IsOptional } from 'class-validator';
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateSeatDto } from './create-seat.dto';
+import { SeatPosition, SeatType } from 'generated/prisma';
 
-export class UpdateSeatDto extends PartialType(CreateSeatDto) {
-  @IsInt()
-  @IsOptional()
-  bookingId?: number;
+export class UpdateSeatDto {
+  type?: SeatType;
+  position?: SeatPosition;
+  seatRow?: string;
+  seatNumber?: number;
+  price?: number;
+  isBooked?: boolean;
+  isAvailable?: boolean;
+  isExitRow?: boolean;
+  isExtraLegroom?: boolean;
+  note?: string;
 }

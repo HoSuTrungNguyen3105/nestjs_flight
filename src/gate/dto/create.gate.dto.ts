@@ -21,16 +21,6 @@ export class CreateGateDto {
   @IsOptional()
   @IsEnum(GateStatus)
   status?: GateStatus;
-
-  @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  createdAt?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  updatedAt?: number;
 }
 
 export class UpdateGateDto extends PartialType(CreateGateDto) {

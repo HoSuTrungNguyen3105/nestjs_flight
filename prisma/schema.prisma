@@ -8,11 +8,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum SeatType {
-  VIP
-  BUSINESS
-  ECONOMY
-}
+// enum SeatType {
+//   VIP
+//   BUSINESS
+//   ECONOMY
+//   FIRST
+// }
+
+// enum SeatPosition {
+//   WINDOW
+//   MIDDLE
+//   AISLE
+// }
 
 enum Role {
   USER
@@ -282,9 +289,9 @@ model Flight {
   priceFirst       Float?
   // maxCapacity        Int?
 
-  airline     String
-  origin      String
-  destination String
+  // airline     String
+  // origin      String
+  // destination String
 
   scheduledDeparture Decimal  @db.Decimal(20, 3)
   scheduledArrival   Decimal  @db.Decimal(20, 3)
@@ -313,7 +320,7 @@ model Flight {
   @@index([aircraftCode], map: "Flight_aircraftCode_fkey")
   @@index([arrivalAirport], map: "Flight_arrivalAirport_fkey")
   @@index([departureAirport], map: "Flight_departureAirport_fkey")
-  @@index([gateId]) // Thêm index cho gateId
+  @@index([gateId])
 }
 
 model Aircraft {
@@ -339,10 +346,10 @@ model Airport {
 
 model Terminal {
   id          String       @id @default(cuid())
-  code        String // A, B, D
+  code        String       @unique
   name        String
   description String?
-  type        TerminalType // INTERNATIONAL, DOMESTIC, BUSINESS
+  type        TerminalType
   airportId   String
   airport     Airport      @relation(fields: [airportId], references: [code], onDelete: Cascade)
   gates       Gate[]
@@ -360,7 +367,7 @@ model Facility {
   description  String?
   terminalId   String
   terminal     Terminal     @relation(fields: [terminalId], references: [id], onDelete: Cascade)
-  location     String? // Vị trí trong terminal
+  location     String?
   openingHours String?
   createdAt    Decimal      @db.Decimal(20, 3)
   updatedAt    Decimal      @db.Decimal(20, 3)
@@ -381,14 +388,12 @@ model GateAssignment {
 }
 
 model Gate {
-  id          String           @id @default(cuid())
-  code        String
-  terminalId  String
-  terminal    Terminal         @relation(fields: [terminalId], references: [id], onDelete: Cascade)
-  status      GateStatus       @default(AVAILABLE)
-  assignments GateAssignment[]
-
-  // Quan hệ ngược lại với Flight - không định nghĩa fields/references ở đây
+  id            String           @id @default(cuid())
+  code          String
+  terminalId    String
+  terminal      Terminal         @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+  status        GateStatus       @default(AVAILABLE)
+  assignments   GateAssignment[]
   currentFlight Flight?
 
   createdAt Decimal @db.Decimal(20, 3)
@@ -410,15 +415,33 @@ model Booking {
   @@index([passengerId], map: "Booking_passengerId_fkey")
 }
 
+enum SeatType {
+  VIP
+  BUSINESS
+  ECONOMY
+  FIRST
+}
+
+enum SeatPosition {
+  WINDOW
+  MIDDLE
+  AISLE
+}
+
 model Seat {
-  id          Int      @id @default(autoincrement())
-  seatNumber  Int
-  seatRow     String
-  flightId    Int
-  bookingId   Int?     @unique
-  type        SeatType @default(ECONOMY)
-  isBooked    Boolean  @default(false)
-  isAvailable Boolean  @default(true)
+  id             Int           @id @default(autoincrement())
+  seatNumber     Int
+  seatRow        String
+  flightId       Int
+  bookingId      Int?          @unique
+  type           SeatType      @default(ECONOMY)
+  position       SeatPosition?
+  price          Float?
+  isBooked       Boolean       @default(false)
+  isAvailable    Boolean?      @default(true)
+  isExtraLegroom Boolean?      @default(false)
+  isExitRow      Boolean?      @default(false)
+  note           String?
 
   booking Booking? @relation(fields: [bookingId], references: [id])
   flight  Flight   @relation(fields: [flightId], references: [flightId])

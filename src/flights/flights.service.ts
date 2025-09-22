@@ -54,12 +54,26 @@ export class FlightsService {
       const createdFlights: FlightResponseDto[] = [];
 
       for (const flightData of data) {
+        const hasAircraft = await this.prisma.aircraft.findUnique({
+          where: { code: flightData.aircraftCode },
+        });
+        if (!hasAircraft) {
+          return {
+            resultCode: '01',
+            resultMessage: 'No aircraft',
+          };
+        }
         const flightExists = await this.prisma.flight.findUnique({
           where: { flightId: flightData.flightId },
         });
 
         if (flightExists) {
           continue; // bỏ qua nếu flight đã tồn tại
+        } else {
+          return {
+            resultCode: '09',
+            resultMessage: 'No flightId',
+          };
         }
 
         const flight = await this.prisma.flight.create({
@@ -275,8 +289,8 @@ export class FlightsService {
         aircraft: true,
         arrivalAirportRel: true,
         departureAirportRel: true,
-        meals: true,
-        seats: true,
+        // meals: true,
+        // seats: true,
         flightStatuses: true,
       },
     });
@@ -295,10 +309,15 @@ export class FlightsService {
     };
   }
 
-  async update(flightId: number, data: Partial<UpdateFlightDto>) {
+  async updateFlight(flightId: number, data: Partial<UpdateFlightDto>) {
     try {
-      await this.findOne(flightId);
-
+      const hasFlight = await this.findOne(flightId);
+      if (!hasFlight) {
+        return {
+          resultCode: '01',
+          resultMessage: 'No flight',
+        };
+      }
       const updateData = {
         flightNo: data.flightNo,
         flightType: data.flightType,
@@ -315,17 +334,20 @@ export class FlightsService {
         priceEconomy: data.priceEconomy,
         priceBusiness: data.priceBusiness,
         priceFirst: data.priceFirst,
-        gate: data.gate,
+        gateId: data.gateId,
         terminal: data.terminal,
         isCancelled: data.isCancelled,
         delayMinutes: data.delayMinutes,
+        airline: data.airline,
+        origin: data.origin,
+        destination: data.destination,
         delayReason: data.delayReason,
         cancellationReason: data.cancellationReason,
       };
 
-      if (data.isCancelled || data.delayMinutes) {
-        // todo
-      }
+      // if (data.isCancelled || data.delayMinutes) {
+      //   // todo
+      // }
 
       const filteredData = Object.fromEntries(
         Object.entries(updateData).filter(([_, value]) => value !== undefined),
@@ -688,13 +710,62 @@ export class FlightsService {
   }
 
   async createTerminal(createTerminalDto: CreateTerminalDto) {
-    return this.prisma.terminal.create({
+    const hasCreate = await this.prisma.terminal.findUnique({
+      where: {
+        code: createTerminalDto.code,
+      },
+    });
+    if (hasCreate) {
+      return {
+        resultCode: '01',
+        resultMessage: 'Failed create',
+      };
+    }
+    const res = await this.prisma.terminal.create({
       data: {
         ...createTerminalDto,
         createdAt: nowDecimal(),
         updatedAt: nowDecimal(),
       },
     });
+    return {
+      resultCode: '00',
+      resultMessage: 'Success create',
+      data: res,
+    };
+  }
+
+  async creatManyTerminal(dto: CreateTerminalDto[]) {
+    const codes = dto.map((t) => t.code);
+
+    const existing = await this.prisma.terminal.findMany({
+      where: {
+        code: { in: codes },
+      },
+      select: { code: true },
+    });
+
+    if (existing.length > 0) {
+      return {
+        resultCode: '01',
+        resultMessage: `Failed create. Duplicate codes: ${existing
+          .map((e) => e.code)
+          .join(', ')}`,
+      };
+    }
+    const res = await this.prisma.terminal.createMany({
+      data: dto.map((t) => ({
+        ...t,
+        createdAt: nowDecimal(),
+        updatedAt: nowDecimal(),
+      })),
+      skipDuplicates: true,
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Success create many terminal',
+      list: res,
+    };
   }
 
   async findAllTerminal() {

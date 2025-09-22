@@ -46,9 +46,19 @@ export class FlightsController {
     return this.flightService.createAircraft(data);
   }
 
+  @Get('terminal')
+  async findAllTerminal() {
+    return this.flightService.findAllTerminal();
+  }
+
   @Post('createTerminal')
   createTerminal(@Body() data: CreateTerminalDto) {
     return this.flightService.createTerminal(data);
+  }
+
+  @Post('createTerminal/bulk')
+  async createTerminalBulk(@Body() dto: CreateTerminalDto[]) {
+    return this.flightService.creatManyTerminal(dto);
   }
 
   // @UseGuards(AuthGuard('jwt'))
@@ -64,7 +74,7 @@ export class FlightsController {
 
   @Post('updateFlight/:flightId')
   updateFlight(@Param('flightId') id: string, @Body() data: UpdateFlightDto) {
-    return this.flightService.update(+id, data);
+    return this.flightService.updateFlight(+id, data);
   }
 
   // @Post('delete/:flightId')

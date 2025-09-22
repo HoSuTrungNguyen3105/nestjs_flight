@@ -61,15 +61,6 @@ export class CreateFlightDto {
   @IsNotEmpty()
   scheduledArrival: string;
 
-  @IsString()
-  airline: string;
-
-  @IsString()
-  origin: string;
-
-  @IsString()
-  destination: string;
-
   @IsOptional()
   @IsString()
   gateId?: string;

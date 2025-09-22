@@ -68,9 +68,18 @@ export class UpdateFlightDto {
   @IsDecimal()
   actualArrival?: string;
 
+  @IsString()
+  airline: string;
+
+  @IsString()
+  origin: string;
+
+  @IsString()
+  destination: string;
+
   @IsOptional()
   @IsString()
-  gate?: string;
+  gateId?: string;
 
   @IsOptional()
   @IsString()

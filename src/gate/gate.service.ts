@@ -46,8 +46,8 @@ export class GatesService {
       data: {
         ...createGateDto,
         status: createGateDto.status || 'AVAILABLE',
-        createdAt: createGateDto.createdAt || new Date().getTime(),
-        updatedAt: createGateDto.updatedAt || new Date().getTime(),
+        createdAt: nowDecimal(),
+        updatedAt: nowDecimal(),
       },
       include: {
         terminal: true,
