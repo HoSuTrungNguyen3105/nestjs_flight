@@ -289,8 +289,32 @@ export class FlightsService {
         aircraft: true,
         arrivalAirportRel: true,
         departureAirportRel: true,
-        // meals: true,
-        // seats: true,
+      },
+    });
+
+    if (!flight) {
+      return {
+        resultCode: '01',
+        resultMessage: `Flight with ID ${flightId} not found`,
+      };
+    }
+
+    return {
+      resultCode: '00',
+      resultMessage: `Flight with ID ${flightId} is found`,
+      data: flight,
+    };
+  }
+
+  async findFlightInfo(flightId: number): Promise<BaseResponseDto<Flight>> {
+    const flight = await this.prisma.flight.findUnique({
+      where: { flightId: flightId },
+      include: {
+        aircraft: true,
+        arrivalAirportRel: true,
+        departureAirportRel: true,
+        meals: true,
+        seats: true,
         flightStatuses: true,
       },
     });

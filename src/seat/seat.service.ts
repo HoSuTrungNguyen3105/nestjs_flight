@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { CreateSeatDto } from './dto/create-seat.dto';
 import { UpdateSeatDto } from './dto/update-seat.dto';
-import { Prisma, Seat, SeatPosition, SeatType } from 'generated/prisma';
+import { Prisma } from 'generated/prisma';
 import { SeatTypeDto, SeatTypesResponseDto } from './dto/seat-dto';
 
 @Injectable()
@@ -310,25 +310,7 @@ export class SeatService {
     }
   }
 
-  async updateSeat(seatId: number, data: UpdateSeatDto) {
-    try {
-      const updatedSeat = await this.prisma.seat.update({
-        where: { id: seatId },
-        data,
-      });
-
-      return {
-        resultCode: '00',
-        resultMessage: 'Seat updated successfully',
-        data: updatedSeat,
-      };
-    } catch (err) {
-      console.error('Error updating seat:', err);
-      throw err;
-    }
-  }
-
-  async updateMultipleSeats(seatIds: number[], data: UpdateSeatDto) {
+  async updateSeats(seatIds: number[], data: UpdateSeatDto) {
     try {
       if (!seatIds || seatIds.length === 0) {
         return {
@@ -361,10 +343,66 @@ export class SeatService {
         data: seats,
       };
     } catch (err) {
-      console.error('Error updating multiple seats:', err);
+      console.error('Error updating seats:', err);
       throw err;
     }
   }
+
+  // async updateSeat(seatId: number, data: UpdateSeatDto) {
+  //   try {
+  //     const updatedSeat = await this.prisma.seat.update({
+  //       where: { id: seatId },
+  //       data,
+  //     });
+
+  //     return {
+  //       resultCode: '00',
+  //       resultMessage: 'Seat updated successfully',
+  //       data: updatedSeat,
+  //     };
+  //   } catch (err) {
+  //     console.error('Error updating seat:', err);
+  //     throw err;
+  //   }
+  // }
+
+  // async updateMultipleSeats(seatIds: number[], data: UpdateSeatDto) {
+  //   try {
+  //     if (!seatIds || seatIds.length === 0) {
+  //       return {
+  //         resultCode: '01',
+  //         resultMessage: 'No seat IDs provided',
+  //         data: [],
+  //       };
+  //     }
+
+  //     const updatedSeats = await this.prisma.seat.updateMany({
+  //       where: {
+  //         id: {
+  //           in: seatIds,
+  //         },
+  //       },
+  //       data,
+  //     });
+
+  //     const seats = await this.prisma.seat.findMany({
+  //       where: {
+  //         id: {
+  //           in: seatIds,
+  //         },
+  //       },
+  //     });
+
+  //     return {
+  //       resultCode: '00',
+  //       resultMessage: `${updatedSeats.count} seats updated successfully`,
+  //       data: seats,
+  //     };
+  //   } catch (err) {
+  //     console.error('Error updating multiple seats:', err);
+  //     throw err;
+  //   }
+  // }
 
   async remove(id: number) {
     const seat = await this.prisma.seat.findUnique({ where: { id } });

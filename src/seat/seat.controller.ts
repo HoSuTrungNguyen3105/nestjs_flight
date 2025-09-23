@@ -40,26 +40,26 @@ export class SeatController {
     return this.seatService.findAllByFlightId(id);
   }
 
-  @Post('updateSeatsByIds')
-  async updateSeat(
-    @Body()
-    body: {
-      seatIds: number;
-      data: UpdateSeatDto;
-    },
-  ) {
-    return this.seatService.updateSeat(body.seatIds, body.data);
-  }
+  // @Post('updateSeatsByIds')
+  // async updateSeat(
+  //   @Body()
+  //   body: {
+  //     seatIds: number;
+  //     data: UpdateSeatDto;
+  //   },
+  // ) {
+  //   return this.seatService.updateSeat(body.seatIds, body.data);
+  // }
 
-  @Post('updateMultipleSeatsByIds')
-  async updateMultipleSeatsWithBody(
+  @Post('updateSeatsByIds')
+  async updateSeatsByIds(
     @Body()
     body: {
       seatIds: number[];
       data: UpdateSeatDto;
     },
   ) {
-    return this.seatService.updateMultipleSeats(body.seatIds, body.data);
+    return this.seatService.updateSeats(body.seatIds, body.data);
   }
 
   @Post('flight/:flightId')

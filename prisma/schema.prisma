@@ -422,26 +422,30 @@ enum SeatType {
   FIRST
 }
 
-enum SeatPosition {
-  WINDOW
-  MIDDLE
-  AISLE
-}
+// enum SeatPosition {
+//   WINDOW
+//   MIDDLE
+//   AISLE
+// }
 
 model Seat {
-  id             Int           @id @default(autoincrement())
-  seatNumber     Int
-  seatRow        String
-  flightId       Int
-  bookingId      Int?          @unique
-  type           SeatType      @default(ECONOMY)
-  position       SeatPosition?
-  price          Float?
-  isBooked       Boolean       @default(false)
-  isAvailable    Boolean?      @default(true)
-  isExtraLegroom Boolean?      @default(false)
-  isExitRow      Boolean?      @default(false)
-  note           String?
+  id                   Int      @id @default(autoincrement())
+  seatNumber           Int
+  seatRow              String
+  flightId             Int
+  bookingId            Int?     @unique
+  type                 SeatType @default(ECONOMY)
+  // position             SeatPosition?
+  price                Float?
+  isBooked             Boolean  @default(false)
+  isAvailable          Boolean  @default(true)
+  isExtraLegroom       Boolean  @default(false)
+  isExitRow            Boolean  @default(false)
+  isHandicapAccessible Boolean  @default(false)
+  isNearLavatory       Boolean  @default(false)
+  isUpperDeck          Boolean  @default(false)
+  isWing               Boolean  @default(false)
+  note                 String?
 
   booking Booking? @relation(fields: [bookingId], references: [id])
   flight  Flight   @relation(fields: [flightId], references: [flightId])

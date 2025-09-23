@@ -72,6 +72,11 @@ export class FlightsController {
     return this.flightService.findOne(+id);
   }
 
+  @Get('getFlightAllInfo/:id')
+  findFlightAllInfo(@Param('id') id: number) {
+    return this.flightService.findFlightInfo(+id);
+  }
+
   @Post('updateFlight/:flightId')
   updateFlight(@Param('flightId') id: string, @Body() data: UpdateFlightDto) {
     return this.flightService.updateFlight(+id, data);
