@@ -40,17 +40,6 @@ export class SeatController {
     return this.seatService.findAllByFlightId(id);
   }
 
-  // @Post('updateSeatsByIds')
-  // async updateSeat(
-  //   @Body()
-  //   body: {
-  //     seatIds: number;
-  //     data: UpdateSeatDto;
-  //   },
-  // ) {
-  //   return this.seatService.updateSeat(body.seatIds, body.data);
-  // }
-
   @Post('updateSeatsByIds')
   async updateSeatsByIds(
     @Body()

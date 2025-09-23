@@ -99,8 +99,7 @@ export class FlightsController {
 
   @Post('aircraft/batch')
   async createBatch(@Body() createBatchAircraftDto: CreateAircraftDto[]) {
-    const result = await this.flightService.createBatch(createBatchAircraftDto);
-    return result;
+    return this.flightService.createBatchAircraft(createBatchAircraftDto);
   }
 
   @Get('getAllAircraftBasic')
@@ -145,11 +144,6 @@ export class FlightsController {
   async createAirport(@Body() body: AirportDto) {
     return this.flightService.createAirport(body);
   }
-
-  // @Post('generate/:flightId')
-  // async generateSeats(@Param('flightId') flightId: string) {
-  //   return this.flightService.generateSeats(Number(flightId));
-  // }
 
   @Post('search')
   async searchFlights(@Body() dto: SearchFlightDto) {

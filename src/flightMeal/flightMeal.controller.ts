@@ -31,12 +31,12 @@ export class FlightMealController {
     return this.flightMealService.findOne(+id);
   }
 
-  @Put(':id')
+  @Post('update/:id')
   update(@Param('id') id: string, @Body() dto: UpdateFlightMealDto) {
     return this.flightMealService.update(+id, dto);
   }
 
-  @Delete(':id')
+  @Post('delete/:id')
   remove(@Param('id') id: string) {
     return this.flightMealService.remove(+id);
   }

@@ -12,11 +12,12 @@ export class SearchFlightDto {
   @IsOptional()
   @IsString()
   flightNo?: string;
-  @IsString()
-  from: string; // departureAirport
 
   @IsString()
-  to: string; // arrivalAirport
+  from: string;
+
+  @IsString()
+  to: string;
 
   @IsOptional()
   departDate?: number;

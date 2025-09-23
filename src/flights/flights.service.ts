@@ -447,44 +447,72 @@ export class FlightsService {
     }
   }
 
-  async createBatch(createBatchAircraftDto: CreateAircraftDto[]) {
-    const tasks = createBatchAircraftDto.map(async (aircraftData) => {
-      try {
-        // Kiểm tra duplicate trước khi insert
-        const duplicateAircraftCode = await this.prisma.aircraft.findUnique({
-          where: { code: aircraftData.code },
-        });
-
-        if (duplicateAircraftCode) {
-          return { resultCode: '01', resultMessage: 'Aircraft already exists' };
-        }
-
-        // Nếu không trùng thì insert
-        const aircraft = await this.prisma.aircraft.create({
-          data: aircraftData,
-        });
-
+  async createBatchAircraft(createBatchAircraftDto: CreateAircraftDto[]) {
+    try {
+      if (!createBatchAircraftDto || createBatchAircraftDto.length === 0) {
         return {
-          code: aircraft.code,
-          model: aircraft.model,
-          range: aircraft.range,
-        };
-      } catch (error) {
-        return {
-          code: aircraftData.code,
-          model: aircraftData.model,
-          range: aircraftData.range,
+          resultCode: '05',
+          resultMessage: 'No aircraft data provided',
+          data: [],
         };
       }
-    });
 
-    const results = await Promise.all(tasks);
+      const tasks = createBatchAircraftDto.map(async (aircraftData) => {
+        try {
+          if (
+            !aircraftData.code ||
+            !aircraftData.model ||
+            !aircraftData.range
+          ) {
+            return {
+              code: aircraftData.code || '(empty)',
+              errorCode: '05',
+              errorMessage: 'Missing required fields',
+            };
+          }
 
-    return {
-      resultCode: '00',
-      resultMessage: 'Batch aircraft creation completed',
-      data: results,
-    };
+          const duplicateAircraftCode = await this.prisma.aircraft.findUnique({
+            where: { code: aircraftData.code },
+          });
+
+          if (duplicateAircraftCode) {
+            return {
+              code: aircraftData.code,
+              errorCode: '01',
+              errorMessage: `Aircraft with code ${aircraftData.code} already exists`,
+            };
+          }
+
+          await this.prisma.aircraft.create({ data: aircraftData });
+
+          return {
+            code: aircraftData.code,
+            errorCode: '00',
+            errorMessage: 'Aircraft created successfully',
+          };
+        } catch (error) {
+          return {
+            code: aircraftData.code,
+            errorCode: '02',
+            errorMessage: `Failed to create aircraft ${aircraftData.code}`,
+          };
+        }
+      });
+
+      const results = await Promise.all(tasks);
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Batch aircraft creation completed',
+        list: results,
+      };
+    } catch (error) {
+      return {
+        resultCode: '09',
+        resultMessage: 'Unexpected error: ' + error,
+        data: [],
+      };
+    }
   }
 
   // async createBatch(createBatchAircraftDto: CreateAircraftDto[]) {
@@ -564,9 +592,13 @@ export class FlightsService {
 
   async removeAircraft(code: string) {
     try {
-      return await this.prisma.aircraft.delete({
+      await this.prisma.aircraft.delete({
         where: { code },
       });
+      return {
+        resultCode: '00',
+        resultMessage: `Aircraft with code ${code} has been delete`,
+      };
     } catch (error) {
       return {
         resultCode: '09',
