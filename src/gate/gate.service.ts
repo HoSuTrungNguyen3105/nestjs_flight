@@ -41,24 +41,18 @@ export class GatesService {
         resultMessage: `Gate with code ${createGateDto.code} already exists in terminal ${createGateDto.terminalId}`,
       };
     }
-
-    return this.prisma.gate.create({
+    await this.prisma.gate.create({
       data: {
         ...createGateDto,
         status: createGateDto.status || 'AVAILABLE',
         createdAt: nowDecimal(),
         updatedAt: nowDecimal(),
       },
-      include: {
-        terminal: true,
-        assignments: {
-          include: {
-            flight: true,
-          },
-          orderBy: { assignedAt: 'desc' },
-        },
-      },
     });
+    return {
+      resultCode: '00',
+      resultMessage: 'Success create gate',
+    };
   }
 
   async findAllGate(query: GateQueryDto) {

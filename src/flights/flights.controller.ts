@@ -9,9 +9,10 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { FlightsService } from './flights.service';
-import { Aircraft, Airport, Flight } from 'generated/prisma';
+import { Aircraft, Airport, Facility, Flight, Prisma } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { AirportDto } from './dto/create-airport.dto';
 import { SearchFlightDto } from './dto/search.flight.dto';
@@ -82,11 +83,6 @@ export class FlightsController {
     return this.flightService.updateFlight(+id, data);
   }
 
-  // @Post('delete/:flightId')
-  // deleteFlight(@Param('flightId') id: string) {
-  //   return this.flightService.deleteFlight(+id);
-  // }
-
   @Delete('all')
   async deleteAllFlights() {
     return this.flightService.deleteAll();
@@ -128,6 +124,41 @@ export class FlightsController {
   @Post('aircraft/remove/:code')
   removeAircraft(@Param('code') code: string) {
     return this.flightService.removeAircraft(code);
+  }
+
+  @Post('facilities')
+  async createFacility(
+    @Body() data: Prisma.FacilityCreateInput,
+  ): Promise<Facility> {
+    return this.flightService.createFacility(data);
+  }
+
+  @Delete('facilities/:id')
+  async deleteFacility(@Param('id') id: string): Promise<Facility> {
+    return this.flightService.deleteFacility(id);
+  }
+
+  @Get('by-terminal/:terminalId')
+  async getFacilitiesByTerminal(
+    @Param('terminalId') terminalId: string,
+  ): Promise<Facility[]> {
+    return this.flightService.getFacilitiesByTerminal(terminalId);
+  }
+
+  @Get('by-type/:type')
+  async getFacilitiesByType(@Param('type') type: string): Promise<Facility[]> {
+    return this.flightService.getFacilitiesByType(type as any);
+  }
+
+  @Get()
+  async getFacilities(
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
+  ): Promise<Facility[]> {
+    return this.flightService.getFacilities({
+      skip: skip ? Number(skip) : undefined,
+      take: take ? Number(take) : undefined,
+    });
   }
 
   @Get('airports')

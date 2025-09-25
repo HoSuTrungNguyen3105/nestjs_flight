@@ -56,25 +56,10 @@ export class GateController {
     return this.gatesService.createGateAssignment(createGateAssignmentDto);
   }
 
-  //   @Get()
-  //   findByGateId(@Query('gateId') gateId?: string, @Query('flightId') flightId?: number) {
-  //     if (gateId) {
-  //       return this.gatesService.findByGateId(gateId);
-  //     } else if (flightId) {
-  //       return this.gatesService.findByFlightId(flightId);
-  //     }
-  //     return [];
-  //   }
-
   @Get('findGateAssignmentById/:id')
   findGateAssignmentById(@Param('id') id: string) {
     return this.gatesService.findGateAssignmentById(id);
   }
-
-  // @Get('gate/:gateId')
-  // findByGateId(@Param('gateId') gateId: string) {
-  //   return this.gatesService.findByGateId(gateId);
-  // }
 
   @Get('flight/:flightId')
   findByFlightId(@Param('flightId') flightId: number) {
@@ -93,6 +78,11 @@ export class GateController {
   releaseAssignment(@Param('id') id: string) {
     return this.gatesService.releaseAssignment(id);
   }
+
+  // @Post('findAllTerminal')
+  // findAllTerminal() {
+  //   return this.gatesService.findAllTerminal();
+  // }
 
   @Post('removeGateAssignment/:id')
   removeGateAssignment(@Param('id') id: string) {

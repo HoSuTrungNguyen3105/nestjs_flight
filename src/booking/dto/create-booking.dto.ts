@@ -1,16 +1,50 @@
-import { IsInt, IsNotEmpty, IsArray, IsNumber } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsArray,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateBookingDto {
-  @IsInt()
   @IsNotEmpty()
-  passengerId: number;
+  passengerId: string;
 
   @IsInt()
   @IsNotEmpty()
   flightId: number;
 
-  @IsArray()
-  @IsNumber({}, { each: true }) // tất cả phần tử phải là number
   @IsNotEmpty()
-  seatIds: number[];
+  seatId: number;
+
+  @IsNumber()
+  bookingTime: number; // timestamp (ms)
+
+  @IsOptional()
+  @Type(() => MealOrderDto)
+  mealOrders?: MealOrderDto[];
+}
+
+export class MealOrderDto {
+  @IsInt()
+  mealId: number;
+
+  @IsInt()
+  quantity: number;
+}
+
+export class CreatePassengerPseudoDto {
+  @IsString()
+  fullName: string;
+
+  @IsString()
+  email: string;
+
+  @IsString()
+  phone: string;
+
+  @IsString()
+  passport: string;
 }

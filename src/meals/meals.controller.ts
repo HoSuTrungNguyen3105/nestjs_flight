@@ -44,4 +44,9 @@ export class MealController {
   remove(@Param('id') id: string) {
     return this.mealService.remove(+id);
   }
+
+  @Post('removeAllMeal')
+  removeAllMeal() {
+    return this.mealService.removeAllMeal();
+  }
 }

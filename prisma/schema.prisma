@@ -162,11 +162,9 @@ model User {
   tempPassword      String?
   resetTokenExpires Decimal?        @db.Decimal(20, 3)
   resetToken        String?
-  passport          String          @default("")
   phone             String          @default("")
   otpCode           String?
   otpExpire         Decimal?        @db.Decimal(20, 3)
-  transferAdmin     TransferAdmin?
   unlockRequests    UnlockRequest[]
   sessions          UserSession[]
   payrolls          Payroll[]
@@ -201,15 +199,16 @@ model UserSession {
   @@index([userId], map: "UserSession_userId_fkey")
 }
 
-model TransferAdmin {
-  id          Int            @id @default(autoincrement())
-  userId      Int            @unique
-  fromUserId  Int
-  toUserId    Int
-  status      TransferStatus @default(PENDING)
-  requestedAt Decimal        @db.Decimal(20, 3)
-  approvedAt  Decimal?       @db.Decimal(20, 3)
-  user        User           @relation(fields: [userId], references: [id])
+model Passenger {
+  id              String    @id @default(cuid())
+  fullName        String
+  email           String    @unique
+  phone           String
+  passport        String
+  accountLockYn   String    @default("N")
+  isEmailVerified String    @default("Y")
+  lastLoginDate   Decimal?  @db.Decimal(20, 3)
+  bookings        Booking[]
 }
 
 model Payroll {
@@ -344,6 +343,19 @@ model Airport {
   departures Flight[] @relation("DepartureRelation")
 }
 
+model Facility {
+  id           String       @id @default(cuid())
+  name         String
+  type         FacilityType
+  description  String?
+  terminalId   String
+  terminal     Terminal     @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+  location     String?
+  openingHours String?
+  createdAt    Decimal      @db.Decimal(20, 3)
+  updatedAt    Decimal      @db.Decimal(20, 3)
+}
+
 model Terminal {
   id          String       @id @default(cuid())
   code        String       @unique
@@ -358,19 +370,6 @@ model Terminal {
   updatedAt   Decimal      @db.Decimal(20, 3)
 
   @@unique([airportId, code])
-}
-
-model Facility {
-  id           String       @id @default(cuid())
-  name         String
-  type         FacilityType
-  description  String?
-  terminalId   String
-  terminal     Terminal     @relation(fields: [terminalId], references: [id], onDelete: Cascade)
-  location     String?
-  openingHours String?
-  createdAt    Decimal      @db.Decimal(20, 3)
-  updatedAt    Decimal      @db.Decimal(20, 3)
 }
 
 model GateAssignment {
@@ -403,13 +402,15 @@ model Gate {
 }
 
 model Booking {
-  id          Int         @id @default(autoincrement())
-  passengerId Int
+  id          Int       @id @default(autoincrement())
+  passengerId String
   flightId    Int
-  bookingTime Decimal     @db.Decimal(20, 3)
-  flight      Flight      @relation(fields: [flightId], references: [flightId])
-  mealOrders  MealOrder[]
-  seats       Seat?
+  bookingTime Decimal   @db.Decimal(20, 3)
+  flight      Flight    @relation(fields: [flightId], references: [flightId])
+  passenger   Passenger @relation(fields: [passengerId], references: [id])
+
+  mealOrders MealOrder[]
+  seats      Seat?
 
   @@index([flightId], map: "Booking_flightId_fkey")
   @@index([passengerId], map: "Booking_passengerId_fkey")
@@ -453,10 +454,18 @@ model Seat {
   @@index([flightId], map: "Seat_flightId_fkey")
 }
 
+enum MealType {
+  VEG
+  NONVEG
+  DRINK
+  DESSERT
+}
+
 model Meal {
   id          Int          @id @default(autoincrement())
+  mealCode    String       @unique
   name        String
-  mealType    String       @db.VarChar(50)
+  mealType    MealType
   description String?
   price       Float?
   isAvailable Boolean      @default(true)

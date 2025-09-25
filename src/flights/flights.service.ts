@@ -1,6 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
-import { Aircraft, Flight, Prisma, SeatType } from 'generated/prisma';
+import {
+  Aircraft,
+  Facility,
+  FacilityType,
+  Flight,
+  Prisma,
+  SeatType,
+} from 'generated/prisma';
 import { AirportDto, UpdateAirportDto } from './dto/create-airport.dto';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { SearchFlightDto } from './dto/search.flight.dto';
@@ -63,17 +70,23 @@ export class FlightsService {
             resultMessage: 'No aircraft',
           };
         }
+
+        const hasTerminal = await this.prisma.terminal.findUnique({
+          where: { code: flightData.terminal },
+        });
+        if (!hasTerminal) {
+          return {
+            resultCode: '01',
+            resultMessage: 'No Terminal',
+          };
+        }
+
         const flightExists = await this.prisma.flight.findUnique({
-          where: { flightId: flightData.flightId },
+          where: { flightNo: flightData.flightNo },
         });
 
         if (flightExists) {
-          continue; // bỏ qua nếu flight đã tồn tại
-        } else {
-          return {
-            resultCode: '09',
-            resultMessage: 'No flightId',
-          };
+          continue;
         }
 
         const flight = await this.prisma.flight.create({
@@ -171,36 +184,26 @@ export class FlightsService {
       departureAirportRel: {
         select: {
           code: true,
-          name: true,
-          city: true,
-          arrivals: true,
-          country: true,
         },
       },
       arrivalAirportRel: {
         select: {
           code: true,
-          name: true,
-          city: true,
-          arrivals: true,
-          country: true,
         },
       },
       aircraft: {
         select: {
           code: true,
-          model: true,
-          range: true,
         },
       },
-      seats: {
-        where: {
-          isAvailable: true,
-          ...(cabinClass && {
-            type: SeatType[cabinClass.toUpperCase() as keyof typeof SeatType],
-          }),
-        },
-      },
+      // seats: {
+      //   where: {
+      //     isAvailable: true,
+      //     ...(cabinClass && {
+      //       type: SeatType[cabinClass.toUpperCase() as keyof typeof SeatType],
+      //     }),
+      //   },
+      // },
     };
 
     // Tìm outbound flights
@@ -265,7 +268,6 @@ export class FlightsService {
           meals: {
             select: { id: true },
           },
-          seats: true,
         },
       });
 
@@ -362,9 +364,6 @@ export class FlightsService {
         terminal: data.terminal,
         isCancelled: data.isCancelled,
         delayMinutes: data.delayMinutes,
-        airline: data.airline,
-        origin: data.origin,
-        destination: data.destination,
         delayReason: data.delayReason,
         cancellationReason: data.cancellationReason,
       };
@@ -390,27 +389,6 @@ export class FlightsService {
       throw error;
     }
   }
-
-  // async deleteFlight(flightId: number) {
-  //   try {
-  //     const hasFlight = await this.prisma.flight.findUnique(flightId);
-  //     if (!hasFlight) {
-  //       return {
-  //         resultCode: '01',
-  //         resultMessage: `Flight with ID ${flightId} not found`,
-  //       };
-  //     }
-
-  //     await this.prisma.flight.delete({ where: { flightId } });
-
-  //     return {
-  //       resultCode: '00',
-  //       resultMessage: `Flight with ID ${flightId} successfully deleted`,
-  //     };
-  //   } catch (error) {
-  //     throw error;
-  //   }
-  // }
 
   async deleteAll() {
     try {
@@ -515,35 +493,6 @@ export class FlightsService {
     }
   }
 
-  // async createBatch(createBatchAircraftDto: CreateAircraftDto[]) {
-  //   const results: CreateAircraftDto[] = [];
-
-  //   for (const aircraftData of createBatchAircraftDto) {
-  //     try {
-  //       const aircraft = await this.prisma.aircraft.create({
-  //         data: aircraftData,
-  //       });
-  //       results.push({
-  //         code: aircraftData.code,
-  //         model: aircraftData.model,
-  //         range: aircraftData.range,
-  //       });
-  //     } catch (error) {
-  //       results.push({
-  //         code: aircraftData.code,
-  //         model: aircraftData.model,
-  //         range: aircraftData.range,
-  //       });
-  //     }
-  //   }
-
-  //   return {
-  //     resultCode: '00',
-  //     resultMessage: 'Batch aircraft creation completed',
-  //     data: results,
-  //   };
-  // }
-
   async getAllAircraft() {
     const res = await this.prisma.aircraft.findMany({
       select: {
@@ -628,8 +577,6 @@ export class FlightsService {
           code: true,
         },
       });
-      console.log('resAircraft', resAircraft);
-      console.log('resAirport', resAirport);
       return {
         resultCode: '00',
         resultMessage: 'Success',
@@ -825,11 +772,115 @@ export class FlightsService {
   }
 
   async findAllTerminal() {
-    return this.prisma.terminal.findMany({
+    const res = await this.prisma.terminal.findMany({
       include: {
         airport: true,
         gates: true,
         facilities: true,
+      },
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Success find many terminal',
+      list: res,
+    };
+  }
+
+  async createFacility(data: Prisma.FacilityCreateInput): Promise<Facility> {
+    return this.prisma.facility.create({
+      data: {
+        ...data,
+        createdAt: nowDecimal(),
+        updatedAt: nowDecimal(),
+      },
+      include: {
+        terminal: {
+          include: {
+            airport: true,
+          },
+        },
+      },
+    });
+  }
+
+  async deleteFacility(id: string): Promise<Facility> {
+    return this.prisma.facility.delete({
+      where: { id },
+    });
+  }
+
+  async getFacilitiesByTerminal(terminalId: string): Promise<Facility[]> {
+    return this.prisma.facility.findMany({
+      where: { terminalId },
+      include: {
+        terminal: true,
+      },
+    });
+  }
+
+  async getFacilitiesByType(type: FacilityType): Promise<Facility[]> {
+    return this.prisma.facility.findMany({
+      where: { type },
+      include: {
+        terminal: {
+          include: {
+            airport: true,
+          },
+        },
+      },
+    });
+  }
+
+  async getFacilities(params: {
+    skip?: number;
+    take?: number;
+    where?: Prisma.FacilityWhereInput;
+    include?: Prisma.FacilityInclude;
+  }): Promise<Facility[]> {
+    const { skip, take, where, include } = params;
+    return this.prisma.facility.findMany({
+      skip,
+      take,
+      where,
+      include: include || {
+        terminal: {
+          include: {
+            airport: true,
+          },
+        },
+      },
+    });
+  }
+
+  async getFacilityById(id: string): Promise<Facility | null> {
+    return this.prisma.facility.findUnique({
+      where: { id },
+      include: {
+        terminal: {
+          include: {
+            airport: true,
+          },
+        },
+      },
+    });
+  }
+
+  async updateFacility(
+    id: string,
+    data: Prisma.FacilityUpdateInput,
+  ): Promise<Facility> {
+    return this.prisma.facility.update({
+      where: { id },
+      data: {
+        ...data,
+        updatedAt: new Date().getTime().toString(),
+      },
+      include: {
+        terminal: {
+          include: {
+            airport: true,
+          },
+        },
       },
     });
   }
