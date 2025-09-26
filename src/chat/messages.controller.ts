@@ -1,4 +1,11 @@
-import { Controller, Post, Body, Get, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 
@@ -6,6 +13,15 @@ import { CreateMessageDto } from './dto/create-message.dto';
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
+  @Get('conversations/:userId')
+  async getConversations(@Param('userId') userId: string) {
+    return this.messagesService.getConversations(parseInt(userId));
+  }
+
+  @Get('received/:userId')
+  findReceivedMessages(@Param('userId', ParseIntPipe) userId: number) {
+    return this.messagesService.findReceivedMessages(userId);
+  }
   @Post()
   create(@Body() createMessageDto: CreateMessageDto) {
     return this.messagesService.create(createMessageDto);
@@ -27,13 +43,18 @@ export class MessagesController {
     );
   }
 
-  @Get('received/:userId')
-  findReceivedMessages(@Param('userId') userId: number) {
-    return this.messagesService.findReceivedMessages(+userId);
-  }
+  // @Get('conversations/:userId')
+  // async getConversations(@Param('userId') userId: string) {
+  //   return this.messagesService.getConversations(parseInt(userId));
+  // }
+
+  // @Get('received/:userId')
+  // findReceivedMessages(@Param('userId', ParseIntPipe) userId: number) {
+  //   return this.messagesService.findReceivedMessages(userId);
+  // }
 
   @Get('sender/:userId')
-  findSenderMessages(@Param('userId') userId: number) {
-    return this.messagesService.findSenderMessages(+userId);
+  findSenderMessages(@Param('userId', ParseIntPipe) userId: number) {
+    return this.messagesService.findSenderMessages(userId);
   }
 }

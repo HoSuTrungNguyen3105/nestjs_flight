@@ -11,6 +11,7 @@ import {
   CreateBookingDto,
   CreatePassengerPseudoDto,
 } from './dto/create-booking.dto';
+import { SearchBookingDto } from './dto/search-booking.dto';
 
 @Controller('sys/bookings')
 export class BookingController {
@@ -20,14 +21,40 @@ export class BookingController {
   async createPseudoPassenger(@Body() body: CreatePassengerPseudoDto[]) {
     return this.bookingService.createPseudoPassengers(body);
   }
+
   @Post()
   create(@Body() dto: CreateBookingDto) {
     return this.bookingService.create(dto);
   }
 
+  @Get('findAllPassenger')
+  findAllPassenger() {
+    return this.bookingService.findAllPassenger();
+  }
+
+  @Post('findPassengerById')
+  findPassengerById(@Body('id') id: string) {
+    return this.bookingService.findPassengerById(id);
+  }
+
+  @Get('findAllBooking')
+  findAll() {
+    return this.bookingService.findAll();
+  }
+
+  @Post('search')
+  async search(@Body() dto: SearchBookingDto) {
+    return this.bookingService.searchBooking(dto);
+  }
+
   @Post()
   async createBooking(@Body() createBookingDto: CreateBookingDto) {
     return this.bookingService.bookSeats(createBookingDto);
+  }
+
+  @Post('deleteBooking')
+  async deleteBooking(@Body() id: number) {
+    return this.bookingService.deleteBooking(id);
   }
 
   @Get('flight/:flightId/seats')

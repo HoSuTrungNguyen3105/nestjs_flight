@@ -39,7 +39,6 @@ export class AuthService {
         email: dto.email,
         password: await hashPassword(dto.password), // hash trước khi lưu
         phone: dto.phone,
-        passport: dto.passport,
         tempPassword: '',
         name: dto.name ?? '',
         pictureUrl: '',
@@ -373,7 +372,6 @@ export class AuthService {
             email: user.email,
             password: '', // tạm
             phone: '',
-            passport: '',
             userAlias: '',
             name: '',
             pictureUrl: '',

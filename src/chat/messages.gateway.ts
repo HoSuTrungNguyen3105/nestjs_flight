@@ -8,8 +8,9 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { nowDecimal } from 'src/common/helpers/format';
-import { PrismaService } from 'src/prisma.service';
+import { MessagesService } from './messages.service';
+import { CreateMessageDto } from './dto/create-message.dto';
+import { forwardRef, Inject } from '@nestjs/common';
 
 @WebSocketGateway({
   cors: {
@@ -22,14 +23,21 @@ export class MessagesGateway
 {
   @WebSocketServer()
   server: Server;
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    @Inject(forwardRef(() => MessagesService))
+    private readonly messagesService: MessagesService,
+  ) {}
   private connectedClients = new Map<string, number>();
 
   handleConnection(client: Socket) {
     const token = client.handshake.auth.token || client.handshake.query.token;
+    const userId = client.handshake.auth.userId;
+
     console.log('Client connected:', client.id);
     console.log('token connected:', token);
-    if (!token) {
+    console.log('userId connected:', userId);
+
+    if (!token || !userId) {
       console.log('No token, disconnecting client:', client.id);
       client.disconnect(true); // true: close ngay lập tức
       return;
@@ -64,64 +72,55 @@ export class MessagesGateway
     });
   }
 
-  // @SubscribeMessage('typing_start')
-  // handleTypingStart(
-  //   client: Socket,
-  //   data: { senderId: number; receiverId: number },
-  // ) {
-  //   const userId = this.connectedClients.get(client.id);
-  //   if (!userId) return;
-
-  //   client.to(`user_${data.receiverId}`).emit('user_typing', {
-  //     senderId: data.senderId,
-  //     typing: true,
-  //   });
-  // }
-
-  // @SubscribeMessage('typing_stop')
-  // handleTypingStop(
-  //   client: Socket,
-  //   data: { senderId: number; receiverId: number },
-  // ) {
-  //   const userId = this.connectedClients.get(client.id);
-  //   if (!userId) return;
-
-  //   client.to(`user_${data.receiverId}`).emit('user_typing', {
-  //     senderId: data.senderId,
-  //     typing: false,
-  //   });
-  // }
-
   @SubscribeMessage('send_message')
   async handleMessage(
     @MessageBody()
-    data: { senderId: number; receiverId: number; content: string },
+    data: CreateMessageDto,
     @ConnectedSocket() client: Socket,
   ) {
-    const now = nowDecimal();
-    const message = await this.prisma.message.create({
-      data: {
-        senderId: data.senderId,
-        receiverId: data.receiverId,
-        content: data.content,
-        createdAt: now,
-      },
-    });
-
-    this.server.to(`user_${data.receiverId}`).emit('receive_message', message);
-
-    client.emit('message_sent', message);
+    console.log('handleMessage called', data);
+    const authUserId = this.connectedClients.get(client.id);
+    if (authUserId !== data.senderId) {
+      client.emit('error', 'Unauthorized');
+      return;
+    }
+    const newMessage = await this.messagesService.create(data);
+    this.server
+      .to(`user_${data.senderId}`)
+      .to(`user_${data.receiverId}`)
+      .emit('new_message', {
+        id: newMessage.data?.id,
+        content: newMessage.data?.content,
+        createdAt: newMessage.data?.createdAt,
+        sender: {
+          id: newMessage.data?.sender.id,
+          name: newMessage.data?.sender.name,
+          pictureUrl: newMessage.data?.sender.pictureUrl,
+          email: newMessage.data?.sender.email,
+        },
+        receiver: {
+          id: newMessage.data?.receiver.id,
+          name: newMessage.data?.receiver.name,
+          pictureUrl: newMessage.data?.receiver.pictureUrl,
+          email: newMessage.data?.receiver.email,
+        },
+      });
+    console.log(' New message sent:', newMessage);
   }
 
-  // handleConnection(client: Socket) {
-  //   const userId = client.handshake.auth.userId;
-  //   if (userId) {
-  //     client.join(`user_${userId}`);
-  //     console.log(`User ${userId} connected`);
-  //   }
-  // }
-
-  // handleDisconnect(client: Socket) {
-  //   console.log('Client disconnected:', client.id);
-  // }
+  @SubscribeMessage('getConversations')
+  async handleGetConversations(
+    @MessageBody('userId') userId: number,
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      const data = await this.messagesService.getConversations(userId);
+      client.emit('getConversationsResponse', data);
+    } catch (error) {
+      client.emit('getConversationsResponse', {
+        resultCode: '99',
+        resultMessage: 'Error: ' + error.message,
+      });
+    }
+  }
 }

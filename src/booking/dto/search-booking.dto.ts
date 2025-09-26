@@ -34,8 +34,8 @@ export class SearchBookingDto {
   flightType?: 'oneway' | 'roundtrip';
 
   @IsOptional()
-  @IsIn(['ECONOMY', 'BUSINESS', 'VIP'])
-  cabinClass?: 'ECONOMY' | 'BUSINESS' | 'VIP';
+  @IsIn(['ECONOMY', 'BUSINESS', 'VIP', 'FIRST'])
+  cabinClass?: 'ECONOMY' | 'BUSINESS' | 'VIP' | 'FIRST';
 
   // --- Các field mở rộng ---
   @IsOptional()

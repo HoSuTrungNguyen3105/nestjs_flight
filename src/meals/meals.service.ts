@@ -27,37 +27,42 @@ export class MealService {
   }
 
   async createMany(dataList: CreateMealDto[]) {
-    const mealList = await Promise.all(
-      dataList.map(async (data) => {
-        const hasMealCode = await this.prisma.meal.findUnique({
-          where: { mealCode: data.mealCode },
-        });
+    try {
+      const mealList = await Promise.all(
+        dataList.map(async (data) => {
+          const hasMealCode = await this.prisma.meal.findUnique({
+            where: { mealCode: data.mealCode },
+          });
 
-        if (hasMealCode)
-          return {
-            resultCode: '01',
-            resultMessage:
-              'Duplicate code meal ! Created multiple meals failed!',
-          };
+          if (hasMealCode)
+            return {
+              resultCode: '01',
+              resultMessage:
+                'Duplicate code meal ! Created multiple meals failed!',
+            };
 
-        return this.prisma.meal.create({
-          data: {
-            mealCode: data.mealCode,
-            name: data.name,
-            mealType: data.mealType as MealType,
-            description: data.description,
-            price: data.price,
-            isAvailable: data.isAvailable ?? true,
-          },
-        });
-      }),
-    );
+          return this.prisma.meal.create({
+            data: {
+              mealCode: data.mealCode,
+              name: data.name,
+              mealType: data.mealType as MealType,
+              description: data.description,
+              price: data.price,
+              isAvailable: data.isAvailable ?? true,
+            },
+          });
+        }),
+      );
 
-    return {
-      resultCode: '00',
-      resultMessage: 'Created multiple meals successfully!',
-      data: mealList.filter((m) => m !== null), // bỏ các null
-    };
+      return {
+        resultCode: '00',
+        resultMessage: 'Created multiple meals successfully!',
+        data: mealList.filter((m) => m !== null), // bỏ các null
+      };
+    } catch (error) {
+      console.error('error', error);
+      throw error;
+    }
   }
 
   // async createMany(dataList: CreateMealDto[]) {

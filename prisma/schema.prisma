@@ -177,7 +177,7 @@ model User {
 
 model Message {
   id         Int     @id @default(autoincrement())
-  content    String  @db.Text
+  content    String  @db.VarChar(100)
   createdAt  Decimal @db.Decimal(20, 3)
   sender     User    @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   senderId   Int
@@ -186,7 +186,6 @@ model Message {
 
   @@index([senderId])
   @@index([receiverId])
-  @@map("messages")
 }
 
 model UserSession {
@@ -459,6 +458,11 @@ enum MealType {
   NONVEG
   DRINK
   DESSERT
+  BEVERAGE
+  SNACK
+  DINNER
+  LUNCH
+  BREAKFAST
 }
 
 model Meal {

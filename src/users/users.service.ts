@@ -137,7 +137,6 @@ export class UsersService {
         hireDate: true,
         status: true,
         baseSalary: true,
-        passport: true,
         attendance: true,
         position: true,
         phone: true,
@@ -174,111 +173,6 @@ export class UsersService {
       resultMessage: 'Lấy thông tin người dùng thành công!',
       data: safeUser,
     };
-  }
-
-  async requestTransfer(data: {
-    userId: number;
-    fromUserId: number;
-    toUserId: number;
-  }) {
-    return this.prisma.transferAdmin.create({
-      data: {
-        ...data,
-        requestedAt: nowDecimal(),
-        status: 'PENDING',
-      },
-    });
-  }
-
-  async approveTransfer(userId: number) {
-    try {
-      const transfer = await this.prisma.transferAdmin.findUnique({
-        where: { userId },
-        include: { user: true },
-      });
-
-      if (!transfer) {
-        return {
-          resultCode: '01',
-          resultMessage: `Không tìm thấy Transfer với userId = ${userId}`,
-        };
-      }
-
-      const [updatedTransfer, updatedUser] = await this.prisma.$transaction([
-        this.prisma.transferAdmin.update({
-          where: { userId },
-          data: {
-            status: 'APPROVED',
-            approvedAt: new Date().getTime().toString(),
-          },
-        }),
-        this.prisma.user.update({
-          where: { id: userId },
-          data: { role: 'ADMIN' },
-        }),
-      ]);
-
-      return {
-        resultCode: '00',
-        resultMessage: 'Transfer approved thành công',
-        data: {
-          transfer: updatedTransfer,
-          user: updatedUser,
-        },
-      };
-    } catch (error) {
-      console.error('🔥 Error approving transfer:', error);
-      throw error;
-    }
-  }
-
-  async rejectTransfer(userId: number) {
-    try {
-      const transfer = await this.prisma.transferAdmin.findUnique({
-        where: { userId },
-      });
-
-      if (!transfer) {
-        return {
-          resultCode: '01',
-          resultMessage: `Không tìm thấy Transfer với userId = ${userId}`,
-        };
-      }
-
-      return await this.prisma.transferAdmin.update({
-        where: { userId },
-        data: { status: 'REJECTED' },
-      });
-    } catch (error) {
-      console.error('🔥 Error rejecting transfer:', error);
-      throw error;
-    }
-  }
-
-  async findAllUserRequests() {
-    try {
-      const transt = await this.prisma.transferAdmin.findMany({
-        include: {
-          user: {
-            select: {
-              id: true,
-              transferAdmin: true,
-              role: true,
-              email: true,
-              name: true,
-            },
-          },
-        },
-      });
-      return {
-        resultCode: '00',
-        resultMessage: 'Transfer data',
-        list: transt,
-      };
-    } catch (error) {
-      console.error('Error finding all user requests:', error);
-      throw error;
-    }
   }
 
   async createUserByAdmin(
@@ -529,42 +423,42 @@ export class UsersService {
       );
       pictureUrl = uploadResponse.secure_url;
     }
-    const updatedUser = await this.prisma.user.update({
-      where: { id },
-      data: {
-        name: updateUserDto.name,
-        pictureUrl,
-        role: updateUserDto.role,
-        userAlias: updateUserDto.userAlias,
-        passport: updateUserDto.passport,
-        phone: updateUserDto.phone,
-        updatedAt: toEpochDecimal(),
-      },
-      select: { id: true },
-    });
+    // const updatedUser = await this.prisma.user.update({
+    //   where: { id },
+    //   data: {
+    //     name: updateUserDto.name,
+    //     pictureUrl,
+    //     role: updateUserDto.role,
+    //     userAlias: updateUserDto.userAlias,
+    //     passport: updateUserDto.passport,
+    //     phone: updateUserDto.phone,
+    //     updatedAt: toEpochDecimal(),
+    //   },
+    //   select: { id: true },
+    // });
 
-    if (isRoleChangingToAdmin) {
-      const existingAdmin = await this.prisma.user.findFirst({
-        where: { role: Role.ADMIN, NOT: { id: updatedUser.id } },
-        select: { id: true },
-      });
+    // if (isRoleChangingToAdmin) {
+    //   const existingAdmin = await this.prisma.user.findFirst({
+    //     where: { role: Role.ADMIN, NOT: { id: updatedUser.id } },
+    //     select: { id: true },
+    //   });
 
-      await this.prisma.transferAdmin.create({
-        data: {
-          userId: updatedUser.id,
-          fromUserId: updatedUser.id,
-          toUserId: existingAdmin ? existingAdmin.id : updatedUser.id,
-          status: 'PENDING',
-          requestedAt: toEpochDecimal(),
-          approvedAt: null,
-        },
-      });
-    }
+    //   await this.prisma.transferAdmin.create({
+    //     data: {
+    //       userId: updatedUser.id,
+    //       fromUserId: updatedUser.id,
+    //       toUserId: existingAdmin ? existingAdmin.id : updatedUser.id,
+    //       status: 'PENDING',
+    //       requestedAt: toEpochDecimal(),
+    //       approvedAt: null,
+    //     },
+    //   });
+    // }
 
     return {
       resultCode: '00',
       resultMessage: 'Cập nhật người dùng thành công!',
-      data: updatedUser,
+      // data: updatedUser,
     };
   }
 

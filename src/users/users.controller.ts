@@ -23,11 +23,6 @@ export class UsersController {
     return this.userService.randomPw();
   }
 
-  @Get('requests')
-  async findAllUserRequests() {
-    return this.userService.findAllUserRequests();
-  }
-
   @Get()
   async getAll() {
     return this.userService.getAllUsers();
@@ -61,10 +56,6 @@ export class UsersController {
   @Post('deleteAll')
   async deleteAll() {
     return this.userService.deleteAllUsers();
-  }
-  @Post('approveTransfer/:id')
-  async approveTransfer(@Param('id', ParseIntPipe) id: number) {
-    return this.userService.approveTransfer(id);
   }
 
   @Post('request-unlock')
@@ -131,11 +122,6 @@ export class UsersController {
   @Post('deleteUser')
   async remove(@Body('id') id: number) {
     return this.userService.deleteUser(Number(id));
-  }
-
-  @Post('reject/:userId')
-  async rejectTransfer(@Param('userId', ParseIntPipe) userId: number) {
-    return this.userService.rejectTransfer(userId);
   }
 
   @Post('attendance/check-in')

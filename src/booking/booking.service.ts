@@ -21,6 +21,22 @@ export class BookingService {
 
   async createPseudoPassengers(passengers: CreatePassengerPseudoDto[]) {
     try {
+      const emails = passengers.map((p) => p.email);
+
+      const existing = await this.prisma.passenger.findMany({
+        where: {
+          email: { in: emails },
+        },
+        select: { email: true },
+      });
+
+      if (existing.length > 0) {
+        return {
+          resultCode: '01',
+          resultMessage: `Passengers pseudo created failed! Duplicate emails: ${existing.map((e) => e.email).join(', ')}`,
+        };
+      }
+
       const created = await this.prisma.passenger.createMany({
         data: passengers.map((p) => ({
           fullName: p.fullName,
@@ -62,7 +78,6 @@ export class BookingService {
       };
     }
 
-    // 2. Check passenger tồn tại
     const hasPassenger = await this.prisma.passenger.findUnique({
       where: {
         id: dto.passengerId,
@@ -76,7 +91,6 @@ export class BookingService {
       };
     }
 
-    // 3. Nếu có mealOrders thì check luôn meal tồn tại
     if (dto.mealOrders && dto.mealOrders.length > 0) {
       for (const meal of dto.mealOrders) {
         const hasMeal = await this.prisma.meal.findUnique({
@@ -91,7 +105,6 @@ export class BookingService {
       }
     }
 
-    // 4. Tạo booking
     const booking = await this.prisma.booking.create({
       data: {
         passengerId: dto.passengerId,
@@ -108,9 +121,21 @@ export class BookingService {
         seats: dto.seatId ? { connect: { id: dto.seatId } } : undefined,
       },
       include: {
-        flight: true,
-        mealOrders: true,
-        seats: true,
+        flight: {
+          select: {
+            flightId: true,
+          },
+        },
+        mealOrders: {
+          select: {
+            id: true,
+          },
+        },
+        seats: {
+          select: {
+            id: true,
+          },
+        },
       },
     });
 
@@ -130,6 +155,64 @@ export class BookingService {
       },
     });
     return { resultCode: '00', resultMessage: 'Success', list: bookings };
+  }
+
+  async deleteBooking(id: number) {
+    const bookings = await this.prisma.booking.delete({
+      where: {
+        id: id,
+      },
+    });
+    return { resultCode: '00', resultMessage: 'Success', list: bookings };
+  }
+
+  async findAllPassenger() {
+    const bookings = await this.prisma.passenger.findMany({
+      // include: {
+      //   bookings: {
+      //     select: {
+      //       id: true,
+      //     },
+      //   },
+      // },
+    });
+    return { resultCode: '00', resultMessage: 'Success', list: bookings };
+  }
+
+  async findPassengerById(id: string) {
+    const passenger = await this.prisma.passenger.findUnique({
+      where: { id },
+      include: {
+        bookings: {
+          include: {
+            seats: true,
+            mealOrders: true,
+            flight: true,
+            passenger: true,
+          },
+          // select: {
+          //   passenger: true,
+          //   passengerId: true,
+          //   flightId: true,
+          //   id: true,
+          //   bookingTime: true,
+          //   mealOrders: true,
+          //   flight: true,
+          //   seats: true,
+          // },
+        },
+      },
+    });
+
+    if (!passenger) {
+      return {
+        resultCode: '01',
+        resultMessage: 'Passenger not found',
+        data: null,
+      };
+    }
+
+    return { resultCode: '00', resultMessage: 'Success', data: passenger };
   }
 
   async bookSeats(data: CreateBookingDto) {
@@ -234,12 +317,19 @@ export class BookingService {
         ...(aircraftCode && { aircraftCode: aircraftCode.toUpperCase() }),
         ...(status && { status: status.toUpperCase() }),
         ...(terminal && { terminal: { contains: terminal.toUpperCase() } }),
-        ...(minPrice !== undefined && { priceEconomy: { gte: minPrice } }),
-        ...(maxPrice !== undefined && { priceEconomy: { lte: maxPrice } }),
-        ...(minPrice !== undefined && { priceBusiness: { gte: minPrice } }),
-        ...(maxPrice !== undefined && { priceBusiness: { lte: maxPrice } }),
-        ...(minPrice !== undefined && { priceFirst: { gte: minPrice } }),
-        ...(maxPrice !== undefined && { priceFirst: { lte: maxPrice } }),
+        ...(minPrice !== undefined &&
+          cabinClass === 'ECONOMY' && { priceEconomy: { gte: minPrice } }),
+        ...(maxPrice !== undefined &&
+          cabinClass === 'ECONOMY' && { priceEconomy: { lte: maxPrice } }),
+        ...(minPrice !== undefined &&
+          cabinClass === 'BUSINESS' && { priceBusiness: { gte: minPrice } }),
+        ...(maxPrice !== undefined &&
+          cabinClass === 'BUSINESS' && { priceBusiness: { lte: maxPrice } }),
+        ...(minPrice !== undefined &&
+          cabinClass === 'FIRST' && { priceFirst: { gte: minPrice } }),
+        ...(maxPrice !== undefined &&
+          cabinClass === 'FIRST' && { priceFirst: { lte: maxPrice } }),
+
         ...(minDelayMinutes !== undefined && {
           delayMinutes: { gte: minDelayMinutes },
         }),
