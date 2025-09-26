@@ -123,4 +123,28 @@ export class MessagesGateway
       });
     }
   }
+
+  @SubscribeMessage('findMessagesBetweenUsers')
+  async handleFindMessagesBetweenUsers(
+    @MessageBody() payload: { user1Id: number; user2Id: number },
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      const data = await this.messagesService.findMessagesBetweenUsers(
+        payload.user1Id,
+        payload.user2Id,
+      );
+
+      client.emit('findMessagesBetweenUsers', {
+        resultCode: '00',
+        resultMessage: 'Success',
+        data,
+      });
+    } catch (error) {
+      client.emit('findMessagesBetweenUsers', {
+        resultCode: '99',
+        resultMessage: 'Error: ' + error.message,
+      });
+    }
+  }
 }

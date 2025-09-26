@@ -65,6 +65,7 @@ export class AuthController {
       email: body.email,
     });
   }
+
   @Get('checkMfaSettingYn')
   async checkMfaYn(@Body() body: { email: string }) {
     return this.authService.checkMfaSettingYn(body.email);
@@ -78,6 +79,11 @@ export class AuthController {
   @Post('resetmfa')
   async resetMfa(@Body() body: { userId: number }) {
     return this.authService.resetMfa(body.userId);
+  }
+
+  @Post('disabledmfa')
+  async disabledMfa(@Body() body: { userId: number }) {
+    return this.authService.disabledMfaLogin(body.userId);
   }
 
   @Post('verifyOtp')

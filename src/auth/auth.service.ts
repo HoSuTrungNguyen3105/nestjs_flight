@@ -596,6 +596,26 @@ export class AuthService {
     };
   }
 
+  async disabledMfaLogin(id: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      return { resultCode: '01', resultMessage: 'Id không tồn tại' };
+    }
+
+    await this.prisma.user.update({
+      where: { id },
+      data: { mfaEnabledYn: 'N' }, // field cần update
+    });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Đã vô hiệu hóa MFA',
+    };
+  }
+
   //  async sendMultiEmail(emails: string[], titles: string[], contents: string[], options?: {
   //   batchSize?: number;
   //   delayBetweenBatches?: number;
