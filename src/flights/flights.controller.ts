@@ -24,6 +24,7 @@ import {
   UpdateAircraftDto,
 } from './dto/create-aircraft.dto';
 import { CreateTerminalDto } from './dto/create-terminal.dto';
+import { CreateFacilityDto } from './dto/create-facility.dto';
 // import { ApiOperation } from '@nestjs/swagger';
 
 @Controller('sys/flights')
@@ -127,9 +128,7 @@ export class FlightsController {
   }
 
   @Post('facilities')
-  async createFacility(
-    @Body() data: Prisma.FacilityCreateInput,
-  ): Promise<Facility> {
+  async createFacility(@Body() data: CreateFacilityDto) {
     return this.flightService.createFacility(data);
   }
 
@@ -179,5 +178,25 @@ export class FlightsController {
   @Post('search')
   async searchFlights(@Body() dto: SearchFlightDto) {
     return this.flightService.searchFlights(dto);
+  }
+
+  @Post('createFlightStatus')
+  createFlightStatus(
+    @Body() body: { flightId: number; status: string; description?: string },
+  ) {
+    return this.flightService.createFlightStatus(body);
+  }
+
+  @Get('findAllFlightStatus')
+  findAllFlightStatus() {
+    return this.flightService.findAllFlightStatus();
+  }
+
+  @Post('updateFlightStatus/:id')
+  updateFlightStatus(
+    @Param('id') id: string,
+    @Body() body: { status?: string; description?: string },
+  ) {
+    return this.flightService.updateFlightStatus(Number(id), body);
   }
 }

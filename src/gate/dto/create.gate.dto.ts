@@ -42,10 +42,10 @@ export class CreateGateDto {
   status?: GateStatus;
 }
 
-export class UpdateGateDto extends PartialType(CreateGateDto) {
-  @IsOptional()
-  @IsNumber()
-  updatedAt?: number;
+export class UpdateGateDto {
+  @IsString()
+  @IsNotEmpty()
+  code?: string;
 
   @IsOptional()
   @IsEnum(GateStatus)

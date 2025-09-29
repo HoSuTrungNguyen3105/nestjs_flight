@@ -29,6 +29,11 @@ export class GateController {
     return this.gatesService.findAllGate(query);
   }
 
+  @Get('findAllDataGate')
+  findAllDataGate() {
+    return this.gatesService.findAllDataGate();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.gatesService.findGateByID(id);

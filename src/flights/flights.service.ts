@@ -23,6 +23,7 @@ import {
   CreateTerminalDto,
   UpdateTerminalDto,
 } from './dto/create-terminal.dto';
+import { CreateFacilityDto } from './dto/create-facility.dto';
 
 @Injectable()
 export class FlightsService {
@@ -775,7 +776,12 @@ export class FlightsService {
     const res = await this.prisma.terminal.findMany({
       include: {
         airport: true,
-        gates: true,
+        gates: {
+          include: {
+            assignments: true,
+          },
+        },
+
         facilities: true,
       },
     });
@@ -786,8 +792,57 @@ export class FlightsService {
     };
   }
 
-  async createFacility(data: Prisma.FacilityCreateInput): Promise<Facility> {
-    return this.prisma.facility.create({
+  async createFlightStatus(data: {
+    flightId: number;
+    status: string;
+    description?: string;
+  }) {
+    const res = await this.prisma.flightStatus.create({
+      data: {
+        flightId: data.flightId,
+        status: data.status,
+        description: data.description,
+        updatedAt: nowDecimal(),
+      },
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Create flight status success',
+      data: res,
+    };
+  }
+
+  async updateFlightStatus(
+    id: number,
+    data: { status?: string; description?: string },
+  ) {
+    const res = await this.prisma.flightStatus.update({
+      where: { id },
+      data: {
+        ...data,
+        updatedAt: nowDecimal(),
+      },
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Update flight status success',
+      data: res,
+    };
+  }
+
+  async findAllFlightStatus() {
+    const res = await this.prisma.flightStatus.findMany({
+      include: { flight: true },
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Get all flight statuses success',
+      data: res,
+    };
+  }
+
+  async createFacility(data: CreateFacilityDto) {
+    await this.prisma.facility.create({
       data: {
         ...data,
         createdAt: nowDecimal(),
@@ -801,6 +856,11 @@ export class FlightsService {
         },
       },
     });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Create facility thành công!',
+    };
   }
 
   async deleteFacility(id: string): Promise<Facility> {

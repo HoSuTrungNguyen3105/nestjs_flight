@@ -16,22 +16,6 @@ export class CreateGateAssignmentDto {
   @IsInt()
   @IsNotEmpty()
   flightId: number;
-
-  @IsOptional()
-  @IsNumber()
-  assignedAt?: number;
-
-  @IsOptional()
-  @IsNumber()
-  releasedAt?: number;
-
-  @IsOptional()
-  @IsNumber()
-  createdAt?: number;
-
-  @IsOptional()
-  @IsNumber()
-  updatedAt?: number;
 }
 
 export class UpdateGateAssignmentDto extends PartialType(

@@ -28,20 +28,20 @@ export class MealService {
 
   async createMany(dataList: CreateMealDto[]) {
     try {
-      const mealList = await Promise.all(
+      const results = await Promise.all(
         dataList.map(async (data) => {
           const hasMealCode = await this.prisma.meal.findUnique({
             where: { mealCode: data.mealCode },
           });
 
-          if (hasMealCode)
+          if (hasMealCode) {
             return {
               resultCode: '01',
-              resultMessage:
-                'Duplicate code meal ! Created multiple meals failed!',
+              resultMessage: 'Duplicate meal code!',
             };
+          }
 
-          return this.prisma.meal.create({
+          const meal = await this.prisma.meal.create({
             data: {
               mealCode: data.mealCode,
               name: data.name,
@@ -51,82 +51,23 @@ export class MealService {
               isAvailable: data.isAvailable ?? true,
             },
           });
+
+          return {
+            ...meal,
+          };
         }),
       );
 
       return {
         resultCode: '00',
-        resultMessage: 'Created multiple meals successfully!',
-        data: mealList.filter((m) => m !== null), // bỏ các null
+        resultMessage: 'Processed create many meals!',
+        data: results,
       };
     } catch (error) {
       console.error('error', error);
       throw error;
     }
   }
-
-  // async createMany(dataList: CreateMealDto[]) {
-  //   const mealList: CreateMealDto[] = []; // khai báo rõ kiểu
-  //   for (const data of dataList) {
-  //     const res = await this.prisma.meal.create({
-  //       data: {
-  //         name: data.name,
-  //         mealType: data.mealType,
-  //         description: data.description,
-  //         price: data.price,
-  //         isAvailable: data.isAvailable ?? true,
-  //       },
-  //     });
-  //     mealList.push(res);
-  //   }
-
-  //   return {
-  //     resultCode: '00',
-  //     resultMessage: 'Created multiple meals successfully!',
-  //     data: mealList,
-  //   };
-  // }
-
-  // async createMany(dataList: CreateMealDto[]) {
-  //   const tasks = [];
-
-  //   for (const data of dataList) {
-  //     // Kiểm tra mealCode có tồn tại chưa
-  //     const hasMealCode = await this.prisma.meal.findUnique({
-  //       where: {
-  //         mealCode: data.mealCode,
-  //       },
-  //     });
-
-  //     if (!hasMealCode) {
-  //       tasks.push(
-  //         this.prisma.meal.create({
-  //           data: {
-  //             mealCode: data.mealCode,
-  //             name: data.name,
-  //             mealType: data.mealType as MealType,
-  //             description: data.description,
-  //             price: data.price,
-  //             isAvailable: data.isAvailable ?? true,
-  //           },
-  //         }),
-  //       );
-  //     } else {
-  //       return {
-  //         resultCode: '01',
-  //     resultMessage: 'Duplicate code meal ! Created multiple meals failed!',
-  //       }
-  //     }
-  //   }
-
-  //   const mealList = await this.prisma.$transaction(tasks);
-
-  //   return {
-  //     resultCode: '00',
-  //     resultMessage: 'Created multiple meals successfully!',
-  //     data: mealList,
-  //   };
-  // }
 
   async findAll(): Promise<BaseResponseDto<Meal>> {
     const meals = await this.prisma.meal.findMany({
