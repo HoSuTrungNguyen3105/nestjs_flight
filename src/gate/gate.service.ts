@@ -15,6 +15,27 @@ import { nowDecimal } from 'src/common/helpers/format';
 export class GatesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async findTerminalID() {
+    const terminals = await this.prisma.terminal.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        code: true,
+      },
+    });
+
+    const list = (terminals ?? []).map((t) => ({
+      value: t.id,
+      label: t.code,
+    }));
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Lấy danh sách terminal thành công!',
+      list,
+    };
+  }
+
   async create(createGateDto: CreateGateDto) {
     const terminal = await this.prisma.terminal.findUnique({
       where: { id: createGateDto.terminalId },
@@ -106,6 +127,29 @@ export class GatesService {
     };
   }
 
+  // async findTerminalID() {
+  //   const terminals = await this.prisma.terminal.findMany({
+  //     orderBy: { createdAt: 'desc' },
+  //     select: {
+  //       id: true,
+  //       code: true,
+  //     },
+  //   });
+
+  //   const list = terminals.map((t) => ({
+  //     value: t.id,
+  //     label: t.code,
+  //   }));
+
+  //   console.log('res', list);
+
+  //   return {
+  //     resultCode: '00',
+  //     resultMessage: 'Lấy danh sách terminal thành công!',
+  //     list,
+  //   };
+  // }
+
   async findGateByID(id: string) {
     const gate = await this.prisma.gate.findUnique({
       where: { id },
@@ -189,7 +233,7 @@ export class GatesService {
         where: { id },
         data: {
           status: status as any,
-          updatedAt: new Date().getTime(),
+          updatedAt: nowDecimal(),
         },
       });
     } catch (error) {

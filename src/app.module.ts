@@ -13,6 +13,7 @@ import { SeatModule } from './seat/seat.module';
 import { MessagesModule } from './chat/messages.module';
 import { PayrollModule } from './payroll/payroll.module';
 import { GatesModule } from './gate/gate.module';
+import { EnumModule } from './enum/enum.module';
 
 @Module({
   controllers: [AppController],
@@ -29,6 +30,7 @@ import { GatesModule } from './gate/gate.module';
     MessagesModule,
     PayrollModule,
     GatesModule,
+    EnumModule,
   ],
 })
 export class AppModule {}

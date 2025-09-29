@@ -760,7 +760,59 @@ export class AuthService {
 
       return { resultCode: '00', resultMessage: 'Đổi mật khẩu thành công' };
     } catch (err) {
-      console.error('🔥 Lỗi change password:', err);
+      console.error(' Lỗi change password:', err);
+      throw err;
+    }
+  }
+
+  async changePasswordInProfile(
+    userId: number,
+    currentPassword: string,
+    newPassword: string,
+    confirmPassword: string,
+  ) {
+    try {
+      if (!userId) {
+        return { resultCode: '01', resultMessage: 'Thiếu userId' };
+      }
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        return { resultCode: '01', resultMessage: 'User không tồn tại' };
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return {
+          resultCode: '02',
+          resultMessage: 'Mật khẩu hiện tại không đúng',
+        };
+      }
+
+      if (newPassword !== confirmPassword) {
+        return {
+          resultCode: '03',
+          resultMessage: 'Mật khẩu mới và xác nhận mật khẩu không khớp',
+        };
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          password: hashedPassword,
+          tempPassword: '',
+          isEmailVerified: 'Y',
+        },
+      });
+
+      return { resultCode: '00', resultMessage: 'Đổi mật khẩu thành công' };
+    } catch (err) {
+      console.error('Lỗi change password:', err);
       throw err;
     }
   }

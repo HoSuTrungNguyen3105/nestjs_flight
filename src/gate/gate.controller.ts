@@ -19,6 +19,11 @@ export class GateController {
     return this.gatesService.create(createGateDto);
   }
 
+  @Get('findTerminalID')
+  findTerminalID() {
+    return this.gatesService.findTerminalID();
+  }
+
   @Get()
   findAll(@Query() query: GateQueryDto) {
     return this.gatesService.findAllGate(query);

@@ -114,12 +114,12 @@ export class MessagesService {
         ],
       },
       orderBy: {
-        createdAt: 'desc', // sắp xếp mới nhất trước
+        createdAt: 'desc',
       },
       include: {
         sender: {
           select: {
-            id: true,
+            userAlias: true,
             name: true,
             pictureUrl: true,
             email: true,
@@ -127,7 +127,7 @@ export class MessagesService {
         },
         receiver: {
           select: {
-            id: true,
+            userAlias: true,
             name: true,
             pictureUrl: true,
             email: true,

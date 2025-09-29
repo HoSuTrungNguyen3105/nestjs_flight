@@ -136,15 +136,10 @@ export class MessagesGateway
       );
 
       client.emit('findMessagesBetweenUsers', {
-        resultCode: '00',
-        resultMessage: 'Success',
         data,
       });
     } catch (error) {
-      client.emit('findMessagesBetweenUsers', {
-        resultCode: '99',
-        resultMessage: 'Error: ' + error.message,
-      });
+      client.emit('findMessagesBetweenUsers', { error });
     }
   }
 }

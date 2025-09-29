@@ -54,6 +54,24 @@ export class AuthController {
     );
   }
 
+  @Post('change-password-in-profile')
+  async changePasswordInProfile(
+    @Body()
+    dto: {
+      userId: number;
+      currentPassword: string;
+      newPassword: string;
+      confirmPassword: string;
+    },
+  ) {
+    return this.authService.changePasswordInProfile(
+      dto.userId,
+      dto.currentPassword,
+      dto.newPassword,
+      dto.confirmPassword,
+    );
+  }
+
   @Post('forgot-password-with-mfa')
   async forgotPasswordWithMfa(@Body() dto: { email: string; mfaCode: string }) {
     return this.authService.forgotPasswordWithMfa(dto.email, dto.mfaCode);
