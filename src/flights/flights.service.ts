@@ -8,7 +8,7 @@ import {
   Prisma,
   SeatType,
 } from 'generated/prisma';
-import { AirportDto, UpdateAirportDto } from './dto/create-airport.dto';
+import { CreateAirportDto, UpdateAirportDto } from './dto/create-airport.dto';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { SearchFlightDto } from './dto/search.flight.dto';
 import { UpdateFlightDto } from './dto/update-flight.dto';
@@ -23,7 +23,10 @@ import {
   CreateTerminalDto,
   UpdateTerminalDto,
 } from './dto/create-terminal.dto';
-import { CreateFacilityDto } from './dto/create-facility.dto';
+import {
+  CreateFacilityDto,
+  UpdateFacilityDto,
+} from './dto/create-facility.dto';
 
 @Injectable()
 export class FlightsService {
@@ -268,6 +271,15 @@ export class FlightsService {
           arrivalAirportRel: true,
           meals: {
             select: { id: true },
+          },
+          _count: {
+            select: {
+              meals: true,
+              bookings: true,
+              gateAssignments: true,
+              flightStatuses: true,
+              seats: true,
+            }, // đếm số seats
           },
         },
       });
@@ -591,7 +603,81 @@ export class FlightsService {
     }
   }
 
-  async createAirport(data: AirportDto) {
+  async createBatchAirport(createBatchAirportDto: CreateAirportDto[]) {
+    try {
+      if (!createBatchAirportDto || createBatchAirportDto.length === 0) {
+        return {
+          resultCode: '05',
+          resultMessage: 'No airport data provided',
+          data: [],
+        };
+      }
+
+      const tasks = createBatchAirportDto.map(async (airportData) => {
+        try {
+          if (
+            !airportData.code ||
+            !airportData.city ||
+            !airportData.name ||
+            !airportData.country
+          ) {
+            return {
+              code: airportData.code || '(empty)',
+              errorCode: '05',
+              errorMessage: 'Missing required fields',
+            };
+          }
+
+          const duplicateAirportCode = await this.prisma.airport.findUnique({
+            where: { code: airportData.code },
+          });
+
+          if (duplicateAirportCode) {
+            return {
+              code: airportData.code,
+              errorCode: '01',
+              errorMessage: `Aircraft with code ${airportData.code} already exists`,
+            };
+          }
+
+          await this.prisma.airport.create({
+            data: {
+              ...airportData,
+              createdAt: nowDecimal(),
+            },
+          });
+
+          return {
+            code: airportData.code,
+            errorCode: '00',
+            errorMessage: 'Airport created successfully',
+          };
+        } catch (error) {
+          return {
+            code: airportData.code,
+            errorCode: '02',
+            errorMessage: `Failed to create airport ${airportData.code}`,
+          };
+        }
+      });
+
+      const results = await Promise.all(tasks);
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Batch airport creation completed',
+        list: results,
+      };
+    } catch (error) {
+      return {
+        resultCode: '09',
+        resultMessage: 'Unexpected error: ' + error,
+        data: [],
+      };
+    }
+  }
+
+  async createAirport(data: CreateAirportDto) {
     try {
       const existingAirport = await this.prisma.airport.findUnique({
         where: { code: data.code },
@@ -683,8 +769,14 @@ export class FlightsService {
         code: true,
         range: true,
         model: true,
+        flights: {
+          select: {
+            flightNo: true,
+          },
+        },
       },
     });
+
     return {
       resultCode: '00',
       resultMessage: 'Danh sách code máy bay',
@@ -863,10 +955,14 @@ export class FlightsService {
     };
   }
 
-  async deleteFacility(id: string): Promise<Facility> {
-    return this.prisma.facility.delete({
+  async deleteFacility(id: string) {
+    await this.prisma.facility.delete({
       where: { id },
     });
+    return {
+      resultCode: '00',
+      resultMessage: 'Delete facility thành công!',
+    };
   }
 
   async getFacilitiesByTerminal(terminalId: string): Promise<Facility[]> {
@@ -927,13 +1023,13 @@ export class FlightsService {
 
   async updateFacility(
     id: string,
-    data: Prisma.FacilityUpdateInput,
-  ): Promise<Facility> {
-    return this.prisma.facility.update({
+    data: UpdateFacilityDto,
+  ): Promise<BaseResponseDto<Facility>> {
+    const res = await this.prisma.facility.update({
       where: { id },
       data: {
         ...data,
-        updatedAt: new Date().getTime().toString(),
+        updatedAt: nowDecimal(),
       },
       include: {
         terminal: {
@@ -943,6 +1039,12 @@ export class FlightsService {
         },
       },
     });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Success',
+      data: res,
+    };
   }
 
   async findOneTerminal(id: string) {

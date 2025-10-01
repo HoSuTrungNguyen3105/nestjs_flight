@@ -196,7 +196,12 @@ export class GatesService {
 
   async findAllDataGate() {
     try {
-      return await this.prisma.gate.findMany();
+      const res = await this.prisma.gate.findMany();
+      return {
+        resultCode: '00',
+        resultMessage: 'Success create gate',
+        list: res,
+      };
     } catch (error) {
       throw error;
     }

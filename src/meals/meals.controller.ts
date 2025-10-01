@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { MealService } from './meals.service';
 import { Prisma } from 'generated/prisma';
-import { CreateMealDto } from './dto/CreateMeal.dto';
+import { CreateMealDto, UpdateMealDto } from './dto/CreateMeal.dto';
 
 @Controller('sys/meals')
 export class MealController {
@@ -36,7 +36,7 @@ export class MealController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() data: Prisma.MealUpdateInput) {
+  update(@Param('id') id: string, @Body() data: UpdateMealDto) {
     return this.mealService.update(+id, data);
   }
 

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Meal, MealType, Prisma } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { PrismaService } from 'src/prisma.service';
-import { CreateMealDto } from './dto/CreateMeal.dto';
+import { CreateMealDto, UpdateMealDto } from './dto/CreateMeal.dto';
 
 @Injectable()
 export class MealService {
@@ -98,7 +98,7 @@ export class MealService {
     };
   }
 
-  async update(id: number, data: Prisma.MealUpdateInput) {
+  async update(id: number, data: UpdateMealDto) {
     return this.prisma.meal.update({
       where: { id },
       data,

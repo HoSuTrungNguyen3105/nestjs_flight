@@ -187,7 +187,7 @@ export class MessagesService {
 
     const conversations = new Map<
       number,
-      { userId: number; name: string; lastMessage: string }
+      { userId: number; name: string; lastMessage: string; timestamp: number }
     >();
 
     for (const msg of messages) {
@@ -198,6 +198,7 @@ export class MessagesService {
           userId: otherUser.id,
           name: otherUser.name,
           lastMessage: msg.content,
+          timestamp: Number(msg.createdAt),
         });
       }
     }

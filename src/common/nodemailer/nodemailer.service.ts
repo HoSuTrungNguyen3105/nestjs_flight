@@ -26,6 +26,61 @@ export class MailService {
       text,
       html,
     });
-    return info;
+    return {
+      info,
+    };
+  }
+
+  //   async sendMailToMany(toList: string[], subject: string, text: string, html?: string) {
+  //   return await this.transporter.sendMail({
+  //     from: process.env.EMAIL_USER,
+  //     to: toList.join(', '), // convert string[] -> "a@gmail.com, b@gmail.com"
+  //     subject,
+  //     text,
+  //     html,
+  //   });
+  // }
+
+  async sendMailToMany(
+    toList: string[],
+    subject: string,
+    text: string,
+    html?: string,
+  ) {
+    await this.transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: toList.join(', '),
+      subject,
+      text,
+      html,
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Send successfully',
+    };
+  }
+
+  async sendMailWithCcAndBcc(
+    toList: string[],
+    subject: string,
+    text: string,
+    html?: string,
+    ccList: string[] = [],
+    bccList: string[] = [],
+  ) {
+    await this.transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: toList.join(', '),
+      cc: ccList.length > 0 ? ccList.join(', ') : undefined,
+      bcc: bccList.length > 0 ? bccList.join(', ') : undefined,
+      subject,
+      text,
+      html,
+    });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Send successfully',
+    };
   }
 }

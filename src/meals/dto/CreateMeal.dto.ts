@@ -20,6 +20,27 @@ export class CreateMealDto {
   @IsString()
   name: string;
 
+  @IsString()
+  mealType: MealType;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsNumber()
+  price: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isAvailable?: boolean;
+}
+
+export class UpdateMealDto {
+  @IsOptional()
+  @IsString()
+  name: string;
+
+  @IsString()
   mealType: MealType;
 
   @IsOptional()

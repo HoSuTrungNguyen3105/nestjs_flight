@@ -7,7 +7,6 @@ import {
 } from 'class-validator';
 import { TerminalType } from 'generated/prisma';
 import { PartialType } from '@nestjs/mapped-types';
-import { AirportDto } from './create-airport.dto';
 
 export class CreateTerminalDto {
   @IsString()

@@ -14,6 +14,7 @@ import { MessagesModule } from './chat/messages.module';
 import { PayrollModule } from './payroll/payroll.module';
 import { GatesModule } from './gate/gate.module';
 import { EnumModule } from './enum/enum.module';
+import { MailModule } from './common/nodemailer/nodemailer.module';
 
 @Module({
   controllers: [AppController],
@@ -29,6 +30,7 @@ import { EnumModule } from './enum/enum.module';
     SeatModule,
     MessagesModule,
     PayrollModule,
+    MailModule,
     GatesModule,
     EnumModule,
   ],

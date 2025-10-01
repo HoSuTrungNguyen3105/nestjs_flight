@@ -7,7 +7,7 @@ import {
 } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 
-export class AirportDto {
+export class CreateAirportDto {
   @IsString()
   @IsNotEmpty()
   @Length(3, 10, { message: 'Mã sân bay phải từ 3 đến 10 ký tự' })
@@ -24,21 +24,9 @@ export class AirportDto {
   @IsString()
   @IsNotEmpty()
   country: string;
-
-  @IsString()
-  @IsOptional()
-  coordinates?: string;
-
-  @IsOptional()
-  @IsNumber()
-  createdAt?: number;
-
-  @IsOptional()
-  @IsNumber()
-  updatedAt?: number;
 }
 
-export class UpdateAirportDto extends PartialType(AirportDto) {
+export class UpdateAirportDto extends PartialType(CreateAirportDto) {
   @IsOptional()
   @IsNumber()
   updatedAt?: number;

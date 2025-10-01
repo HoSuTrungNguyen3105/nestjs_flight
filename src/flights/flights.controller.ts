@@ -3,18 +3,15 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
-  UseGuards,
   HttpCode,
   HttpStatus,
   Query,
 } from '@nestjs/common';
 import { FlightsService } from './flights.service';
-import { Aircraft, Airport, Facility, Flight, Prisma } from 'generated/prisma';
+import { Facility, Prisma } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
-import { AirportDto } from './dto/create-airport.dto';
 import { SearchFlightDto } from './dto/search.flight.dto';
 import { UpdateFlightDto } from './dto/update-flight.dto';
 import { CreateFlightDto } from './dto/create-flight.dto';
@@ -24,7 +21,11 @@ import {
   UpdateAircraftDto,
 } from './dto/create-aircraft.dto';
 import { CreateTerminalDto } from './dto/create-terminal.dto';
-import { CreateFacilityDto } from './dto/create-facility.dto';
+import {
+  CreateFacilityDto,
+  UpdateFacilityDto,
+} from './dto/create-facility.dto';
+import { CreateAirportDto } from './dto/create-airport.dto';
 // import { ApiOperation } from '@nestjs/swagger';
 
 @Controller('sys/flights')
@@ -95,8 +96,15 @@ export class FlightsController {
   }
 
   @Post('aircraft/batch')
-  async createBatch(@Body() createBatchAircraftDto: CreateAircraftDto[]) {
+  async createBatchAircraft(
+    @Body() createBatchAircraftDto: CreateAircraftDto[],
+  ) {
     return this.flightService.createBatchAircraft(createBatchAircraftDto);
+  }
+
+  @Post('airport/batch')
+  async createBatchAirport(@Body() createBatchAircraftDto: CreateAirportDto[]) {
+    return this.flightService.createBatchAirport(createBatchAircraftDto);
   }
 
   @Get('getAllAircraftBasic')
@@ -132,9 +140,17 @@ export class FlightsController {
     return this.flightService.createFacility(data);
   }
 
-  @Delete('facilities/:id')
-  async deleteFacility(@Param('id') id: string): Promise<Facility> {
+  @Post('facilities/delete/:id')
+  async deleteFacility(@Param('id') id: string) {
     return this.flightService.deleteFacility(id);
+  }
+
+  @Post('facilities/update/:id')
+  async updateFacility(
+    @Param('id') id: string,
+    @Body() data: UpdateFacilityDto,
+  ): Promise<BaseResponseDto<Facility>> {
+    return this.flightService.updateFacility(id, data);
   }
 
   @Get('by-terminal/:terminalId')
@@ -171,7 +187,7 @@ export class FlightsController {
   }
 
   @Post('airports')
-  async createAirport(@Body() body: AirportDto) {
+  async createAirport(@Body() body: CreateAirportDto) {
     return this.flightService.createAirport(body);
   }
 
