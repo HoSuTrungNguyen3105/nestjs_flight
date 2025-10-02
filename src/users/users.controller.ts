@@ -8,7 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
+import { BatchUpdateEmployeeNoDto, CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserFromAdminDto } from './dto/update-user-from-admin.dto';
 import { UpdateUserInfoDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from 'src/common/mfa/jwt-auth.guard';
@@ -21,6 +21,11 @@ export class UsersController {
   @Get('getRandomPw')
   async getRandomPassword() {
     return this.userService.randomPw();
+  }
+
+  @Post('employee-no/batch')
+  async batchUpdateEmployeeNo(@Body() dto: BatchUpdateEmployeeNoDto) {
+    return this.userService.batchUpdateEmployeeNo(dto);
   }
 
   @Get()

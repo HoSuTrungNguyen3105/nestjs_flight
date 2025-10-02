@@ -19,6 +19,12 @@ import { UserResponseDto } from './info-user-dto';
 //   updatedAt: number;
 // }
 
+export interface BatchUpdateResult {
+  userId: number;
+  employeeNo?: string | null;
+  message?: string;
+}
+
 export class PaginatedUserResponse {
   users: UserResponseDto[];
   total: number;

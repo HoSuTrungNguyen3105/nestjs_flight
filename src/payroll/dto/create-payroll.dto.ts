@@ -30,3 +30,9 @@ export class CreatePayrollDto {
   @IsEnum(PayrollStatus)
   status?: PayrollStatus;
 }
+
+export type FindPayrollWhere = {
+  employeeId: number;
+  month?: number;
+  year?: number;
+};

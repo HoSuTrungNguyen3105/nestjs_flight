@@ -1,4 +1,11 @@
-import { IsEmail, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsEmail,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 
 export class CreateUserDto {
   @IsEmail()
@@ -15,4 +22,16 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   password?: string; // truyền random ben frontend con neu frontend ko co se gán mặc định
+}
+
+class EmployeeNoUpdateItem {
+  userId: number;
+  employeeNo: string;
+}
+
+export class BatchUpdateEmployeeNoDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EmployeeNoUpdateItem)
+  updates: EmployeeNoUpdateItem[];
 }

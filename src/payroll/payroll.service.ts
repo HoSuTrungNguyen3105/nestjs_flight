@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { CreatePayrollDto } from './dto/create-payroll.dto';
+import { CreatePayrollDto, FindPayrollWhere } from './dto/create-payroll.dto';
 import { PrismaService } from 'src/prisma.service';
 import { nowDecimal } from 'src/common/helpers/format';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { PayrollStatus } from 'generated/prisma';
+import { PayrollResponseDto } from './dto/payroll-response.dto';
 
 @Injectable()
 export class PayrollService {
@@ -36,7 +37,6 @@ export class PayrollService {
         return {
           resultCode: '03',
           resultMessage: `Payroll already exists for employee ${data.employeeId} in ${data.month}/${data.year}`,
-          data: existingPayroll,
         };
       }
 
@@ -76,17 +76,25 @@ export class PayrollService {
     employeeId: number,
     month?: number,
     year?: number,
-  ): Promise<BaseResponseDto<any>> {
-    const where: any = { employeeId };
-    if (month && year) {
-      where.month = month;
-      where.year = year;
-    }
+  ): Promise<BaseResponseDto<PayrollResponseDto>> {
+    const where: FindPayrollWhere = { employeeId };
+
+    if (month) where.month = month;
+    if (year) where.year = year;
 
     const payrolls = await this.prisma.payroll.findMany({
       where,
       include: {
-        employee: { select: { id: true, name: true, employeeNo: true } },
+        employee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            employeeNo: true,
+            position: true,
+            department: true,
+          },
+        },
       },
       orderBy: { generatedAt: 'desc' },
     });
@@ -115,8 +123,6 @@ export class PayrollService {
         },
         orderBy: [{ year: 'desc' }, { month: 'desc' }],
       });
-
-      console.log('Payrolls data:', payrolls);
 
       const formattedPayrolls = payrolls.map((payroll) => {
         const formattedData: any = { ...payroll };
@@ -150,14 +156,13 @@ export class PayrollService {
       return {
         resultCode: '00',
         resultMessage: 'Thành công',
-        data: formattedPayrolls,
+        list: formattedPayrolls,
       };
     } catch (error) {
       console.error('Error getting payrolls:', error);
       return {
         resultCode: '01',
         resultMessage: 'Lỗi khi lấy dữ liệu payroll',
-        data: null,
       };
     }
   }

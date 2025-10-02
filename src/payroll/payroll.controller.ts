@@ -11,7 +11,7 @@ export class PayrollController {
     return this.payrollService.create(dto);
   }
 
-  @Get('payroll')
+  @Get()
   async getPayrolls() {
     return this.payrollService.getAllPayrolls();
   }

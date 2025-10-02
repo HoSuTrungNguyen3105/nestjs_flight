@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
+import { BatchUpdateEmployeeNoDto, CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma.service';
 import { Department, Position, Prisma, Role } from 'generated/prisma';
@@ -15,7 +15,10 @@ import { UpdateUserFromAdminDto } from './dto/update-user-from-admin.dto';
 import { v2 as cloudinary } from 'cloudinary';
 import { CreateLeaveRequestDto } from './dto/leave-request.dto';
 import { SearchUserDto } from './dto/search-user.dto';
-import { PaginatedUserResponse } from './dto/user-response.dto';
+import {
+  BatchUpdateResult,
+  PaginatedUserResponse,
+} from './dto/user-response.dto';
 
 @Injectable()
 export class UsersService {
@@ -59,6 +62,71 @@ export class UsersService {
       resultMessage: 'Lấy danh sách người dùng thành công!',
       list: users,
     };
+  }
+
+  async batchUpdateEmployeeNo(
+    dto: BatchUpdateEmployeeNoDto,
+  ): Promise<BaseResponseDto<BatchUpdateResult>> {
+    const result: BatchUpdateResult[] = [];
+    let hasError = false;
+
+    try {
+      for (const item of dto.updates) {
+        const { userId, employeeNo } = item;
+
+        const user = await this.prisma.user.findUnique({
+          where: { id: userId },
+        });
+
+        if (!user) {
+          result.push({
+            userId,
+            message: 'User not found',
+          });
+          hasError = true;
+          continue;
+        }
+
+        // check duplicate employeeNo
+        const existing = await this.prisma.user.findUnique({
+          where: { employeeNo },
+        });
+
+        if (existing && existing.id !== userId) {
+          result.push({
+            userId,
+            message: 'EmployeeNo already exists',
+          });
+          hasError = true;
+          continue;
+        }
+
+        const updated = await this.prisma.user.update({
+          where: { id: userId },
+          data: { employeeNo },
+        });
+
+        result.push({
+          userId,
+          employeeNo: updated.employeeNo,
+        });
+      }
+
+      return {
+        resultCode: hasError ? '09' : '00',
+        resultMessage: hasError
+          ? 'Batch update finished with errors'
+          : 'Batch update finished successfully',
+        list: result,
+      };
+    } catch (error) {
+      console.error('error', error);
+      return {
+        resultCode: '09',
+        resultMessage: 'Unexpected error',
+        list: [],
+      };
+    }
   }
 
   async promoteRank(userId: number) {
