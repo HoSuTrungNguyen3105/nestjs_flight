@@ -506,6 +506,62 @@ export class FlightsService {
     }
   }
 
+  async createBoardingPass(data: {
+    ticketId: number;
+    flightId: number;
+    issuedAt: number; // hoặc Decimal
+    gate: string;
+    boardingTime: number; // hoặc Decimal
+  }) {
+    return this.prisma.boardingPass.create({
+      data: {
+        ticketId: data.ticketId,
+        flightId: data.flightId,
+        issuedAt: data.issuedAt,
+        gate: data.gate,
+        boardingTime: data.boardingTime,
+      },
+    });
+  }
+
+  async createTicket(data: {
+    ticketNo: string;
+    passengerId: string;
+    flightId: number;
+    seatClass: string;
+    seatNo: string;
+    bookedAt: number; // hoặc Decimal
+  }) {
+    return this.prisma.ticket.create({
+      data: {
+        ticketNo: data.ticketNo,
+        passengerId: data.passengerId,
+        flightId: data.flightId,
+        seatClass: data.seatClass,
+        seatNo: data.seatNo,
+        bookedAt: data.bookedAt,
+      },
+    });
+  }
+
+  async createBaggage(data: {
+    ticketId: number;
+    flightId: number;
+    weight: number;
+    status: string; // CHECKED_IN / LOADED / CLAIMED / LOST
+    checkedAt: number; // hoặc Decimal
+  }) {
+    return this.prisma.baggage.create({
+      data: {
+        ticketId: data.ticketId,
+        flightId: data.flightId,
+        weight: data.weight,
+        status: data.status,
+        checkedAt: data.checkedAt,
+      },
+    });
+  }
+
   async getAllAircraft() {
     const res = await this.prisma.aircraft.findMany({
       select: {

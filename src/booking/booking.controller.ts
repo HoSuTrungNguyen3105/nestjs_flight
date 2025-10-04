@@ -12,6 +12,7 @@ import {
   CreatePassengerPseudoDto,
 } from './dto/create-booking.dto';
 import { SearchBookingDto } from './dto/search-booking.dto';
+import { CreateBaggageDto } from './dto/baggage.dto';
 
 @Controller('sys/bookings')
 export class BookingController {
@@ -40,6 +41,21 @@ export class BookingController {
   @Get('findAllBooking')
   findAll() {
     return this.bookingService.findAll();
+  }
+
+  @Post()
+  createBaggage(@Body() dto: CreateBaggageDto) {
+    return this.bookingService.createBaggage(dto);
+  }
+
+  @Get('baggage')
+  findAllBaggage() {
+    return this.bookingService.findAllBaggage();
+  }
+
+  @Get('baggage/:id')
+  findOne(@Param('id') id: string) {
+    return this.bookingService.findOneBaggage(+id);
   }
 
   @Post('search')

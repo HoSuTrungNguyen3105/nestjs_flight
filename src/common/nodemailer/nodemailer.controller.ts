@@ -1,5 +1,12 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  UploadedFiles,
+  UseInterceptors,
+} from '@nestjs/common';
 import { MailService } from './nodemailer.service';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 
 @Controller('service/mail')
 export class MailController {
@@ -36,6 +43,7 @@ export class MailController {
   }
 
   @Post('send-cc-bcc')
+  @UseInterceptors(AnyFilesInterceptor()) // nhận nhiều file
   async sendWithCcAndBcc(
     @Body()
     body: {
@@ -46,7 +54,14 @@ export class MailController {
       text: string;
       html?: string;
     },
+    @UploadedFiles() files: Express.Multer.File[],
   ) {
+    const attachments =
+      files?.map((file) => ({
+        filename: file.originalname,
+        path: file.path,
+      })) || [];
+
     return await this.mailService.sendMailWithCcAndBcc(
       body.toList,
       body.subject,
@@ -54,6 +69,7 @@ export class MailController {
       body.html,
       body.ccList || [],
       body.bccList || [],
+      attachments,
     );
   }
 }

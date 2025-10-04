@@ -292,6 +292,194 @@ export class AuthService {
     }
   }
 
+  async getUserWithRelations(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        email: true,
+        employeeNo: true,
+        hireDate: true,
+        phone: true,
+        status: true,
+        name: true,
+        role: true,
+        rank: true,
+        attendance: {
+          select: {
+            id: true,
+            date: true,
+            checkIn: true,
+            checkOut: true,
+            createdAt: true,
+          },
+        },
+        leaveRequest: {
+          select: {
+            id: true,
+            leaveType: true,
+            startDate: true,
+            endDate: true,
+            status: true,
+            decidedAt: true,
+          },
+        },
+        payrolls: {
+          select: { id: true, month: true, year: true, netPay: true },
+        },
+        unlockRequests: { select: { id: true, status: true, createdAt: true } },
+      },
+    });
+
+    if (!user) {
+      return {
+        resultCode: '01',
+        resultMessage: 'User not found',
+      };
+    }
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Success find data relation user!',
+      data: user,
+    };
+  }
+
+  async getPassengerRelations(passengerId: string) {
+    const passenger = await this.prisma.passenger.findUnique({
+      where: { id: passengerId },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        bookings: {
+          select: {
+            id: true,
+            flight: {
+              select: {
+                flightId: true,
+                flightNo: true,
+                scheduledDeparture: true,
+              },
+            },
+            mealOrders: true,
+          },
+        },
+        tickets: {
+          select: {
+            id: true,
+            ticketNo: true,
+            flight: { select: { flightId: true, flightNo: true } },
+            boardingPass: {
+              select: { id: true, gate: true, boardingTime: true },
+            },
+            baggage: { select: { id: true, weight: true, status: true } },
+          },
+        },
+      },
+    });
+
+    if (!passenger)
+      return { resultCode: '01', resultMessage: 'Passenger not found' };
+
+    return { resultCode: '00', resultMessage: 'Success', data: passenger };
+  }
+
+  async getFlightRelations(flightId: number) {
+    const flight = await this.prisma.flight.findUnique({
+      where: { flightId },
+      select: {
+        flightId: true,
+        flightNo: true,
+        departureAirport: true,
+        arrivalAirport: true,
+        scheduledDeparture: true,
+        scheduledArrival: true,
+        actualDeparture: true,
+        actualArrival: true,
+        status: true,
+        gateId: true,
+        tickets: {
+          select: {
+            id: true,
+            ticketNo: true,
+            passenger: { select: { id: true, fullName: true, email: true } },
+            boardingPass: {
+              select: { id: true, gate: true, boardingTime: true },
+            },
+            baggage: { select: { id: true, weight: true, status: true } },
+          },
+        },
+        boardingPasses: {
+          select: {
+            id: true,
+            ticketId: true,
+            gate: true,
+            boardingTime: true,
+          },
+        },
+        baggage: {
+          select: {
+            id: true,
+            ticketId: true,
+            weight: true,
+            status: true,
+            checkedAt: true,
+          },
+        },
+        seats: {
+          select: { id: true, seatNumber: true, type: true, isBooked: true },
+        },
+        meals: { select: { id: true, mealId: true, meal: true } },
+        flightStatuses: {
+          select: {
+            id: true,
+            status: true,
+            description: true,
+            updatedAt: true,
+          },
+        },
+        gateAssignments: {
+          select: {
+            id: true,
+            gateId: true,
+            assignedAt: true,
+            releasedAt: true,
+          },
+        },
+      },
+    });
+
+    if (!flight) return { resultCode: '01', resultMessage: 'Flight not found' };
+    return { resultCode: '00', resultMessage: 'Success', data: flight };
+  }
+
+  async getFacilityRelations(facilityId: string) {
+    const facility = await this.prisma.facility.findUnique({
+      where: { id: facilityId },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        location: true,
+        openingHours: true,
+        terminal: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            airport: {
+              select: { code: true, name: true, city: true, country: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!facility)
+      return { resultCode: '01', resultMessage: 'Facility not found' };
+    return { resultCode: '00', resultMessage: 'Success', data: facility };
+  }
+
   async resetTempPassword(userId: number, tempPassword: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

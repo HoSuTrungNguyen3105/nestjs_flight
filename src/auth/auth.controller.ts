@@ -1,4 +1,11 @@
-import { Controller, Post, Body, Get, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto, MfaLoginDto } from './dto/login.dto';
@@ -117,5 +124,28 @@ export class AuthController {
   @Get('unlock-requests')
   async getUnlockRequests() {
     return this.authService.getAllUnlockRequests();
+  }
+
+  @Get('getUserWithRelations/:id')
+  async getUserDetail(@Param('id', ParseIntPipe) id: number) {
+    const user = await this.authService.getUserWithRelations(id);
+    return user;
+  }
+
+  @Get('getPassengerRelations/:id')
+  async getPassengerRelations(@Param('id') id: string) {
+    const user = await this.authService.getPassengerRelations(id);
+    return user;
+  }
+  @Get('getFlightRelations/:id')
+  async getFlightRelations(@Param('id', ParseIntPipe) id: number) {
+    const user = await this.authService.getFlightRelations(id);
+    return user;
+  }
+
+  @Get('getFacilityRelations/:id')
+  async getFacilityRelations(@Param('id') id: string) {
+    const user = await this.authService.getFacilityRelations(id);
+    return user;
   }
 }

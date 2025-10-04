@@ -67,8 +67,9 @@ export class MailService {
     html?: string,
     ccList: string[] = [],
     bccList: string[] = [],
+    attachments: { filename: string; path: string }[] = [],
   ) {
-    await this.transporter.sendMail({
+    const info = await this.transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: toList.join(', '),
       cc: ccList.length > 0 ? ccList.join(', ') : undefined,
@@ -76,11 +77,14 @@ export class MailService {
       subject,
       text,
       html,
+      attachments: attachments.length > 0 ? attachments : undefined,
     });
 
     return {
       resultCode: '00',
       resultMessage: 'Send successfully',
+      messageId: info.messageId,
+      previewUrl: nodemailer.getTestMessageUrl(info) || null, // nếu test bằng ethereal
     };
   }
 }

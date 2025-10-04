@@ -75,19 +75,13 @@ export class SeatController {
 
   @Get('available')
   async getAvailableSeatTypes(
-    @Query('flightId') flightId?: string,
+    @Body('flightId') flightId?: number,
   ): Promise<SeatTypesResponseDto> {
-    return this.seatService.getAvailableSeatTypes(
-      flightId ? parseInt(flightId) : undefined,
-    );
+    return this.seatService.getAvailableSeatTypes(flightId ?? undefined);
   }
 
   @Get('distinct')
-  async getDistinctSeatTypes(): Promise<{
-    resultCode: string;
-    resultMessage: string;
-    data: string[];
-  }> {
+  async getDistinctSeatTypes() {
     return this.seatService.getDistinctSeatTypes();
   }
 }

@@ -22,4 +22,8 @@ export class CreateSeatDto {
   @IsBoolean()
   @IsOptional()
   isBooked?: boolean;
+
+  @IsInt()
+  @IsOptional()
+  price: number;
 }

@@ -9,43 +9,46 @@ datasource db {
 }
 
 model User {
-  id                Int             @id @default(autoincrement())
-  email             String          @unique
-  name              String          @db.VarChar(50)
-  role              Role            @default(USER)
-  password          String          @db.VarChar(100)
-  pictureUrl        String          @default("")
-  rank              Rank            @default(NONE)
-  authType          String          @default("ID,PW")
-  prevPassword      String          @default("")
-  isEmailVerified   String          @default("N")
-  userAlias         String          @default("")
-  createdAt         Decimal         @db.Decimal(20, 3)
-  updatedAt         Decimal         @db.Decimal(20, 3)
-  accountLockYn     String          @default("N")
-  lastLoginDate     Decimal?        @db.Decimal(20, 3)
-  loginFailCnt      Int             @default(0)
-  mfaEnabledYn      String          @default("N")
-  mfaSecretKey      String?         @default("")
+  id              Int     @id @default(autoincrement())
+  email           String  @unique
+  name            String  @db.VarChar(50)
+  role            Role    @default(USER)
+  password        String  @db.VarChar(100)
+  pictureUrl      String  @default("")
+  rank            Rank    @default(NONE)
+  authType        String  @default("ID,PW")
+  prevPassword    String  @default("")
+  isEmailVerified String  @default("N")
+  userAlias       String  @default("")
+  createdAt       Decimal @db.Decimal(20, 3)
+  updatedAt       Decimal @db.Decimal(20, 3)
+  accountLockYn   String  @default("N")
+
+  lastLoginDate     Decimal? @db.Decimal(20, 3)
+  loginFailCnt      Int      @default(0)
+  mfaEnabledYn      String   @default("N")
+  mfaSecretKey      String?  @default("")
   tempPassword      String?
-  resetTokenExpires Decimal?        @db.Decimal(20, 3)
+  resetTokenExpires Decimal? @db.Decimal(20, 3)
   resetToken        String?
-  phone             String          @default("")
+  phone             String   @default("")
   otpCode           String?
-  otpExpire         Decimal?        @db.Decimal(20, 3)
-  baseSalary        Float?
-  department        Department?
-  employeeNo        String?         @unique
-  hireDate          Decimal?        @db.Decimal(20, 3)
-  position          Position?
-  status            EmployeeStatus  @default(ACTIVE)
-  attendance        Attendance[]
-  leaveRequest      LeaveRequest[]
-  receivedMessages  Message[]       @relation("ReceivedMessages")
-  sentMessages      Message[]       @relation("SentMessages")
-  payrolls          Payroll[]
-  unlockRequests    UnlockRequest[]
-  sessions          UserSession[]
+  otpExpire         Decimal? @db.Decimal(20, 3)
+
+  baseSalary Float?
+  department Department?
+
+  employeeNo       String?         @unique
+  hireDate         Decimal?        @db.Decimal(20, 3)
+  position         Position?
+  status           EmployeeStatus  @default(ACTIVE)
+  attendance       Attendance[]
+  leaveRequest     LeaveRequest[]
+  receivedMessages Message[]       @relation("ReceivedMessages")
+  sentMessages     Message[]       @relation("SentMessages")
+  payrolls         Payroll[]
+  unlockRequests   UnlockRequest[]
+  sessions         UserSession[]
 }
 
 model Message {
@@ -81,6 +84,7 @@ model Passenger {
   isEmailVerified String    @default("Y")
   lastLoginDate   Decimal?  @db.Decimal(20, 3)
   bookings        Booking[]
+  tickets         Ticket[]
 }
 
 model Payroll {
@@ -137,33 +141,35 @@ model LeaveRequest {
 
 model UnlockRequest {
   id         Int          @id @default(autoincrement())
-  userId     Int
+  employeeId Int
   reason     String       @db.Text
   status     UnlockStatus @default(PENDING)
   createdAt  Decimal      @db.Decimal(20, 3)
   approvedAt Decimal?     @db.Decimal(20, 3)
-  user       User         @relation(fields: [userId], references: [id])
+  user       User         @relation(fields: [employeeId], references: [id])
 
-  @@index([userId], map: "UnlockRequest_userId_fkey")
+  @@index([employeeId], map: "UnlockRequest_employeeId_fkey")
 }
 
 model Flight {
-  flightId            Int              @id @default(autoincrement())
-  flightNo            String           @unique @db.VarChar(10)
-  departureAirport    String           @db.VarChar(10)
-  arrivalAirport      String           @db.VarChar(10)
-  status              String           @db.VarChar(20)
-  aircraftCode        String           @db.VarChar(10)
-  scheduledDeparture  Decimal          @db.Decimal(20, 3)
-  scheduledArrival    Decimal          @db.Decimal(20, 3)
-  actualDeparture     Decimal?         @db.Decimal(20, 3)
-  actualArrival       Decimal?         @db.Decimal(20, 3)
-  delayMinutes        Int?
-  flightType          String           @db.VarChar(10)
-  isCancelled         Boolean          @default(false)
-  priceBusiness       Float?
-  priceEconomy        Float?
-  priceFirst          Float?
+  flightId           Int      @id @default(autoincrement())
+  flightNo           String   @unique @db.VarChar(10)
+  departureAirport   String   @db.VarChar(10)
+  arrivalAirport     String   @db.VarChar(10)
+  status             String   @db.VarChar(20)
+  aircraftCode       String   @db.VarChar(10)
+  scheduledDeparture Decimal  @db.Decimal(20, 3)
+  scheduledArrival   Decimal  @db.Decimal(20, 3)
+  actualDeparture    Decimal? @db.Decimal(20, 3)
+  actualArrival      Decimal? @db.Decimal(20, 3)
+  delayMinutes       Int?
+  flightType         String   @db.VarChar(10)
+  isCancelled        Boolean  @default(false)
+
+  priceBusiness Float?
+  priceEconomy  Float?
+  priceFirst    Float?
+
   terminal            String?
   cancellationReason  String?          @db.VarChar(255)
   delayReason         String?          @db.VarChar(255)
@@ -177,6 +183,11 @@ model Flight {
   flightStatuses      FlightStatus[]
   gateAssignments     GateAssignment[]
   seats               Seat[]
+
+  tickets        Ticket[]
+  boardingPasses BoardingPass[]
+  // payments        Payment[]
+  baggage        Baggage[]
 
   @@index([aircraftCode], map: "Flight_aircraftCode_fkey")
   @@index([arrivalAirport], map: "Flight_arrivalAirport_fkey")
@@ -201,6 +212,46 @@ model Airport {
   arrivals   Flight[]   @relation("ArrivalRelation")
   departures Flight[]   @relation("DepartureRelation")
   terminals  Terminal[]
+}
+
+model Ticket {
+  id          Int     @id @default(autoincrement())
+  ticketNo    String  @unique
+  passengerId String
+  flightId    Int
+  seatClass   String  @db.VarChar(20) // ECONOMY / BUSINESS
+  seatNo      String  @db.VarChar(10)
+  bookedAt    Decimal @db.Decimal(20, 3)
+
+  passenger    Passenger     @relation(fields: [passengerId], references: [id])
+  flight       Flight        @relation(fields: [flightId], references: [flightId])
+  boardingPass BoardingPass?
+  baggage      Baggage[]
+}
+
+model BoardingPass {
+  id           Int     @id @default(autoincrement())
+  ticketId     Int     @unique
+  issuedAt     Decimal @db.Decimal(20, 3)
+  gate         String  @db.VarChar(10)
+  boardingTime Decimal @db.Decimal(20, 3)
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+
+  flightId Int
+  flight   Flight @relation(fields: [flightId], references: [flightId])
+}
+
+model Baggage {
+  id        Int     @id @default(autoincrement())
+  flightId  Int
+  weight    Float
+  status    String  @db.VarChar(20) // CHECKED_IN / LOADED / CLAIMED / LOST
+  checkedAt Decimal @db.Decimal(20, 3)
+
+  flight   Flight @relation(fields: [flightId], references: [flightId])
+  ticketId Int    @unique
+  ticket   Ticket @relation(fields: [ticketId], references: [id])
 }
 
 model Facility {
@@ -278,13 +329,14 @@ model Booking {
 }
 
 model Seat {
-  id                   Int      @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
+  flightId   Int
+  bookingId  Int?     @unique
+  type       SeatType @default(ECONOMY)
+  seatNumber Int
+  seatRow    String
+
   isBooked             Boolean  @default(false)
-  flightId             Int
-  bookingId            Int?     @unique
-  type                 SeatType @default(ECONOMY)
-  seatNumber           Int
-  seatRow              String
   isAvailable          Boolean  @default(true)
   isExitRow            Boolean  @default(false)
   isExtraLegroom       Boolean  @default(false)

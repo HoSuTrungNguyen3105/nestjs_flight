@@ -14,6 +14,7 @@ import {
   Seat,
 } from 'generated/prisma';
 import { SearchBookingDto } from './dto/search-booking.dto';
+import { CreateBaggageDto } from './dto/baggage.dto';
 
 @Injectable()
 export class BookingService {
@@ -190,16 +191,6 @@ export class BookingService {
             flight: true,
             passenger: true,
           },
-          // select: {
-          //   passenger: true,
-          //   passengerId: true,
-          //   flightId: true,
-          //   id: true,
-          //   bookingTime: true,
-          //   mealOrders: true,
-          //   flight: true,
-          //   seats: true,
-          // },
         },
       },
     });
@@ -213,6 +204,47 @@ export class BookingService {
     }
 
     return { resultCode: '00', resultMessage: 'Success', data: passenger };
+  }
+
+  async createBaggage(dto: CreateBaggageDto) {
+    return this.prisma.baggage.create({
+      data: dto,
+    });
+  }
+
+  async findAllBaggage() {
+    const res = await this.prisma.baggage.findMany({
+      include: {
+        flight: {
+          select: {
+            flightNo: true,
+            priceBusiness: true,
+            priceEconomy: true,
+            priceFirst: true,
+            flightType: true,
+            gate: true,
+            terminal: true,
+          },
+        },
+        ticket: true,
+      },
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Baggage founded',
+      list: res,
+    };
+  }
+
+  async findOneBaggage(id: number) {
+    const baggage = await this.prisma.baggage.findUnique({
+      where: { id },
+      include: { flight: true, ticket: true },
+    });
+    if (!baggage)
+      return { resultCode: '01', resultMessage: 'Baggage not found' };
+
+    return baggage;
   }
 
   async bookSeats(data: CreateBookingDto) {

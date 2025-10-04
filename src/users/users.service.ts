@@ -14,11 +14,7 @@ import { UpdateUserInfoDto } from './dto/update-user.dto';
 import { UpdateUserFromAdminDto } from './dto/update-user-from-admin.dto';
 import { v2 as cloudinary } from 'cloudinary';
 import { CreateLeaveRequestDto } from './dto/leave-request.dto';
-import { SearchUserDto } from './dto/search-user.dto';
-import {
-  BatchUpdateResult,
-  PaginatedUserResponse,
-} from './dto/user-response.dto';
+import { BatchUpdateResult } from './dto/user-response.dto';
 
 @Injectable()
 export class UsersService {
@@ -54,13 +50,21 @@ export class UsersService {
         position: true,
         hireDate: true,
         status: true,
+        employeeNo: true,
+        phone: true,
+        createdAt: true, // ✅ chỉ select raw
       },
     });
+
+    const mappedUsers = users.map((u) => ({
+      ...u,
+      createdAt: Number(u.createdAt),
+    }));
 
     return {
       resultCode: '00',
       resultMessage: 'Lấy danh sách người dùng thành công!',
-      list: users,
+      list: mappedUsers,
     };
   }
 
@@ -124,7 +128,6 @@ export class UsersService {
       return {
         resultCode: '09',
         resultMessage: 'Unexpected error',
-        list: [],
       };
     }
   }
@@ -303,14 +306,10 @@ export class UsersService {
     }
   }
 
-  // findOne(id: number) {
-  //   return this.prisma.user.findUnique({ where: { id } });
-  // }
-
-  async requestUnlock(userId: number, reason: string) {
+  async requestUnlock(employeeId: number, reason: string) {
     const existing = await this.prisma.unlockRequest.findFirst({
       where: {
-        userId,
+        employeeId,
         status: 'PENDING',
       },
     });
@@ -322,7 +321,9 @@ export class UsersService {
       };
     }
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: employeeId },
+    });
 
     if (!user)
       return {
@@ -345,7 +346,7 @@ export class UsersService {
 
     return this.prisma.unlockRequest.create({
       data: {
-        userId,
+        employeeId,
         reason,
         createdAt: nowDecimal(),
       },
@@ -399,7 +400,7 @@ export class UsersService {
     }
 
     await this.prisma.user.update({
-      where: { id: req.userId },
+      where: { id: req.employeeId },
       data: {
         accountLockYn: 'N',
         loginFailCnt: 0,
@@ -436,7 +437,7 @@ export class UsersService {
     return this.prisma.$transaction(async (tx) => {
       for (const req of requests) {
         await tx.user.update({
-          where: { id: req.userId },
+          where: { id: req.employeeId },
           data: {
             accountLockYn: 'N',
             loginFailCnt: 0,
@@ -491,42 +492,10 @@ export class UsersService {
       );
       pictureUrl = uploadResponse.secure_url;
     }
-    // const updatedUser = await this.prisma.user.update({
-    //   where: { id },
-    //   data: {
-    //     name: updateUserDto.name,
-    //     pictureUrl,
-    //     role: updateUserDto.role,
-    //     userAlias: updateUserDto.userAlias,
-    //     passport: updateUserDto.passport,
-    //     phone: updateUserDto.phone,
-    //     updatedAt: toEpochDecimal(),
-    //   },
-    //   select: { id: true },
-    // });
-
-    // if (isRoleChangingToAdmin) {
-    //   const existingAdmin = await this.prisma.user.findFirst({
-    //     where: { role: Role.ADMIN, NOT: { id: updatedUser.id } },
-    //     select: { id: true },
-    //   });
-
-    //   await this.prisma.transferAdmin.create({
-    //     data: {
-    //       userId: updatedUser.id,
-    //       fromUserId: updatedUser.id,
-    //       toUserId: existingAdmin ? existingAdmin.id : updatedUser.id,
-    //       status: 'PENDING',
-    //       requestedAt: toEpochDecimal(),
-    //       approvedAt: null,
-    //     },
-    //   });
-    // }
 
     return {
       resultCode: '00',
       resultMessage: 'Cập nhật người dùng thành công!',
-      // data: updatedUser,
     };
   }
 
@@ -737,7 +706,7 @@ export class UsersService {
 
   async checkEmployeeLeaveRequest(employeeId: number) {
     try {
-      const currentTimestamp = new Date().getTime();
+      const currentTimestamp = nowDecimal();
       const existingRequest = await this.prisma.leaveRequest.findFirst({
         where: {
           employeeId: employeeId,
@@ -745,7 +714,7 @@ export class UsersService {
             { status: 'PENDING' },
             {
               status: 'APPROVED',
-              startDate: { gte: new Prisma.Decimal(currentTimestamp) },
+              startDate: { gte: nowDecimal() },
             },
           ],
         },
@@ -874,163 +843,4 @@ export class UsersService {
       resultMessage: 'Leave request rejected',
     };
   }
-
-  //   async searchUsers(searchDto: SearchUserDto): Promise<PaginatedUserResponse> {
-  //     const {
-  //       name,
-  //       email,
-  //       employeeNo,
-  //       role,
-  //       status,
-  //       department,
-  //       position,
-  //       page = 1,
-  //       limit = 10,
-  //       sortBy,
-  //       sortOrder = 'asc',
-  //     } = searchDto;
-
-  //     const skip = (page - 1) * limit;
-
-  //     const where: any = {
-  //       ...(name && { name: { contains: name, mode: 'insensitive' } }),
-  //       ...(email && { email: { contains: email, mode: 'insensitive' } }),
-  //       ...(employeeNo && {
-  //         employeeNo: { contains: employeeNo, mode: 'insensitive' },
-  //       }),
-  //       ...(role && { role }),
-  //       ...(status && { status }),
-  //       ...(department && { department }),
-  //       ...(position && { position }),
-  //     };
-
-  //     const orderBy = sortBy ? { [sortBy]: sortOrder } : undefined;
-
-  //     const [users, total] = await Promise.all([
-  //       this.prisma.user.findMany({
-  //         where,
-  //         skip,
-  //         take: limit,
-  //         orderBy,
-  //         // include: {
-  //         //   attendance: { select: { employeeId: true } },
-  //         // },
-  //       }),
-  //       this.prisma.user.count({ where }),
-  //     ]);
-
-  //     const userDtos: UserResponseDto[] = users.map((user) => ({
-  //       id: user.id,
-  //       employeeNo: user.employeeNo,
-  //       email: user.email,
-  //       name: user.name,
-  //       role: user.role as Role,
-  //       pictureUrl: user.pictureUrl,
-  //       rank: user.rank,
-  //       department: user.department as Department,
-  //       position: user.position as Position,
-  //       status: user.status as EmployeeStatus,
-  //       lastLoginDate: user.lastLoginDate ? user.lastLoginDate.toNumber() : null, // Decimal → number
-  //       mfaEnabledYn: user.mfaEnabledYn,
-  //       phone: user.phone,
-  //       createdAt: user.createdAt.toNumber(),
-  //       updatedAt: user.updatedAt.toNumber(),
-
-  //       userAlias: user.userAlias,
-  //       authType: user.authType,
-  //       loginFailCnt: user.loginFailCnt ?? null,
-  //       accountLockYn: user.accountLockYn,
-  //     isEmailVerified: user.isEmailVerified ? 'Y' : 'N',
-  //     }));
-
-  //     return {
-  //       users: userDtos,
-  //       total,
-  //       page,
-  //       limit,
-  //       totalPages: Math.ceil(total / limit),
-  //     };
-  //   }
-  //   async getMessages (req: any, res: any) {
-  //   try {
-  //     const { senderId, receiverId } = req.params;
-
-  //     const messages = await this.prisma.message.findMany({
-  //       where: {
-  //         OR: [
-  //           { senderId: parseInt(senderId), receiverId: parseInt(receiverId) },
-  //           { senderId: parseInt(receiverId), receiverId: parseInt(senderId) }
-  //         ]
-  //       },
-  //       include: {
-  //         sender: {
-  //           select: {
-  //             id: true,
-  //             name: true,
-  //             email: true,
-  //             pictureUrl: true
-  //           }
-  //         },
-  //         receiver: {
-  //           select: {
-  //             id: true,
-  //             name: true,
-  //             email: true,
-  //                         pictureUrl: true
-  //           }
-  //         }
-  //       },
-  //       orderBy: {
-  //         createdAt: 'asc'
-  //       }
-  //     });
-
-  //     res.json(messages);
-  //   } catch (error) {
-  //     console.error('Error fetching messages:', error);
-  //     res.status(500).json({ error: 'Internal server error' });
-  //   }
-  // };
-
-  // // Gửi tin nhắn mới
-  //  async sendMessage (io: Server, data: any) {
-  //   try {
-  //     const { content, senderId, receiverId } = data;
-
-  //     // Tạo tin nhắn mới trong database
-  //     const newMessage = await prisma.message.create({
-  //       data: {
-  //         content,
-  //         senderId: parseInt(senderId),
-  //         receiverId: parseInt(receiverId),
-  //         createdAt: new Date().getTime().toString() // Chuyển thành Decimal
-  //       },
-  //       include: {
-  //         sender: {
-  //           select: {
-  //             id: true,
-  //             name: true,
-  //             avatar: true
-  //           }
-  //         },
-  //         receiver: {
-  //           select: {
-  //             id: true,
-  //             name: true,
-  //             avatar: true
-  //           }
-  //         }
-  //       }
-  //     });
-
-  //     // Phát tin nhắn mới đến người nhận và người gửi
-  //     io.to(`user_${receiverId}`).emit('new_message', newMessage);
-  //     io.to(`user_${senderId}`).emit('new_message', newMessage);
-
-  //     return newMessage;
-  //   } catch (error) {
-  //     console.error('Error sending message:', error);
-  //     throw new Error('Failed to send message');
-  //   }
-  // };
 }

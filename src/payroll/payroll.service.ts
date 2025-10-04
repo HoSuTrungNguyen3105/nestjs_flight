@@ -57,7 +57,8 @@ export class PayrollService {
           allowances,
           deductions,
           tax,
-          netPay,
+          netPay: netPay,
+          status: 'DRAFT',
           generatedAt: nowDecimal(),
         },
       });
@@ -70,6 +71,34 @@ export class PayrollService {
       console.error('error', error);
       throw error;
     }
+  }
+
+  async getUserIdAndNameToDropdown() {
+    const currentYear = new Date().getFullYear();
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        NOT: {
+          payrolls: {
+            some: {
+              year: currentYear,
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    const list = users.map((u) => ({ value: u.id, label: u.name }));
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Danh sách người dùng chưa tạo bảng lương năm nay!',
+      list,
+    };
   }
 
   async findByEmployee(
@@ -168,7 +197,18 @@ export class PayrollService {
   }
 
   async getPayrollById(id: number) {
-    return await this.prisma.payroll.findUnique({
+    const findPayrollData = await this.prisma.payroll.findUnique({
+      where: { id },
+    });
+
+    if (!findPayrollData) {
+      return {
+        resultCode: '01',
+        resultMessage: 'Khong co dữ liệu payroll',
+      };
+    }
+
+    const res = await this.prisma.payroll.findUnique({
       where: { id },
       include: {
         employee: {
@@ -185,6 +225,11 @@ export class PayrollService {
         },
       },
     });
+    return {
+      resultCode: '01',
+      resultMessage: 'Success dữ liệu payroll',
+      data: res,
+    };
   }
 
   async finalizePayroll(id: number) {
@@ -194,46 +239,46 @@ export class PayrollService {
     });
   }
 
-  async generatePayroll(
-    employeeId: number,
-    month: number,
-    year: number,
-    baseSalary: number,
-    allowances = 0,
-    deductions = 0,
-    tax = 0,
-  ) {
-    try {
-      const netPay = baseSalary + allowances - deductions - tax;
+  // async generatePayroll(
+  //   employeeId: number,
+  //   month: number,
+  //   year: number,
+  //   baseSalary: number,
+  //   allowances = 0,
+  //   deductions = 0,
+  //   tax = 0,
+  // ) {
+  //   try {
+  //     const netPay = baseSalary + allowances - deductions - tax;
 
-      const payroll = await this.prisma.payroll.create({
-        data: {
-          employeeId,
-          month,
-          year,
-          baseSalary,
-          allowances,
-          deductions,
-          tax,
-          netPay,
-          status: 'DRAFT',
-          generatedAt: nowDecimal(),
-        },
-        include: {
-          employee: { select: { id: true, name: true, employeeNo: true } },
-        },
-      });
+  //     const payroll = await this.prisma.payroll.create({
+  //       data: {
+  //         employeeId,
+  //         month,
+  //         year,
+  //         baseSalary,
+  //         allowances,
+  //         deductions,
+  //         tax,
+  //         netPay,
+  //         status: 'DRAFT',
+  //         generatedAt: nowDecimal(),
+  //       },
+  //       include: {
+  //         employee: { select: { id: true, name: true, employeeNo: true } },
+  //       },
+  //     });
 
-      return {
-        resultCode: '00',
-        resultMessage: 'Payroll generated successfully',
-        data: payroll,
-      };
-    } catch (error) {
-      console.error('error', error);
-      throw error;
-    }
-  }
+  //     return {
+  //       resultCode: '00',
+  //       resultMessage: 'Payroll generated successfully',
+  //       data: payroll,
+  //     };
+  //   } catch (error) {
+  //     console.error('error', error);
+  //     throw error;
+  //   }
+  // }
 
   async getPayrollSummary() {
     const payrolls = await this.prisma.payroll.findMany({
@@ -255,7 +300,6 @@ export class PayrollService {
     );
     const totalTax = payrolls.reduce((sum, payroll) => sum + payroll.tax, 0);
 
-    // Group by department
     const byDepartment = payrolls.reduce((acc, payroll) => {
       const dept = payroll.employee.department || 'Unknown';
       if (!acc[dept]) acc[dept] = 0;
@@ -264,11 +308,15 @@ export class PayrollService {
     }, {});
 
     return {
-      totalPayroll,
-      totalTax,
-      averagePay: totalPayroll / payrolls.length,
-      byDepartment,
-      count: payrolls.length,
+      resultCode: '00',
+      resultMessage: 'Success',
+      data: {
+        totalPayroll,
+        totalTax,
+        averagePay: totalPayroll / payrolls.length,
+        byDepartment,
+        count: payrolls.length,
+      },
     };
   }
 }

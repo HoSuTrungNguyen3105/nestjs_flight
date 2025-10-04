@@ -26,6 +26,7 @@ export class SeatService {
             seatNumber: data.seatNumber,
             flightId: data.flightId,
             isBooked: data.isBooked ?? false,
+            price: data.price,
           },
         });
 
@@ -265,7 +266,7 @@ export class SeatService {
       });
 
       const result: SeatTypeDto[] = seatTypes.map((item) => ({
-        type: item.type,
+        type: item.type.toString(), // ép về string
         count: item._count.id,
       }));
 
@@ -282,19 +283,15 @@ export class SeatService {
       };
     }
   }
+
   async getDistinctSeatTypes() {
     try {
-      const distinctTypes = await this.prisma.seat.findMany({
-        select: {
-          type: true,
-        },
-        distinct: ['type'],
-        orderBy: {
-          type: 'asc',
-        },
+      const distinctTypes = await this.prisma.seat.groupBy({
+        by: ['type'],
+        orderBy: { type: 'asc' },
       });
 
-      const types = distinctTypes.map((item) => item.type);
+      const types = distinctTypes.map((item) => item.type.toString()); // ép về string
 
       return {
         resultCode: '00',
@@ -320,14 +317,14 @@ export class SeatService {
         };
       }
 
-      const updatedSeats = await this.prisma.seat.updateMany({
-        where: {
-          id: {
-            in: seatIds,
-          },
-        },
-        data,
-      });
+      // const updatedSeats = await this.prisma.seat.updateMany({
+      //   where: {
+      //     id: {
+      //       in: seatIds,
+      //     },
+      //   },
+      //   data,
+      // });
 
       const seats = await this.prisma.seat.findMany({
         where: {
@@ -337,9 +334,41 @@ export class SeatService {
         },
       });
 
+      const updatedSeats = await this.prisma.$transaction(
+        seats.map((seat) => {
+          let finalPrice: number = data.price ?? seat.price ?? 0;
+
+          // Nếu không truyền price -> tính thêm dựa vào seatType
+          if (!data.price) {
+            switch (seat.type) {
+              case 'BUSINESS':
+                finalPrice += 500000;
+                break;
+              case 'FIRST':
+                finalPrice += 1000000;
+                break;
+              case 'ECONOMY':
+                finalPrice += 200000;
+                break;
+              case 'VIP':
+                finalPrice += 300000;
+                break;
+            }
+          }
+
+          return this.prisma.seat.update({
+            where: { id: seat.id },
+            data: {
+              ...data,
+              price: finalPrice,
+            },
+          });
+        }),
+      );
+
       return {
         resultCode: '00',
-        resultMessage: `${updatedSeats.count} seats updated successfully`,
+        resultMessage: `${updatedSeats.length} seats updated successfully`,
         data: seats,
       };
     } catch (err) {

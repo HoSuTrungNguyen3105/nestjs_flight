@@ -134,11 +134,6 @@ export class UsersController {
     return this.userService.checkIn(employeeId);
   }
 
-  @Post('attendance/check-out/:id')
-  async checkOut(@Param('id') id: string) {
-    return this.userService.checkOut(Number(id));
-  }
-
   @Post('leave-requests/approve/:id')
   async approveLeaveRequest(
     @Param('id') id: string,
@@ -155,5 +150,10 @@ export class UsersController {
     @Body('note') note?: string,
   ) {
     return this.userService.rejectLeaveRequest(Number(id), approverId, note);
+  }
+
+  @Post('attendance/check-out/:id')
+  async checkOut(@Param('id', ParseIntPipe) id: number) {
+    return this.userService.checkOut(id);
   }
 }

@@ -26,9 +26,9 @@ export class CreatePayrollDto {
   @IsNumber()
   tax?: number;
 
-  @IsOptional()
-  @IsEnum(PayrollStatus)
-  status?: PayrollStatus;
+  // @IsOptional()
+  // @IsEnum(PayrollStatus)
+  // status?: PayrollStatus;
 }
 
 export type FindPayrollWhere = {

@@ -7,15 +7,14 @@ export class UserResponseDto {
   pictureUrl: string;
   rank: string;
   role: Role;
-  //   password: string;
-  createdAt: number; // ✅ number thay vì Decimal
-  updatedAt: number; // ✅ number thay vì Decimal
+  createdAt: number;
+  updatedAt: number;
   userAlias: string;
   authType: string;
   loginFailCnt: number;
   accountLockYn: string;
   mfaEnabledYn: string;
-  mfaSecretKey?: string | null; // ✅ cho phép null
+  mfaSecretKey?: string;
   isEmailVerified: string;
   prevPassword?: string;
   lastLoginDate?: number;
