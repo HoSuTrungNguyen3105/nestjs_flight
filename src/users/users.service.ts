@@ -274,8 +274,8 @@ export class UsersService {
           role: dto.role as Role,
           authType: 'ID,PW',
           userAlias: '',
-          createdAt: toEpochDecimal(),
-          updatedAt: toEpochDecimal(),
+          createdAt: nowDecimal(),
+          updatedAt: nowDecimal(),
         },
       });
 
@@ -499,6 +499,33 @@ export class UsersService {
         approvedAt: nowDecimal(),
       },
     });
+  }
+
+  async findUserFromMessage(email: string) {
+    try {
+      // if (!email?.trim()) {
+      //   return {
+      //     resultCode: '01',
+      //     resultMessage: 'Vui lòng nhập email để tìm kiếm!',
+      //     list: [],
+      //   };
+      // }
+
+      const res = await this.prisma.user.findMany({
+        where: {
+          email: {
+            contains: email, // tìm các email chứa chuỗi nhập vào
+          },
+        },
+      });
+      return {
+        resultCode: '00',
+        resultMessage: 'Search người dùng thành công!',
+        list: res,
+      };
+    } catch (error) {
+      console.error('err', error);
+    }
   }
 
   async updateUserInfo(id: number, updateUserDto: UpdateUserInfoDto) {

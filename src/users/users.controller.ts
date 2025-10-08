@@ -171,4 +171,9 @@ export class UsersController {
   async checkOut(@Param('id', ParseIntPipe) id: number) {
     return this.userService.checkOut(id);
   }
+
+  @Post('findUserFromMessage')
+  async findUserFromMessage(@Body('email') email: string) {
+    return this.userService.findUserFromMessage(email);
+  }
 }
