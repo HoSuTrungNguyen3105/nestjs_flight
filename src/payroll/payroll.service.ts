@@ -232,6 +232,31 @@ export class PayrollService {
     };
   }
 
+  async deletePayrollById(id: number) {
+    const findPayrollData = await this.prisma.payroll.findUnique({
+      where: { id },
+    });
+
+    if (!findPayrollData) {
+      return {
+        resultCode: '01',
+        resultMessage: 'Khong co dữ liệu payroll',
+      };
+    }
+
+    const res = await this.prisma.payroll.delete({
+      where: { id },
+      include: {
+        employee: { select: { id: true } },
+      },
+    });
+    return {
+      resultCode: '01',
+      resultMessage: 'Success dữ liệu payroll',
+      data: res,
+    };
+  }
+
   async finalizePayroll(id: number) {
     return this.prisma.payroll.update({
       where: { id },

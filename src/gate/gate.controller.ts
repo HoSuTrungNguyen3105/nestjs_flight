@@ -29,9 +29,24 @@ export class GateController {
     return this.gatesService.findAllGate(query);
   }
 
+  @Post('batch-create')
+  async createManyGates(@Body() dto: CreateGateDto[]) {
+    return this.gatesService.createMany(dto);
+  }
+
+  @Post('delete-all')
+  removeAllGate() {
+    return this.gatesService.removeAllGate();
+  }
+
   @Get('findAllDataGate')
   findAllDataGate() {
     return this.gatesService.findAllDataGate();
+  }
+
+  @Get('findAllGateCode')
+  findAllGateCode() {
+    return this.gatesService.findAllGateCode();
   }
 
   @Get(':id')

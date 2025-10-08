@@ -25,8 +25,20 @@ export class FlightMealService {
   async findAll(): Promise<BaseResponseDto<FlightMeal>> {
     const meals = await this.prisma.flightMeal.findMany({
       include: {
-        flight: true,
-        meal: true,
+        flight: {
+          select: {
+            flightNo: true,
+            departureAirport: true,
+            arrivalAirport: true,
+            aircraftCode: true,
+            flightType: true,
+          },
+        },
+        meal: {
+          omit: {
+            id: true,
+          },
+        },
       },
     });
     return {
@@ -40,14 +52,28 @@ export class FlightMealService {
     const fm = await this.prisma.flightMeal.findUnique({
       where: { id },
       include: {
-        flight: true,
-        meal: true,
+        flight: {
+          select: {
+            flightNo: true,
+            departureAirport: true,
+            arrivalAirport: true,
+            aircraftCode: true,
+            flightType: true,
+          },
+        },
+        meal: {
+          omit: {
+            id: true,
+          },
+        },
       },
     });
 
-    if (!fm) {
-      throw new NotFoundException(`FlightMeal with ID ${id} not found`);
-    }
+    if (!fm)
+      return {
+        resultCode: '01',
+        resultMessage: `FlightMeal with ID ${id} not found`,
+      };
 
     return {
       resultCode: '00',
@@ -60,24 +86,54 @@ export class FlightMealService {
     flightId: number,
     meals: { id: number; quantity: number; price?: number }[],
   ) {
-    const data = meals.map((m) => ({
-      flightId,
-      mealId: m.id,
-      quantity: m.quantity,
-      price: m.price,
-    }));
+    try {
+      for (const m of meals) {
+        const fm = await this.prisma.flightMeal.findFirst({
+          where: {
+            flightId,
+            mealId: m.id,
+          },
+        });
 
-    await this.prisma.flightMeal.createMany({ data });
+        if (fm)
+          return {
+            resultCode: '00',
+            resultMessage: `Flight ${flightId} đã có mealId ${m.id} rồi`,
+          };
 
-    return {
-      resultCode: '00',
-      resultMessage: 'Gán meals vào flight thành công!',
-      list: data,
-    };
+        const checkMeal = await this.prisma.meal.findUnique({
+          where: { id: m.id },
+        });
+
+        if (checkMeal)
+          return {
+            resultCode: '00',
+            resultMessage: `Meal ${flightId} not found`,
+          };
+      }
+
+      const data = meals.map((m) => ({
+        flightId,
+        mealId: m.id,
+        quantity: m.quantity,
+        price: m.price,
+      }));
+
+      await this.prisma.flightMeal.createMany({ data });
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Gán meals vào flight thành công!',
+        list: data,
+      };
+    } catch (error) {
+      console.error('error', error);
+      throw error;
+    }
   }
 
   async update(id: number, data: UpdateFlightMealDto) {
-    await this.findOne(id); // check exists
+    await this.findOne(id);
     return this.prisma.flightMeal.update({
       where: { id },
       data,
@@ -85,7 +141,7 @@ export class FlightMealService {
   }
 
   async remove(id: number) {
-    await this.findOne(id); // check exists
+    await this.findOne(id);
     return this.prisma.flightMeal.delete({
       where: { id },
     });

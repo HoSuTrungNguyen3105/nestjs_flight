@@ -323,10 +323,10 @@ export class AuthService {
             decidedAt: true,
           },
         },
+        unlockRequests: { select: { id: true, status: true, createdAt: true } },
         payrolls: {
           select: { id: true, month: true, year: true, netPay: true },
         },
-        unlockRequests: { select: { id: true, status: true, createdAt: true } },
       },
     });
 
@@ -739,6 +739,60 @@ export class AuthService {
     }
   }
 
+  async sendVerificationEmail(id: number) {
+    try {
+      const { otp, hashedOtp, expireAt } = await generateOtp(6);
+      const user = await this.prisma.user.findUnique({ where: { id } });
+      if (!user) {
+        console.error('Không tìm thấy user');
+        return {
+          resultCode: '01',
+          resultMessage: 'Không tìm thấy user để gửi email xác nhận',
+        };
+      }
+
+      if (!user.email) {
+        console.error('User không có email');
+        return {
+          resultCode: '02',
+          resultMessage: 'User chưa có email để gửi OTP',
+        };
+      }
+
+      await this.prisma.user.update({
+        where: { id },
+        data: {
+          otpCode: hashedOtp,
+          otpExpire: expireAt,
+          updatedAt: nowDecimal(),
+        },
+      });
+
+      try {
+        const subject = 'Xác nhận tài khoản';
+        const text = `Xin chào ${user?.name ?? 'bạn'}, mã xác nhận của bạn là: ${otp}`;
+        const html = `
+      <h3>Welcome ${user?.name}</h3>
+      <p>Cảm ơn bạn đã đăng ký. Mã xác nhận của bạn là:</p>
+      <h2 style="color:#2e6c80">${otp}</h2>
+      <p>Mã này sẽ hết hạn sau 5 phút. Nếu không phải bạn, vui lòng bỏ qua email này.</p>
+    `;
+
+        await this.mailer.sendMail(user?.email || '', subject, text, html);
+      } catch (error) {
+        console.error('err0r', error);
+      }
+      return {
+        resultCode: '00',
+        resultMessage: 'Đã gửi OTP xác thực đến email của bạn',
+        requireVerified: true, //todo
+      };
+    } catch (error) {
+      console.error('error', error);
+      throw error;
+    }
+  }
+
   async forgotPassword(email: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
 
@@ -1006,7 +1060,6 @@ export class AuthService {
   }
 
   async logout(userId: number, token: string) {
-    const now = Date.now();
     const deleted = await this.prisma.userSession.deleteMany({
       where: { userId, token },
     });
@@ -1020,7 +1073,7 @@ export class AuthService {
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { lastLoginDate: new Prisma.Decimal(now.toString()) },
+      data: { lastLoginDate: nowDecimal() },
     });
 
     return { resultCode: '00', resultMessage: 'Logout successful' };

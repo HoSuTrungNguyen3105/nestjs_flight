@@ -52,7 +52,7 @@ export class UsersService {
         status: true,
         employeeNo: true,
         phone: true,
-        createdAt: true, // ✅ chỉ select raw
+        createdAt: true, // chỉ select raw
       },
     });
 
@@ -379,6 +379,37 @@ export class UsersService {
     };
   }
 
+  async deleteUnlockRequestById(id: number) {
+    if (!id) {
+      return {
+        resultCode: '99',
+        resultMessage: 'Vui lòng cung cấp id',
+      };
+    }
+
+    // Kiểm tra tồn tại trước
+    const existingLeaveRequest = await this.prisma.unlockRequest.findUnique({
+      where: { id },
+    });
+
+    if (!existingLeaveRequest) {
+      return {
+        resultCode: '99',
+        resultMessage: 'Không tìm thấy leaveRequest với id này',
+      };
+    }
+
+    const deleted = await this.prisma.unlockRequest.delete({
+      where: { id },
+    });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Xóa leaveRequest thành công!',
+      data: { id: deleted.id },
+    };
+  }
+
   async approveUnlockRequest(requestId: number) {
     const req = await this.prisma.unlockRequest.findUnique({
       where: { id: requestId },
@@ -474,7 +505,6 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
-
     if (!user) {
       return {
         resultCode: '99',
@@ -482,16 +512,27 @@ export class UsersService {
       };
     }
 
-    const isRoleChangingToAdmin =
-      updateUserDto.role === Role.ADMIN && user.role !== Role.ADMIN;
-    // const uploadResponse = await cloudinary.uploader.upload(updateUserDto.pictureUrl as string);
     let pictureUrl = user.pictureUrl;
-    if (updateUserDto.pictureUrl) {
+    if (
+      updateUserDto.pictureUrl &&
+      updateUserDto.pictureUrl !== user.pictureUrl
+    ) {
       const uploadResponse = await cloudinary.uploader.upload(
         updateUserDto.pictureUrl as string,
       );
       pictureUrl = uploadResponse.secure_url;
     }
+
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        name: updateUserDto.name ?? user.name,
+        // email: updateUserDto.email ?? user.email,
+        role: updateUserDto.role ?? user.role,
+        pictureUrl,
+        updatedAt: nowDecimal(), // hoặc dùng hàm nowDecimal() nếu anh đang xài Decimal timestamp
+      },
+    });
 
     return {
       resultCode: '00',
@@ -620,6 +661,18 @@ export class UsersService {
     return record;
   }
 
+  async deleteAttendance(employeeId: number) {
+    this.prisma.attendance.delete({
+      where: {
+        id: employeeId,
+      },
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Attendance delete successfully',
+    };
+  }
+
   async createLeaveRequest(createDto: CreateLeaveRequestDto) {
     const employee = await this.prisma.user.findUnique({
       where: { id: createDto.employeeId },
@@ -683,6 +736,27 @@ export class UsersService {
         resultCode: '99',
         resultMessage: 'Error fetching leave requests',
         error: error.message,
+      };
+    }
+  }
+
+  async deleteLeaveRequestById(id: number) {
+    try {
+      // Xóa tất cả leave requests
+      await this.prisma.leaveRequest.deleteMany({
+        where: {
+          id,
+        },
+      });
+
+      return {
+        resultCode: '00',
+        resultMessage: `Đã xóa leave requests ${id} thành công`,
+      };
+    } catch (error) {
+      return {
+        resultCode: '99',
+        resultMessage: error,
       };
     }
   }

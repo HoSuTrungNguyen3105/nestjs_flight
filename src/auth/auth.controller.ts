@@ -126,6 +126,12 @@ export class AuthController {
     return this.authService.getAllUnlockRequests();
   }
 
+  @Post('sendEmailToVerification')
+  async sendVerificationEmail(@Body() body: { id: number }) {
+    const res = await this.authService.sendVerificationEmail(Number(body.id));
+    return res;
+  }
+
   @Get('getUserWithRelations/:id')
   async getUserDetail(@Param('id', ParseIntPipe) id: number) {
     const user = await this.authService.getUserWithRelations(id);

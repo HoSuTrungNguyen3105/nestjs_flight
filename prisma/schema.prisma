@@ -186,7 +186,6 @@ model Flight {
 
   tickets        Ticket[]
   boardingPasses BoardingPass[]
-  // payments        Payment[]
   baggage        Baggage[]
 
   @@index([aircraftCode], map: "Flight_aircraftCode_fkey")
@@ -254,6 +253,42 @@ model Baggage {
   ticket   Ticket @relation(fields: [ticketId], references: [id])
 }
 
+model Meal {
+  id          Int          @id @default(autoincrement())
+  name        String
+  mealType    MealType
+  description String?
+  price       Float?
+  isAvailable Boolean      @default(true)
+  mealCode    String       @unique
+  flightMeals FlightMeal[]
+  mealOrders  MealOrder[]
+}
+
+model Seat {
+  id         Int      @id @default(autoincrement())
+  flightId   Int
+  bookingId  Int?     @unique
+  type       SeatType @default(ECONOMY)
+  seatNumber Int
+  seatRow    String
+
+  isBooked             Boolean  @default(false)
+  isAvailable          Boolean  @default(true)
+  isExitRow            Boolean  @default(false)
+  isExtraLegroom       Boolean  @default(false)
+  note                 String?
+  price                Float?
+  isHandicapAccessible Boolean  @default(false)
+  isNearLavatory       Boolean  @default(false)
+  isUpperDeck          Boolean  @default(false)
+  isWing               Boolean  @default(false)
+  booking              Booking? @relation(fields: [bookingId], references: [id])
+  flight               Flight   @relation(fields: [flightId], references: [flightId])
+
+  @@index([flightId], map: "Seat_flightId_fkey")
+}
+
 model Facility {
   id           String       @id @default(cuid())
   name         String
@@ -302,7 +337,7 @@ model GateAssignment {
 
 model Gate {
   id            String           @id @default(cuid())
-  code          String
+  code          String           @unique
   terminalId    String
   status        GateStatus       @default(AVAILABLE)
   createdAt     Decimal          @db.Decimal(20, 3)
@@ -326,42 +361,6 @@ model Booking {
 
   @@index([flightId], map: "Booking_flightId_fkey")
   @@index([passengerId], map: "Booking_passengerId_fkey")
-}
-
-model Seat {
-  id         Int      @id @default(autoincrement())
-  flightId   Int
-  bookingId  Int?     @unique
-  type       SeatType @default(ECONOMY)
-  seatNumber Int
-  seatRow    String
-
-  isBooked             Boolean  @default(false)
-  isAvailable          Boolean  @default(true)
-  isExitRow            Boolean  @default(false)
-  isExtraLegroom       Boolean  @default(false)
-  note                 String?
-  price                Float?
-  isHandicapAccessible Boolean  @default(false)
-  isNearLavatory       Boolean  @default(false)
-  isUpperDeck          Boolean  @default(false)
-  isWing               Boolean  @default(false)
-  booking              Booking? @relation(fields: [bookingId], references: [id])
-  flight               Flight   @relation(fields: [flightId], references: [flightId])
-
-  @@index([flightId], map: "Seat_flightId_fkey")
-}
-
-model Meal {
-  id          Int          @id @default(autoincrement())
-  name        String
-  mealType    MealType
-  description String?
-  price       Float?
-  isAvailable Boolean      @default(true)
-  mealCode    String       @unique
-  flightMeals FlightMeal[]
-  mealOrders  MealOrder[]
 }
 
 model FlightMeal {

@@ -43,7 +43,7 @@ export class MailController {
   }
 
   @Post('send-cc-bcc')
-  @UseInterceptors(AnyFilesInterceptor()) // nhận nhiều file
+  @UseInterceptors(AnyFilesInterceptor())
   async sendWithCcAndBcc(
     @Body()
     body: {

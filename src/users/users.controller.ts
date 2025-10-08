@@ -68,6 +68,11 @@ export class UsersController {
     return this.userService.requestUnlock(dto.userId, dto.reason);
   }
 
+  @Post('request-unlock/delete')
+  async deleteRequestUnlockById(@Body() dto: { userId: number }) {
+    return this.userService.deleteUnlockRequestById(dto.userId);
+  }
+
   @Post('approve-unlock/:id')
   async approveUnlock(@Param('id', ParseIntPipe) id: number) {
     return this.userService.approveUnlockRequest(id);
@@ -114,6 +119,11 @@ export class UsersController {
     return this.userService.getAllLeaveRequests();
   }
 
+  @Post('leave-requests/delete')
+  async deleteLeaveRequestById(@Body('id') id: number) {
+    return this.userService.deleteLeaveRequestById(id);
+  }
+
   @Post('leave-requests/delete-all')
   async deleteAllLeaveRequest() {
     return this.userService.deleteAllLeaveRequests();
@@ -127,6 +137,11 @@ export class UsersController {
   @Post('deleteUser')
   async remove(@Body('id') id: number) {
     return this.userService.deleteUser(Number(id));
+  }
+
+  @Post('attendance/delete')
+  async deleteAttendance(@Body('id') id: number) {
+    return this.userService.deleteAttendance(Number(id));
   }
 
   @Post('attendance/check-in')

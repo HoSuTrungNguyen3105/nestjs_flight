@@ -26,6 +26,11 @@ export class PayrollController {
     return this.payrollService.getAllPayrolls();
   }
 
+  @Post('delete')
+  async deleteLeaveRequestById(@Body('id') id: number) {
+    return this.payrollService.deletePayrollById(id);
+  }
+
   // @Get('payroll/getById/:id')
   // async getPayrollsById(@Param('id') id: number) {
   //   return this.payrollService.getPayrollById(id);

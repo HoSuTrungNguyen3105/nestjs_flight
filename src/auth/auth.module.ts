@@ -9,8 +9,8 @@ import { UsersService } from 'src/users/users.service';
 @Module({
   imports: [
     JwtModule.register({
-      secret: process.env.JWT_SECRET, // hoặc dùng ConfigModule
-      signOptions: { expiresIn: '1d' }, // hết hạn trong 1 ngày
+      secret: process.env.JWT_SECRET,
+      signOptions: { expiresIn: '1d' },
     }),
     MailModule,
   ],

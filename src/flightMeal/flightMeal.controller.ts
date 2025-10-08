@@ -43,9 +43,9 @@ export class FlightMealController {
 
   @Post(':id/meals')
   async addMealsToFlight(
-    @Param('id') id: string,
+    @Param('id') flightId: string,
     @Body() body: CreateFlightMealsDto,
   ) {
-    return this.flightMealService.addMealsToFlight(+id, body.meals);
+    return this.flightMealService.addMealsToFlight(+flightId, body.meals);
   }
 }

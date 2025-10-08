@@ -544,6 +544,21 @@ export class FlightsService {
     });
   }
 
+  async findAllTicket() {
+    const res = await this.prisma.ticket.findMany({
+      include: {
+        boardingPass: true,
+        baggage: true,
+        flight: true,
+      },
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Ticket list success !!',
+      list: res,
+    };
+  }
+
   async createBaggage(data: {
     ticketId: number;
     flightId: number;
@@ -804,13 +819,17 @@ export class FlightsService {
 
   async updateAirport(code: string, updateAirportDto: UpdateAirportDto) {
     try {
-      return await this.prisma.airport.update({
+      await this.prisma.airport.update({
         where: { code },
         data: {
           ...updateAirportDto,
           updatedAt: nowDecimal(),
         },
       });
+      return {
+        resultCode: '00',
+        resultMessage: 'Success',
+      };
     } catch (error) {
       return {
         resultCode: '99',

@@ -317,15 +317,6 @@ export class SeatService {
         };
       }
 
-      // const updatedSeats = await this.prisma.seat.updateMany({
-      //   where: {
-      //     id: {
-      //       in: seatIds,
-      //     },
-      //   },
-      //   data,
-      // });
-
       const seats = await this.prisma.seat.findMany({
         where: {
           id: {
@@ -338,7 +329,6 @@ export class SeatService {
         seats.map((seat) => {
           let finalPrice: number = data.price ?? seat.price ?? 0;
 
-          // Nếu không truyền price -> tính thêm dựa vào seatType
           if (!data.price) {
             switch (seat.type) {
               case 'BUSINESS':
