@@ -6,6 +6,7 @@ import {
   Param,
   ParseIntPipe,
   UseGuards,
+  Res,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { BatchUpdateEmployeeNoDto, CreateUserDto } from './dto/create-user.dto';
@@ -13,6 +14,7 @@ import { UpdateUserFromAdminDto } from './dto/update-user-from-admin.dto';
 import { UpdateUserInfoDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from 'src/common/mfa/jwt-auth.guard';
 import { CreateLeaveRequestDto } from './dto/leave-request.dto';
+import { Response } from 'express';
 
 @Controller('sys/users')
 export class UsersController {
@@ -173,7 +175,42 @@ export class UsersController {
   }
 
   @Post('findUserFromMessage')
-  async findUserFromMessage(@Body('email') email: string) {
-    return this.userService.findUserFromMessage(email);
+  async findUserFromMessage(
+    @Body('email') email: string,
+    @Body('id') id: number,
+  ) {
+    return this.userService.findUserFromMessage(email, id);
   }
+
+  // @Get('exportPayrollsToExcel')
+  // async exportPayrolls(@Res() res: Response) {
+  //   const buffer = await this.userService.exportPayrollsToExcel();
+
+  //   res.setHeader('Content-Disposition', 'attachment; filename=payrolls.xlsx');
+  //   res.setHeader(
+  //     'Content-Type',
+  //     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  //   );
+
+  //   res.end(buffer.data);
+  // }
+  @Get('init/exportPayrollsToExcel')
+  async exportPayrolls() {
+    return this.userService.exportPayrollsToExcel();
+  }
+
+  @Get('init/exportFlightsToExcel')
+  async exportFlights() {
+    return this.userService.exportFlightsToExcel();
+  }
+  // async exportPayrolls(@Res() res: Response) {
+  //   const buffer = await this.userService.exportPayrollsToExcel();
+
+  //   res.setHeader('Content-Disposition', 'attachment; filename=payrolls.xlsx');
+  //   res.setHeader(
+  //     'Content-Type',
+  //     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  //   );
+  //   res.end(buffer);
+  // }
 }

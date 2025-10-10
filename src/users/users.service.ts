@@ -9,12 +9,14 @@ import { UserResponseDto } from './dto/info-user-dto';
 import { formatUserResponse, toEpochDecimal } from 'src/common/helpers/hook';
 import { Decimal } from 'generated/prisma/runtime/library';
 import { MailService } from 'src/common/nodemailer/nodemailer.service';
-import { nowDecimal } from 'src/common/helpers/format';
+import { decimalToDate, nowDecimal } from 'src/common/helpers/format';
 import { UpdateUserInfoDto } from './dto/update-user.dto';
 import { UpdateUserFromAdminDto } from './dto/update-user-from-admin.dto';
 import { v2 as cloudinary } from 'cloudinary';
 import { CreateLeaveRequestDto } from './dto/leave-request.dto';
 import { BatchUpdateResult } from './dto/user-response.dto';
+import * as ExcelJS from 'exceljs';
+import { Blob } from 'buffer';
 
 @Injectable()
 export class UsersService {
@@ -501,23 +503,27 @@ export class UsersService {
     });
   }
 
-  async findUserFromMessage(email: string) {
+  async findUserFromMessage(email: string, id: number) {
     try {
-      // if (!email?.trim()) {
-      //   return {
-      //     resultCode: '01',
-      //     resultMessage: 'Vui lòng nhập email để tìm kiếm!',
-      //     list: [],
-      //   };
-      // }
-
       const res = await this.prisma.user.findMany({
         where: {
           email: {
-            contains: email, // tìm các email chứa chuỗi nhập vào
+            contains: email,
+          },
+          NOT: {
+            id,
           },
         },
+
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          employeeNo: true,
+          role: true,
+        },
       });
+
       return {
         resultCode: '00',
         resultMessage: 'Search người dùng thành công!',
@@ -943,5 +949,210 @@ export class UsersService {
       resultCode: '00',
       resultMessage: 'Leave request rejected',
     };
+  }
+
+  async exportPayrollsToExcel() {
+    try {
+      const payrolls = await this.prisma.payroll.findMany({
+        include: { employee: true },
+      });
+
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Payrolls');
+
+      worksheet.columns = [
+        { header: 'ID', key: 'id', width: 10 },
+        { header: 'Mã NV', key: 'employeeNo', width: 15 },
+        { header: 'Tên nhân viên', key: 'employeeName', width: 25 },
+        { header: 'Tháng', key: 'month', width: 10 },
+        { header: 'Năm', key: 'year', width: 10 },
+        { header: 'Lương', key: 'salary', width: 15 },
+        { header: 'Thưởng', key: 'netPay', width: 15 },
+      ];
+
+      payrolls.forEach((p) => {
+        worksheet.addRow({
+          id: p.id,
+          employeeNo: p.employee.employeeNo,
+          employeeName: p.employee.name,
+          month: p.month,
+          year: p.year,
+          salary: p.baseSalary,
+          netPay: p.netPay,
+        });
+      });
+
+      // Style cho header (hàng 1)
+      const headerRow = worksheet.getRow(1);
+      headerRow.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } }; // trắng
+      headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+      headerRow.height = 20;
+
+      // Nền header xanh dương
+      headerRow.eachCell((cell) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: '4472C4' }, // xanh
+        };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      // Style cho toàn bộ bảng (border + alignment)
+      worksheet.eachRow((row, rowNumber) => {
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+
+          // Nếu là header thì giữ style header
+          if (rowNumber !== 1) {
+            if (typeof cell.value === 'number') {
+              cell.alignment = { horizontal: 'right' }; // căn phải số
+            } else {
+              cell.alignment = { horizontal: 'left' }; // căn trái text
+            }
+          }
+        });
+      });
+
+      // Xuất file excel ra buffer
+      const buffer = await workbook.xlsx.writeBuffer();
+
+      // Convert sang base64 để FE xử lý tải file
+      const base64 = Buffer.from(buffer).toString('base64');
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Xuất excel thành công',
+        data: base64,
+      };
+    } catch (error) {
+      console.error('error', error);
+      return {
+        resultCode: '99',
+        resultMessage: 'Xuất excel thất bại',
+        data: null,
+      };
+    }
+  }
+
+  async exportFlightsToExcel() {
+    try {
+      const flights = await this.prisma.flight.findMany({
+        include: { bookings: true },
+      });
+
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Flights');
+
+      worksheet.columns = [
+        { header: 'Flight ID', key: 'flightId', width: 10 },
+        { header: 'Flight No', key: 'flightNo', width: 15 },
+        { header: 'Departure Airport', key: 'departureAirport', width: 20 },
+        { header: 'Arrival Airport', key: 'arrivalAirport', width: 20 },
+        { header: 'Status', key: 'status', width: 15 },
+        { header: 'Aircraft Code', key: 'aircraftCode', width: 15 },
+        { header: 'Scheduled Departure', key: 'scheduledDeparture', width: 25 },
+        { header: 'Scheduled Arrival', key: 'scheduledArrival', width: 25 },
+        { header: 'Actual Departure', key: 'actualDeparture', width: 25 },
+        { header: 'Actual Arrival', key: 'actualArrival', width: 25 },
+        { header: 'Delay Minutes', key: 'delayMinutes', width: 15 },
+        { header: 'Flight Type', key: 'flightType', width: 15 },
+        { header: 'Cancelled', key: 'isCancelled', width: 10 },
+        { header: 'Price Business', key: 'priceBusiness', width: 15 },
+        { header: 'Price Economy', key: 'priceEconomy', width: 15 },
+        { header: 'Price First', key: 'priceFirst', width: 15 },
+      ];
+      flights.forEach((f) => {
+        worksheet.addRow({
+          flightId: f.flightId,
+          flightNo: f.flightNo,
+          departureAirport: f.departureAirport,
+          arrivalAirport: f.arrivalAirport,
+          status: f.status,
+          aircraftCode: f.aircraftCode,
+          scheduledDeparture: decimalToDate(f.scheduledDeparture),
+          scheduledArrival: decimalToDate(f.scheduledArrival),
+          actualDeparture: decimalToDate(f.actualDeparture) ?? '',
+          actualArrival: decimalToDate(f.actualArrival) ?? '',
+          delayMinutes: f.delayMinutes ?? '',
+          flightType: f.flightType,
+          isCancelled: f.isCancelled ? 'Yes' : 'No',
+          priceBusiness: f.priceBusiness ?? '',
+          priceEconomy: f.priceEconomy ?? '',
+          priceFirst: f.priceFirst ?? '',
+        });
+      });
+
+      // Style cho header (hàng 1)
+      const headerRow = worksheet.getRow(1);
+      headerRow.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } }; // trắng
+      headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+      headerRow.height = 20;
+
+      // Nền header xanh dương
+      headerRow.eachCell((cell) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: '4472C4' }, // xanh
+        };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      // Style cho toàn bộ bảng (border + alignment)
+      worksheet.eachRow((row, rowNumber) => {
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+
+          // Nếu là header thì giữ style header
+          if (rowNumber !== 1) {
+            if (typeof cell.value === 'number') {
+              cell.alignment = { horizontal: 'right' }; // căn phải số
+            } else {
+              cell.alignment = { horizontal: 'left' }; // căn trái text
+            }
+          }
+        });
+      });
+
+      // Xuất file excel ra buffer
+      const buffer = await workbook.xlsx.writeBuffer();
+
+      // Convert sang base64 để FE xử lý tải file
+      const base64 = Buffer.from(buffer).toString('base64');
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Xuất excel thành công',
+        data: base64,
+      };
+    } catch (error) {
+      console.error('error', error);
+      return {
+        resultCode: '99',
+        resultMessage: 'Xuất excel thất bại',
+        data: null,
+      };
+    }
   }
 }

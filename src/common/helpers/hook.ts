@@ -19,12 +19,12 @@ export async function generateOtp(expireMinutes: number = 5) {
 }
 
 export const toEpochNumber = (value: Decimal | number): number => {
-  return Number(value) / 1000; // từ ms → giây có dấu .
+  return Number(value) / 1000;
 };
 
 export async function hashPassword(password: string): Promise<string> {
-  const salt = await bcrypt.genSalt(10); // tạo salt
-  const hashed = await bcrypt.hash(password, salt); // hash mật khẩu
+  const salt = await bcrypt.genSalt(10);
+  const hashed = await bcrypt.hash(password, salt);
   return hashed;
 }
 
