@@ -180,7 +180,7 @@ export class AuthService {
 
   async loginUser(dto: LoginDto) {
     try {
-      const { email, password } = dto;
+      const { email, password, authType } = dto;
 
       if (!email || !password) {
         return {
@@ -249,7 +249,11 @@ export class AuthService {
 
       await this.prisma.user.update({
         where: { id: user.id },
-        data: { loginFailCnt: 0 },
+        data: {
+          loginFailCnt: 0,
+          authType: authType,
+          lastLoginDate: nowDecimal(),
+        },
       });
 
       const payload = { sub: user.id, email: user.email, role: user.role };

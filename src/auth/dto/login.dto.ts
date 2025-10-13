@@ -8,6 +8,9 @@ export class LoginDto {
   password: string;
 
   @IsString()
+  authType: string;
+
+  @IsString()
   tempPassword: string | null;
 }
 export class MfaLoginDto {
