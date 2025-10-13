@@ -37,14 +37,17 @@ export class AuthController {
   // async loginAdmin(@Body() dto: LoginDto) {
   //   return this.authService.loginUser(dto);
   // }
+
   @Post('logout')
   async logout(@Body() dto: { id: number; token: string }) {
     return this.authService.logout(dto.id, dto.token);
   }
+
   @Post('forgot-password')
   async forgotPassword(@Body() dto: { email: string }) {
     return this.authService.forgotPassword(dto.email);
   }
+
   @Post('change-password')
   async changePassword(
     @Body()
@@ -91,7 +94,7 @@ export class AuthController {
     });
   }
 
-  @Get('checkMfaSettingYn')
+  @Post('checkMfaSettingYn')
   async checkMfaYn(@Body() body: { email: string }) {
     return this.authService.checkMfaSettingYn(body.email);
   }

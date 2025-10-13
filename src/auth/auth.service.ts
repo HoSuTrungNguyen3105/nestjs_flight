@@ -225,7 +225,7 @@ export class AuthService {
           user.tempPassword,
         );
         if (!isTempPasswordValid) {
-          await this.handleLoginFail(user);
+          await this.handleLoginFail(user.id, user.loginFailCnt);
           return {
             resultCode: '99',
             resultMessage: 'Mật khẩu tạm không đúng!',
@@ -243,8 +243,8 @@ export class AuthService {
       const isPasswordValid = await bcrypt.compare(password, user.password);
 
       if (!isPasswordValid) {
-        await this.handleLoginFail(user);
-        return { resultCode: '99', resultMessage: 'Mật khẩu không đúng!' };
+        await this.handleLoginFail(user.id, user.loginFailCnt);
+        return;
       }
 
       await this.prisma.user.update({
@@ -715,12 +715,12 @@ export class AuthService {
   }
 
   // Helper xử lý khi sai mật khẩu
-  private async handleLoginFail(user: any) {
-    const newFailCnt = user.loginFailCnt + 1;
+  private async handleLoginFail(id: number, loginFailCnt: number) {
+    const newFailCnt = loginFailCnt + 1;
 
     if (newFailCnt >= 5) {
       await this.prisma.user.update({
-        where: { id: user.id },
+        where: { id },
         data: {
           loginFailCnt: newFailCnt,
           accountLockYn: 'Y',
@@ -733,7 +733,7 @@ export class AuthService {
       };
     } else {
       await this.prisma.user.update({
-        where: { id: user.id },
+        where: { id },
         data: { loginFailCnt: newFailCnt },
       });
     }
@@ -811,14 +811,17 @@ export class AuthService {
       },
     });
 
-    // Gửi email
     await this.mailer.sendMail(
       email,
       'Mật khẩu tạm thời của bạn',
       `Mật khẩu tạm thời của bạn là: ${tempPassword}`,
     );
 
-    return { resultCode: '00', message: 'Đã gửi mật khẩu tạm qua email' };
+    return {
+      resultCode: '00',
+      message: 'Đã gửi mật khẩu tạm qua email',
+      userId: user.id,
+    };
   }
 
   async checkMfaSettingYn(email: string) {
