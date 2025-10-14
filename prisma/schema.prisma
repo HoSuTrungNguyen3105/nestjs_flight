@@ -49,6 +49,18 @@ model User {
   payrolls         Payroll[]
   unlockRequests   UnlockRequest[]
   sessions         UserSession[]
+  transferAdmin    TransferAdmin?
+}
+
+model TransferAdmin {
+  id          Int            @id @default(autoincrement())
+  userId      Int            @unique
+  fromUserId  Int
+  toUserId    Int
+  status      TransferStatus @default(PENDING)
+  requestedAt Decimal        @db.Decimal(20, 3)
+  approvedAt  Decimal?       @db.Decimal(20, 3)
+  user        User           @relation(fields: [userId], references: [id])
 }
 
 model Message {
@@ -506,4 +518,10 @@ enum MealType {
   DINNER
   LUNCH
   BREAKFAST
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

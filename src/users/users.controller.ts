@@ -182,18 +182,6 @@ export class UsersController {
     return this.userService.findUserFromMessage(email, id);
   }
 
-  // @Get('exportPayrollsToExcel')
-  // async exportPayrolls(@Res() res: Response) {
-  //   const buffer = await this.userService.exportPayrollsToExcel();
-
-  //   res.setHeader('Content-Disposition', 'attachment; filename=payrolls.xlsx');
-  //   res.setHeader(
-  //     'Content-Type',
-  //     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  //   );
-
-  //   res.end(buffer.data);
-  // }
   @Get('init/exportPayrollsToExcel')
   async exportPayrolls() {
     return this.userService.exportPayrollsToExcel();
@@ -203,14 +191,4 @@ export class UsersController {
   async exportFlights() {
     return this.userService.exportFlightsToExcel();
   }
-  // async exportPayrolls(@Res() res: Response) {
-  //   const buffer = await this.userService.exportPayrollsToExcel();
-
-  //   res.setHeader('Content-Disposition', 'attachment; filename=payrolls.xlsx');
-  //   res.setHeader(
-  //     'Content-Type',
-  //     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  //   );
-  //   res.end(buffer);
-  // }
 }

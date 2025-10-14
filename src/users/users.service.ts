@@ -355,6 +355,53 @@ export class UsersService {
     });
   }
 
+  //  async requestChangeRole(employeeId: number, newRole: Role) {
+  //   const existing = await this.prisma.d.findFirst({
+  //     where: {
+  //       employeeId,
+  //       status: 'PENDING',
+  //     },
+  //   });
+
+  //   if (existing) {
+  //     return {
+  //       resultCode: '99',
+  //       resultMessage: 'Bạn đã gửi yêu cầu mở khóa, vui lòng chờ xử lý!',
+  //     };
+  //   }
+
+  //   const user = await this.prisma.user.findUnique({
+  //     where: { id: employeeId },
+  //   });
+
+  //   if (!user)
+  //     return {
+  //       resultCode: '99',
+  //       resultMessage: 'User không tồn tại!',
+  //     };
+
+  //   if (user.accountLockYn !== 'Y') {
+  //     return {
+  //       resultCode: '99',
+  //       resultMessage: 'Tài khoản chưa bị khóa, không cần mở khóa!',
+  //     };
+  //   }
+  //   if (user.isEmailVerified !== 'Y') {
+  //     return {
+  //       resultCode: '99',
+  //       resultMessage: 'Email chưa được xác thực, không thể mở khóa!',
+  //     };
+  //   }
+
+  //   return this.prisma.unlockRequest.create({
+  //     data: {
+  //       employeeId,
+  //       reason,
+  //       createdAt: nowDecimal(),
+  //     },
+  //   });
+  // }
+
   async getUserIdByEmail(email: string) {
     if (!email) {
       return {

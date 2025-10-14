@@ -675,6 +675,7 @@ export class AuthService {
         where: { id: user.id },
         data: {
           lastLoginDate: nowDecimal(),
+          authType: dto.authType,
           loginFailCnt: 0,
         },
       });
@@ -823,8 +824,7 @@ export class AuthService {
 
     return {
       resultCode: '00',
-      message: 'Đã gửi mật khẩu tạm qua email',
-      userId: user.id,
+      resultMessage: 'Đã gửi mật khẩu tạm qua email',
     };
   }
 

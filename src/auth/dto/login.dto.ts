@@ -20,4 +20,7 @@ export class MfaLoginDto {
   @IsString()
   @Length(6, 6)
   code!: string;
+
+  @IsString()
+  authType: string;
 }
