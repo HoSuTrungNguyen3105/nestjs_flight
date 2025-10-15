@@ -17,11 +17,15 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsString()
-  role: string; // USER | ADMIN
+  role: string;
 
   @IsOptional()
   @IsString()
-  password?: string; // truyền random ben frontend con neu frontend ko co se gán mặc định
+  password?: string;
+
+  @IsOptional()
+  @IsString()
+  employeeNo: string;
 }
 
 class EmployeeNoUpdateItem {

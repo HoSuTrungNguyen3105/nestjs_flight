@@ -500,7 +500,7 @@ export class AuthService {
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { tempPassword: hashPassword },
+      data: { password: '', tempPassword: hashPassword },
     });
 
     return {

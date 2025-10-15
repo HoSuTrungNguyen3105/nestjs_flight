@@ -11,10 +11,8 @@ import {
 import { UsersService } from './users.service';
 import { BatchUpdateEmployeeNoDto, CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserFromAdminDto } from './dto/update-user-from-admin.dto';
-import { UpdateUserInfoDto } from './dto/update-user.dto';
-import { JwtAuthGuard } from 'src/common/mfa/jwt-auth.guard';
 import { CreateLeaveRequestDto } from './dto/leave-request.dto';
-import { Response } from 'express';
+import { RequestChangeRoleDto } from './dto/request-change-role.dto';
 
 @Controller('sys/users')
 export class UsersController {
@@ -43,6 +41,13 @@ export class UsersController {
   @Post('setAccountLock')
   async setAccountLockChange(@Body() dto: { id: number }) {
     return this.userService.setAccountLockChange(dto.id);
+  }
+
+  @Post('permission-change-role')
+  async permissionToChangeRole(
+    @Body() dto: { id: number; employeeNo: string },
+  ) {
+    return this.userService.permissionToChangeRole(dto.id, dto.employeeNo);
   }
 
   @Post('promoteRank')
@@ -80,6 +85,21 @@ export class UsersController {
     return this.userService.approveUnlockRequest(id);
   }
 
+  @Post('approveTransfer/:id')
+  async approveTransfer(@Param('id', ParseIntPipe) id: number) {
+    return this.userService.approveTransfer(id);
+  }
+
+  @Post('rejectTransfer/:userId')
+  async rejectTransfer(@Param('userId', ParseIntPipe) userId: number) {
+    return this.userService.rejectTransfer(userId);
+  }
+
+  @Get('view/all-transfer-requests')
+  async findAllTransferRequests() {
+    return this.userService.findAllTransferRequests();
+  }
+
   @Post('approve-unlock-all')
   async approveUnlockAll() {
     return this.userService.approveAllUnlockRequests();
@@ -98,12 +118,18 @@ export class UsersController {
   }
 
   // @UseGuards(JwtAuthGuard)
-  @Post('updateUserInfo/:id')
-  async updateUserInfo(
-    @Body() dto: UpdateUserInfoDto,
-    @Param('id', ParseIntPipe) id: number,
-  ) {
-    return this.userService.updateUserInfo(id, dto);
+  // @Post('updateUserInfo/:id')
+  // async updateUserInfo(
+  //   @Body() dto: UpdateUserInfoDto,
+  //   @Param('id', ParseIntPipe) id: number,
+  // ) {
+  //   return this.userService.updateUserInfo(id, dto);
+  // }
+
+  @Post('request-change-role')
+  async requestChangeRole(@Body() dto: RequestChangeRoleDto) {
+    const res = await this.userService.requestChangeRole(dto);
+    return res;
   }
 
   @Post('getUserIdByEmail')

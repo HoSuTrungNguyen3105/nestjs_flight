@@ -35,6 +35,9 @@ model User {
   otpCode           String?
   otpExpire         Decimal? @db.Decimal(20, 3)
 
+  toTransferAdminUserYn   String? @default("N")
+  fromTransferAdminUserYn String? @default("N")
+
   baseSalary Float?
   department Department?
 

@@ -114,6 +114,13 @@ export class AuthController {
     return this.authService.disabledMfaLogin(body.userId);
   }
 
+  @Post('resetTempPassword')
+  async resetTempPassword(
+    @Body() body: { userId: number; tempPassword: string },
+  ) {
+    return this.authService.resetTempPassword(body.userId, body.tempPassword);
+  }
+
   @Post('verifyOtp')
   async verifyOtp(@Body() body: { userId: number; otp: string }) {
     return this.authService.verifyOtp(body.userId, body.otp);

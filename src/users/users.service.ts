@@ -6,17 +6,17 @@ import { Department, Position, Prisma, Role } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { generatePassword } from './hooks/randompw';
 import { UserResponseDto } from './dto/info-user-dto';
-import { formatUserResponse, toEpochDecimal } from 'src/common/helpers/hook';
+import { formatUserResponse } from 'src/common/helpers/hook';
 import { Decimal } from 'generated/prisma/runtime/library';
 import { MailService } from 'src/common/nodemailer/nodemailer.service';
 import { decimalToDate, nowDecimal } from 'src/common/helpers/format';
-import { UpdateUserInfoDto } from './dto/update-user.dto';
 import { UpdateUserFromAdminDto } from './dto/update-user-from-admin.dto';
 import { v2 as cloudinary } from 'cloudinary';
 import { CreateLeaveRequestDto } from './dto/leave-request.dto';
 import { BatchUpdateResult } from './dto/user-response.dto';
 import * as ExcelJS from 'exceljs';
 import { Blob } from 'buffer';
+import { RequestChangeRoleDto } from './dto/request-change-role.dto';
 
 @Injectable()
 export class UsersService {
@@ -263,6 +263,17 @@ export class UsersService {
         };
       }
 
+      const existingEmployeeNo = await this.prisma.user.findUnique({
+        where: { employeeNo: dto.employeeNo },
+      });
+
+      if (existingEmployeeNo) {
+        return {
+          resultCode: '01',
+          resultMessage: 'Employee No đã tồn tại',
+        };
+      }
+
       const defaultPassword = dto.password ?? generatePassword(true);
       const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
@@ -355,52 +366,194 @@ export class UsersService {
     });
   }
 
-  //  async requestChangeRole(employeeId: number, newRole: Role) {
-  //   const existing = await this.prisma.d.findFirst({
-  //     where: {
-  //       employeeId,
-  //       status: 'PENDING',
-  //     },
-  //   });
+  async requestChangeRole(data: RequestChangeRoleDto) {
+    const canTransferAdmin = await this.prisma.user.findUnique({
+      where: { id: data.userId, fromTransferAdminUserYn: 'Y' },
+    });
 
-  //   if (existing) {
-  //     return {
-  //       resultCode: '99',
-  //       resultMessage: 'Bạn đã gửi yêu cầu mở khóa, vui lòng chờ xử lý!',
-  //     };
-  //   }
+    if (!canTransferAdmin) {
+      return { resultCode: '99', resultMessage: 'Khong the transfer!' };
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { employeeNo: data.employeeNo },
+    });
 
-  //   const user = await this.prisma.user.findUnique({
-  //     where: { id: employeeId },
-  //   });
+    if (!user) {
+      return { resultCode: '99', resultMessage: 'Nhân viên không tồn tại!' };
+    }
 
-  //   if (!user)
-  //     return {
-  //       resultCode: '99',
-  //       resultMessage: 'User không tồn tại!',
-  //     };
+    const existing = await this.prisma.transferAdmin.findFirst({
+      where: { userId: user.id, status: 'PENDING' },
+    });
 
-  //   if (user.accountLockYn !== 'Y') {
-  //     return {
-  //       resultCode: '99',
-  //       resultMessage: 'Tài khoản chưa bị khóa, không cần mở khóa!',
-  //     };
-  //   }
-  //   if (user.isEmailVerified !== 'Y') {
-  //     return {
-  //       resultCode: '99',
-  //       resultMessage: 'Email chưa được xác thực, không thể mở khóa!',
-  //     };
-  //   }
+    if (existing) {
+      return {
+        resultCode: '99',
+        resultMessage: 'Bạn đã gửi yêu cầu, vui lòng chờ xử lý!',
+      };
+    }
 
-  //   return this.prisma.unlockRequest.create({
-  //     data: {
-  //       employeeId,
-  //       reason,
-  //       createdAt: nowDecimal(),
-  //     },
-  //   });
-  // }
+    if (!user)
+      return {
+        resultCode: '99',
+        resultMessage: 'User không tồn tại!',
+      };
+
+    if (user.accountLockYn === 'Y') {
+      return {
+        resultCode: '99',
+        resultMessage: 'Tài khoản dang bị khóa, cần mở khóa de chuyen quyen!',
+      };
+    }
+    if (user.isEmailVerified !== 'Y') {
+      return {
+        resultCode: '99',
+        resultMessage: 'Email chưa được xác thực, không thể chuyen quyen!',
+      };
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { toTransferAdminUserYn: 'Y' },
+    });
+
+    await this.prisma.transferAdmin.create({
+      data: {
+        userId: user.id,
+        fromUserId: data.fromUserId,
+        toUserId: user.id,
+        requestedAt: nowDecimal(),
+        status: 'PENDING',
+      },
+    });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Gửi yêu cầu chuyển quyền thành công, vui lòng chờ xử lý!',
+    };
+  }
+
+  async approveTransfer(userId: number) {
+    try {
+      const transfer = await this.prisma.transferAdmin.findUnique({
+        where: { userId },
+        include: { user: true },
+      });
+
+      if (!transfer) {
+        return {
+          resultCode: '01',
+          resultMessage: `Không tìm thấy Transfer với userId = ${userId}`,
+        };
+      }
+
+      const [updatedTransfer, updatedUser] = await this.prisma.$transaction([
+        this.prisma.transferAdmin.update({
+          where: { userId },
+          data: {
+            status: 'APPROVED',
+            approvedAt: nowDecimal(),
+          },
+        }),
+        this.prisma.user.update({
+          where: { id: userId },
+          data: { role: 'ADMIN', updatedAt: nowDecimal() },
+        }),
+      ]);
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Transfer approved thành công',
+        data: {
+          transfer: updatedTransfer,
+          user: updatedUser,
+        },
+      };
+    } catch (error) {
+      console.error('Error approving transfer:', error);
+      throw error;
+    }
+  }
+
+  async rejectTransfer(userId: number) {
+    try {
+      const transfer = await this.prisma.transferAdmin.findUnique({
+        where: { userId },
+      });
+
+      if (!transfer) {
+        return {
+          resultCode: '01',
+          resultMessage: `Không tìm thấy Transfer với userId = ${userId}`,
+        };
+      }
+
+      return await this.prisma.transferAdmin.update({
+        where: { userId },
+        data: { status: 'REJECTED' },
+      });
+    } catch (error) {
+      console.error('Error rejecting transfer:', error);
+      throw error;
+    }
+  }
+
+  async permissionToChangeRole(id: number, employeeNo: string) {
+    try {
+      const transfer = await this.prisma.user.findFirst({
+        where: { id, employeeNo },
+      });
+
+      if (!transfer) {
+        return {
+          resultCode: '01',
+          resultMessage: `Không tìm thấy userId = ${id} và employeeNo = ${employeeNo}`,
+        };
+      }
+
+      await this.prisma.user.update({
+        where: { id },
+        data: { fromTransferAdminUserYn: 'Y' },
+      });
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Cập nhật quyền thành công',
+      };
+    } catch (error) {
+      console.error('Error updating transfer:', error);
+      return {
+        resultCode: '99',
+        resultMessage: 'Có lỗi xảy ra khi cập nhật',
+        error: error.message,
+      };
+    }
+  }
+
+  async findAllTransferRequests() {
+    try {
+      const transt = await this.prisma.transferAdmin.findMany({
+        include: {
+          user: {
+            select: {
+              id: true,
+              role: true,
+              email: true,
+              name: true,
+            },
+          },
+        },
+      });
+      return {
+        resultCode: '00',
+        resultMessage: 'Transfer data',
+        list: transt,
+      };
+    } catch (error) {
+      console.error('Error finding all user requests:', error);
+      throw error;
+    }
+  }
 
   async getUserIdByEmail(email: string) {
     if (!email) {
@@ -581,47 +734,53 @@ export class UsersService {
     }
   }
 
-  async updateUserInfo(id: number, updateUserDto: UpdateUserInfoDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-    });
-    if (!user) {
-      return {
-        resultCode: '99',
-        resultMessage: `User with ID ${id} not found`,
-      };
-    }
+  // async updateUserInfo(id: number, updateUserDto: UpdateUserInfoDto) {
+  //   const user = await this.prisma.user.findUnique({
+  //     where: { id },
+  //   });
+  //   if (!user) {
+  //     return {
+  //       resultCode: '99',
+  //       resultMessage: `User with ID ${id} not found`,
+  //     };
+  //   }
 
-    let pictureUrl = user.pictureUrl;
-    if (
-      updateUserDto.pictureUrl &&
-      updateUserDto.pictureUrl !== user.pictureUrl
-    ) {
-      const uploadResponse = await cloudinary.uploader.upload(
-        updateUserDto.pictureUrl as string,
-      );
-      pictureUrl = uploadResponse.secure_url;
-    }
+  //   let pictureUrl = user.pictureUrl;
+  //   if (
+  //     updateUserDto.pictureUrl &&
+  //     updateUserDto.pictureUrl !== user.pictureUrl
+  //   ) {
+  //     const uploadResponse = await cloudinary.uploader.upload(
+  //       updateUserDto.pictureUrl as string,
+  //     );
+  //     pictureUrl = uploadResponse.secure_url;
+  //   }
 
-    await this.prisma.user.update({
-      where: { id },
-      data: {
-        name: updateUserDto.name ?? user.name,
-        // email: updateUserDto.email ?? user.email,
-        role: updateUserDto.role ?? user.role,
-        pictureUrl,
-        updatedAt: nowDecimal(), // hoặc dùng hàm nowDecimal() nếu anh đang xài Decimal timestamp
-      },
-    });
+  //   await this.prisma.user.update({
+  //     where: { id },
+  //     data: {
+  //       name: updateUserDto.name ?? user.name,
+  //       // email: updateUserDto.email ?? user.email,
+  //       role: updateUserDto.role ?? user.role,
+  //       pictureUrl,
+  //       updatedAt: nowDecimal(), // hoặc dùng hàm nowDecimal() nếu anh đang xài Decimal timestamp
+  //     },
+  //   });
 
-    return {
-      resultCode: '00',
-      resultMessage: 'Cập nhật người dùng thành công!',
-    };
-  }
+  //   return {
+  //     resultCode: '00',
+  //     resultMessage: 'Cập nhật người dùng thành công!',
+  //   };
+  // }
 
   async updateUserFromAdmin(id: number, updateUserDto: UpdateUserFromAdminDto) {
     try {
+      if (!id) {
+        return {
+          resultCode: '99',
+          resultMessage: 'User id is required',
+        };
+      }
       const user = await this.prisma.user.findUnique({
         where: { id },
       });
@@ -651,6 +810,7 @@ export class UsersService {
         data: updatedUser,
       };
     } catch (error) {
+      console.error('err', error);
       throw error;
     }
   }
