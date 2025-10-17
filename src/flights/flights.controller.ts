@@ -241,11 +241,8 @@ export class FlightsController {
     return this.flightService.findAllFlightStatus();
   }
 
-  @Post('updateFlightStatus/:id')
-  updateFlightStatus(
-    @Param('id') id: string,
-    @Body() body: { status: string },
-  ) {
-    return this.flightService.updateFlightStatus(Number(id), body);
+  @Post('updateFlightStatus')
+  updateFlightStatus(@Body() body: { id: number; status: string }) {
+    return this.flightService.updateFlightStatus(body.id, body);
   }
 }

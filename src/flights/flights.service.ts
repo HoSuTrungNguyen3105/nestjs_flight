@@ -998,7 +998,7 @@ export class FlightsService {
   }
 
   async updateFlightStatus(id: number, data: { status?: string }) {
-    const res = await this.prisma.flight.update({
+    await this.prisma.flight.update({
       where: { flightId: id },
       data: {
         ...data,
@@ -1007,7 +1007,6 @@ export class FlightsService {
     return {
       resultCode: '00',
       resultMessage: 'Update flight status success',
-      data: res,
     };
   }
 

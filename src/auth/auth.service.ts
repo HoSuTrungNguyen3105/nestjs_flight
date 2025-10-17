@@ -305,9 +305,13 @@ export class AuthService {
         hireDate: true,
         phone: true,
         status: true,
+        department: true,
+        position: true,
         name: true,
         role: true,
         rank: true,
+        lastLoginDate: true,
+        transferAdmin: true,
         attendance: {
           select: {
             id: true,

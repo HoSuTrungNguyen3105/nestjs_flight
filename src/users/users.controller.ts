@@ -77,8 +77,8 @@ export class UsersController {
   }
 
   @Post('request-unlock/delete')
-  async deleteRequestUnlockById(@Body() dto: { userId: number }) {
-    return this.userService.deleteUnlockRequestById(dto.userId);
+  async deleteRequestUnlockById(@Body() dto: { id: number }) {
+    return this.userService.deleteUnlockRequestById(dto.id);
   }
 
   @Post('approve-unlock/:id')
@@ -86,14 +86,11 @@ export class UsersController {
     return this.userService.approveUnlockRequest(id);
   }
 
-  @Post('approveTransfer/:id')
-  async approveTransfer(@Param('id', ParseIntPipe) id: number) {
-    return this.userService.approveTransfer(id);
-  }
-
-  @Post('rejectTransfer/:userId')
-  async rejectTransfer(@Param('userId', ParseIntPipe) userId: number) {
-    return this.userService.rejectTransfer(userId);
+  @Post('modeTransfer')
+  async modeTransferOption(
+    @Body() body: { userId: number; mode: 'approve' | 'reject' },
+  ) {
+    return this.userService.modeTransferOption(body.userId, body.mode);
   }
 
   @Get('view/all-transfer-requests')

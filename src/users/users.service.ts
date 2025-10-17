@@ -2,7 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { BatchUpdateEmployeeNoDto, CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma.service';
-import { Department, Position, Prisma, Role } from 'generated/prisma';
+import {
+  Department,
+  Position,
+  Prisma,
+  Role,
+  TransferAdmin,
+  User,
+} from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { generatePassword } from './hooks/randompw';
 import { UserResponseDto } from './dto/info-user-dto';
@@ -436,7 +443,7 @@ export class UsersService {
     };
   }
 
-  async approveTransfer(userId: number) {
+  async modeTransferOption(userId: number, mode: 'approve' | 'reject') {
     try {
       const transfer = await this.prisma.transferAdmin.findUnique({
         where: { userId },
@@ -450,56 +457,69 @@ export class UsersService {
         };
       }
 
-      const [updatedTransfer, updatedUser] = await this.prisma.$transaction([
-        this.prisma.transferAdmin.update({
+      let updatedTransfer: TransferAdmin | null = null;
+      let updatedUser: User | null = null;
+
+      if (mode === 'approve') {
+        [updatedTransfer, updatedUser] = await this.prisma.$transaction([
+          this.prisma.transferAdmin.update({
+            where: { userId },
+            data: {
+              status: 'APPROVED',
+              approvedAt: nowDecimal(),
+            },
+          }),
+          this.prisma.user.update({
+            where: { id: userId },
+            data: { role: 'ADMIN', updatedAt: nowDecimal() },
+          }),
+        ]);
+      } else if (mode === 'reject') {
+        updatedTransfer = await this.prisma.transferAdmin.update({
           where: { userId },
-          data: {
-            status: 'APPROVED',
-            approvedAt: nowDecimal(),
-          },
-        }),
-        this.prisma.user.update({
-          where: { id: userId },
-          data: { role: 'ADMIN', updatedAt: nowDecimal() },
-        }),
-      ]);
+          data: { status: 'REJECTED' },
+        });
+      }
 
       return {
         resultCode: '00',
-        resultMessage: 'Transfer approved thành công',
+        resultMessage:
+          mode === 'approve'
+            ? 'Transfer approved thành công'
+            : 'Transfer rejected thành công',
         data: {
           transfer: updatedTransfer,
           user: updatedUser,
         },
       };
     } catch (error) {
-      console.error('Error approving transfer:', error);
+      console.error('Error on transfer:', error);
       throw error;
     }
   }
 
-  async rejectTransfer(userId: number) {
-    try {
-      const transfer = await this.prisma.transferAdmin.findUnique({
-        where: { userId },
-      });
+  // async rejectTransfer(userId: number) {
+  //   try {
+  //     const transfer = await this.prisma.transferAdmin.findUnique({
+  //       where: { userId },
+  //     });
 
-      if (!transfer) {
-        return {
-          resultCode: '01',
-          resultMessage: `Không tìm thấy Transfer với userId = ${userId}`,
-        };
-      }
+  //     if (!transfer) {
+  //       return {
+  //         resultCode: '01',
+  //         resultMessage: `Không tìm thấy Transfer với userId = ${userId}`,
+  //       };
+  //     }
 
-      return await this.prisma.transferAdmin.update({
-        where: { userId },
-        data: { status: 'REJECTED' },
-      });
-    } catch (error) {
-      console.error('Error rejecting transfer:', error);
-      throw error;
-    }
-  }
+  //     return await this.prisma.transferAdmin.update({
+  //       where: { userId },
+  //       data: { status: 'REJECTED' },
+  //     });
+  //   } catch (error) {
+  //     console.error('Error rejecting transfer:', error);
+  //     throw error;
+  //   }
+  // }
 
   async permissionToChangeRole(id: number, employeeNo: string) {
     try {
