@@ -381,6 +381,10 @@ export class SeatService {
         resultMessage: 'Cannot delete a booked seat.',
       };
     }
-    return this.prisma.seat.delete({ where: { id } });
+    await this.prisma.seat.delete({ where: { id } });
+    return {
+      resultCode: '00',
+      resultMessage: 'Seat deleted successfully.',
+    };
   }
 }

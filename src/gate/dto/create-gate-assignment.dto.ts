@@ -5,7 +5,6 @@ import {
   IsNumber,
   IsInt,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateGateAssignmentDto {

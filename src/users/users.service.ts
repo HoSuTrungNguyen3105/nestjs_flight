@@ -17,6 +17,7 @@ import { BatchUpdateResult } from './dto/user-response.dto';
 import * as ExcelJS from 'exceljs';
 import { Blob } from 'buffer';
 import { RequestChangeRoleDto } from './dto/request-change-role.dto';
+import { UpdateMyInfoDto } from './dto/update-my-info.dto';
 
 @Injectable()
 export class UsersService {
@@ -212,6 +213,8 @@ export class UsersService {
         baseSalary: true,
         attendance: true,
         position: true,
+        fromTransferAdminUserYn: true,
+        toTransferAdminUserYn: true,
         phone: true,
         createdAt: true,
         updatedAt: true,
@@ -734,44 +737,45 @@ export class UsersService {
     }
   }
 
-  // async updateUserInfo(id: number, updateUserDto: UpdateUserInfoDto) {
-  //   const user = await this.prisma.user.findUnique({
-  //     where: { id },
-  //   });
-  //   if (!user) {
-  //     return {
-  //       resultCode: '99',
-  //       resultMessage: `User with ID ${id} not found`,
-  //     };
-  //   }
+  async updateMyInfo(id: number, updateUserDto: UpdateMyInfoDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+    if (!user) {
+      return {
+        resultCode: '99',
+        resultMessage: `User with ID ${id} not found`,
+      };
+    }
 
-  //   let pictureUrl = user.pictureUrl;
-  //   if (
-  //     updateUserDto.pictureUrl &&
-  //     updateUserDto.pictureUrl !== user.pictureUrl
-  //   ) {
-  //     const uploadResponse = await cloudinary.uploader.upload(
-  //       updateUserDto.pictureUrl as string,
-  //     );
-  //     pictureUrl = uploadResponse.secure_url;
-  //   }
+    let pictureUrl = user.pictureUrl;
+    if (
+      updateUserDto.pictureUrl &&
+      updateUserDto.pictureUrl !== user.pictureUrl
+    ) {
+      const uploadResponse = await cloudinary.uploader.upload(
+        updateUserDto.pictureUrl as string,
+      );
+      pictureUrl = uploadResponse.secure_url;
+    }
 
-  //   await this.prisma.user.update({
-  //     where: { id },
-  //     data: {
-  //       name: updateUserDto.name ?? user.name,
-  //       // email: updateUserDto.email ?? user.email,
-  //       role: updateUserDto.role ?? user.role,
-  //       pictureUrl,
-  //       updatedAt: nowDecimal(), // hoặc dùng hàm nowDecimal() nếu anh đang xài Decimal timestamp
-  //     },
-  //   });
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        name: updateUserDto.name ?? user.name,
+        userAlias: updateUserDto.userAlias ?? user.userAlias,
+        phone: updateUserDto.phone ?? user.phone,
+        employeeNo: updateUserDto.employeeNo ?? user.employeeNo,
+        pictureUrl,
+        updatedAt: nowDecimal(),
+      },
+    });
 
-  //   return {
-  //     resultCode: '00',
-  //     resultMessage: 'Cập nhật người dùng thành công!',
-  //   };
-  // }
+    return {
+      resultCode: '00',
+      resultMessage: 'Cập nhật người dùng thành công!',
+    };
+  }
 
   async updateUserFromAdmin(id: number, updateUserDto: UpdateUserFromAdminDto) {
     try {

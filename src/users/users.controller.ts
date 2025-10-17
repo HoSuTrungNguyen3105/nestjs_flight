@@ -13,6 +13,7 @@ import { BatchUpdateEmployeeNoDto, CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserFromAdminDto } from './dto/update-user-from-admin.dto';
 import { CreateLeaveRequestDto } from './dto/leave-request.dto';
 import { RequestChangeRoleDto } from './dto/request-change-role.dto';
+import { UpdateMyInfoDto } from './dto/update-my-info.dto';
 
 @Controller('sys/users')
 export class UsersController {
@@ -118,13 +119,13 @@ export class UsersController {
   }
 
   // @UseGuards(JwtAuthGuard)
-  // @Post('updateUserInfo/:id')
-  // async updateUserInfo(
-  //   @Body() dto: UpdateUserInfoDto,
-  //   @Param('id', ParseIntPipe) id: number,
-  // ) {
-  //   return this.userService.updateUserInfo(id, dto);
-  // }
+  @Post('updateMyInfo/:id')
+  async updateMyInfo(
+    @Body() dto: UpdateMyInfoDto,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.userService.updateMyInfo(id, dto);
+  }
 
   @Post('request-change-role')
   async requestChangeRole(@Body() dto: RequestChangeRoleDto) {

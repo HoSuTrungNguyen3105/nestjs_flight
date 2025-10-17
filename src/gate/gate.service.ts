@@ -244,7 +244,15 @@ export class GatesService {
 
   async updateGateById(id: string, updateGateDto: UpdateGateDto) {
     try {
-      return await this.prisma.gate.update({
+      const gate = await this.prisma.gate.findUnique({ where: { id } });
+
+      if (!gate) {
+        return {
+          resultCode: '00',
+          resultMessage: `Gate with id ${id} not found`,
+        };
+      }
+      await this.prisma.gate.update({
         where: { id },
         data: {
           ...updateGateDto,
@@ -260,6 +268,10 @@ export class GatesService {
           },
         },
       });
+      return {
+        resultCode: '00',
+        resultMessage: 'Success update gate',
+      };
     } catch (error) {
       console.error('error', error);
       throw error;
@@ -352,8 +364,8 @@ export class GatesService {
         },
       });
     } catch (error) {
+      console.error('error', error);
       throw error;
-      //   throw new NotFoundException(`Gate with id ${id} not found`);
     }
   }
 
@@ -379,10 +391,8 @@ export class GatesService {
         resultCode: '01',
         resultMessage: `Flight with id ${createGateAssignmentDto.flightId} not found`,
       };
-      //   throw new NotFoundException(`Flight with id ${createGateAssignmentDto.flightId} not found`);
     }
 
-    // Check if assignment already exists
     const existingAssignment = await this.prisma.gateAssignment.findFirst({
       where: {
         gateId: createGateAssignmentDto.gateId,
@@ -395,12 +405,13 @@ export class GatesService {
         resultCode: '01',
         resultMessage: `Gate assignment already exists for gate ${createGateAssignmentDto.gateId} and flight ${createGateAssignmentDto.flightId}`,
       };
-      //   throw new ConflictException(`Gate assignment already exists for gate ${createGateAssignmentDto.gateId} and flight ${createGateAssignmentDto.flightId}`);
     }
 
-    // Check if gate is available
     if (gate.status !== 'AVAILABLE') {
-      //   throw new ConflictException(`Gate ${gate.code} is not available. Current status: ${gate.status}`);
+      return {
+        resultCode: '01',
+        resultMessage: `Gate ${gate.code} is not available. Current status: ${gate.status}`,
+      };
     }
 
     const assignment = await this.prisma.gateAssignment.create({
@@ -437,7 +448,16 @@ export class GatesService {
       where: { id },
       include: {
         gate: true,
-        flight: true,
+        flight: {
+          select: {
+            flightNo: true,
+            departureAirport: true,
+            arrivalAirport: true,
+            aircraft: true,
+            flightStatuses: true,
+            status: true,
+          },
+        },
       },
     });
 
@@ -448,7 +468,11 @@ export class GatesService {
       };
     }
 
-    return assignment;
+    return {
+      resultCode: '00',
+      resultMessage: `Gate assignment with id ${id} has found`,
+      data: assignment,
+    };
   }
 
   async update(id: string, updateGateAssignmentDto: UpdateGateAssignmentDto) {

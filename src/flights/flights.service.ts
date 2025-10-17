@@ -418,6 +418,24 @@ export class FlightsService {
     }
   }
 
+  async findAllIdsFlight() {
+    try {
+      const res = await this.prisma.flight.findMany({
+        select: { flightId: true, flightNo: true, status: true },
+      });
+      return {
+        resultCode: '00',
+        resultMessage: 'Lấy danh sách ID chuyến bay thành công',
+        list: res,
+      };
+    } catch (error) {
+      return {
+        resultCode: '99',
+        resultMessage: error.message || 'Xoá toàn bộ flights thất bại',
+      };
+    }
+  }
+
   async cancelFlight(flightId: number) {
     return this.prisma.flight.update({
       where: { flightId },
@@ -979,15 +997,11 @@ export class FlightsService {
     };
   }
 
-  async updateFlightStatus(
-    id: number,
-    data: { status?: string; description?: string },
-  ) {
-    const res = await this.prisma.flightStatus.update({
-      where: { id },
+  async updateFlightStatus(id: number, data: { status?: string }) {
+    const res = await this.prisma.flight.update({
+      where: { flightId: id },
       data: {
         ...data,
-        updatedAt: nowDecimal(),
       },
     });
     return {

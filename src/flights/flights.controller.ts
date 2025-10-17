@@ -51,28 +51,28 @@ export class FlightsController {
 
   @Get('terminal')
   async findAllTerminal() {
-    return this.flightService.findAllTerminal();
+    return await this.flightService.findAllTerminal();
   }
 
   @Post('createTerminal')
-  createTerminal(@Body() data: CreateTerminalDto) {
-    return this.flightService.createTerminal(data);
+  async createTerminal(@Body() data: CreateTerminalDto) {
+    return await this.flightService.createTerminal(data);
   }
 
   @Post('createTerminal/bulk')
   async createTerminalBulk(@Body() dto: CreateTerminalDto[]) {
-    return this.flightService.creatManyTerminal(dto);
+    return await this.flightService.creatManyTerminal(dto);
   }
 
   // @UseGuards(AuthGuard('jwt'))
   @Get()
   async findAll(): Promise<BaseResponseDto<FlightResponseDto>> {
-    return this.flightService.findAll();
+    return await this.flightService.findAll();
   }
 
   @Get('getFlight/:id')
-  findOne(@Param('id') id: number) {
-    return this.flightService.findOne(+id);
+  async findOne(@Param('id') id: number) {
+    return await this.flightService.findOne(+id);
   }
 
   @Get('getFlightAllInfo/:id')
@@ -93,6 +93,11 @@ export class FlightsController {
   @Get('aircraft')
   async getAircraft() {
     return this.flightService.getAllAircraft();
+  }
+
+  @Get('flightIds')
+  async findAllIdsFlight() {
+    return this.flightService.findAllIdsFlight();
   }
 
   @Post('aircraft/batch')
@@ -239,7 +244,7 @@ export class FlightsController {
   @Post('updateFlightStatus/:id')
   updateFlightStatus(
     @Param('id') id: string,
-    @Body() body: { status?: string; description?: string },
+    @Body() body: { status: string },
   ) {
     return this.flightService.updateFlightStatus(Number(id), body);
   }
