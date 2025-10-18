@@ -58,63 +58,123 @@ export class FlightsService {
     }
   }
 
-  async createMany(
-    data: CreateFlightDto[],
-  ): Promise<BaseResponseDto<FlightResponseDto[]>> {
+  async createMany(data: CreateFlightDto[]) {
     try {
-      const createdFlights: FlightResponseDto[] = [];
-
-      for (const flightData of data) {
-        const hasAircraft = await this.prisma.aircraft.findUnique({
-          where: { code: flightData.aircraftCode },
-        });
-        if (!hasAircraft) {
-          return {
-            resultCode: '01',
-            resultMessage: 'No aircraft',
-          };
-        }
-
-        const hasTerminal = await this.prisma.terminal.findUnique({
-          where: { code: flightData.terminal },
-        });
-        if (!hasTerminal) {
-          return {
-            resultCode: '01',
-            resultMessage: 'No Terminal',
-          };
-        }
-
-        const flightExists = await this.prisma.flight.findUnique({
-          where: { flightNo: flightData.flightNo },
-        });
-
-        if (flightExists) {
-          continue;
-        }
-
-        const flight = await this.prisma.flight.create({
-          data: { ...flightData },
-        });
-
-        const formattedFlight = {
-          ...flight,
-          scheduledArrival: flight.scheduledArrival
-            ? new Prisma.Decimal(flight.scheduledArrival)
-            : null,
-          scheduledDeparture: flight.scheduledDeparture
-            ? new Prisma.Decimal(flight.scheduledDeparture)
-            : null,
+      if (!data || data.length === 0) {
+        return {
+          resultCode: '05',
+          resultMessage: 'No aircraft data provided',
+          data: [],
         };
-
-        createdFlights.push(formattedFlight);
       }
+
+      const tasks = data.map(async (aircraftData) => {
+        try {
+          if (!aircraftData.flightNo) {
+            return {
+              code: aircraftData.flightNo || '(empty)',
+              errorCode: '05',
+              errorMessage: 'Missing required fields',
+            };
+          }
+
+          const duplicateFlightNo = await this.prisma.aircraft.findUnique({
+            where: { code: aircraftData.flightNo },
+          });
+
+          if (duplicateFlightNo) {
+            return {
+              code: aircraftData.flightNo,
+              errorCode: '01',
+              errorMessage: `Aircraft with code ${aircraftData.flightNo} already exists`,
+            };
+          }
+
+          await this.prisma.flight.create({
+            data: aircraftData,
+          });
+
+          return {
+            code: aircraftData.flightNo,
+            errorCode: '00',
+            errorMessage: 'Aircraft created successfully',
+          };
+        } catch (error) {
+          return {
+            code: aircraftData.flightNo,
+            errorCode: '02',
+            errorMessage: `Failed to create aircraft ${aircraftData.flightNo}`,
+          };
+        }
+      });
+
+      const results = await Promise.all(tasks);
 
       return {
         resultCode: '00',
-        resultMessage: 'Tạo nhiều flight thành công',
-        data: createdFlights,
+        resultMessage: 'Batch aircraft creation completed',
+        list: results,
       };
+      // const results = await Promise.all(
+      //   data.map(async (item) => {
+      //     const hasAircraft = await this.prisma.aircraft.findUnique({
+      //       where: { code: item.aircraftCode },
+      //     });
+      //     if (!hasAircraft) {
+      //       return {
+      //         error: true,
+      //         resultCode: '01',
+      //         resultMessage: `No aircraft with code ${item.aircraftCode}`,
+      //       };
+      //     }
+
+      //     const hasTerminal = await this.prisma.terminal.findUnique({
+      //       where: { code: item.terminal },
+      //     });
+      //     if (!hasTerminal) {
+      //       return {
+      //         error: true,
+      //         resultCode: '01',
+      //         resultMessage: `No terminal with code ${item.terminal}`,
+      //       };
+      //     }
+
+      //     const flightExists = await this.prisma.flight.findUnique({
+      //       where: { flightNo: item.flightNo },
+      //     });
+      //     if (flightExists) {
+      //       return {
+      //         error: true,
+      //         resultCode: '02',
+      //         resultMessage: `Flight ${item.flightNo} already exists`,
+      //       };
+      //     }
+
+      //     const flight = await this.prisma.flight.create({
+      //       data: { ...item },
+      //     });
+
+      //     return {
+      //       ...flight,
+      //       scheduledArrival: flight.scheduledArrival
+      //         ? new Prisma.Decimal(flight.scheduledArrival)
+      //         : null,
+      //       scheduledDeparture: flight.scheduledDeparture
+      //         ? new Prisma.Decimal(flight.scheduledDeparture)
+      //         : null,
+      //     } as FlightResponseDto;
+      //   }),
+      // );
+
+      // const successfulFlights = results.filter(
+      //   (r): r is FlightResponseDto => !r,
+      // );
+
+      // return {
+      //   resultCode: '00',
+      //   resultMessage: 'Processed create many flights!',
+      //   data: successfulFlights,
+      // };
     } catch (error) {
       console.error('error', error);
       throw error;
@@ -998,16 +1058,18 @@ export class FlightsService {
   }
 
   async updateFlightStatus(id: number, data: { status?: string }) {
-    await this.prisma.flight.update({
-      where: { flightId: id },
-      data: {
-        ...data,
-      },
-    });
-    return {
-      resultCode: '00',
-      resultMessage: 'Update flight status success',
-    };
+    try {
+      await this.prisma.flight.update({
+        where: { flightId: id },
+        data: { status: data.status },
+      });
+      return {
+        resultCode: '00',
+        resultMessage: 'Update flight status success',
+      };
+    } catch (error) {
+      console.error('errr', error);
+    }
   }
 
   async findAllFlightStatus() {
