@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   UseGuards,
   Res,
+  Headers,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { BatchUpdateEmployeeNoDto, CreateUserDto } from './dto/create-user.dto';
@@ -163,6 +164,17 @@ export class UsersController {
   @Post('deleteUser')
   async remove(@Body('id') id: number) {
     return this.userService.deleteUser(Number(id));
+  }
+
+  @Post('deleteMyAccount')
+  async deleteMyAccount(
+    @Body('id') id: number,
+    @Headers('authorization') authHeader: string,
+  ) {
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+
+    const result = await this.userService.deleteMyAccount(id, token);
+    return result;
   }
 
   @Post('attendance/delete')

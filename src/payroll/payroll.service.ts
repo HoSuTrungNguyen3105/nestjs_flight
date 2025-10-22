@@ -50,7 +50,7 @@ export class PayrollService {
 
       const netPay = baseSalary + allowances - deductions - tax;
 
-      const res = await this.prisma.payroll.create({
+      await this.prisma.payroll.create({
         data: {
           ...rest,
           baseSalary,
@@ -65,7 +65,7 @@ export class PayrollService {
       return {
         resultCode: '00',
         resultMessage: 'Create Success',
-        data: res,
+        // data: res,
       };
     } catch (error) {
       console.error('error', error);

@@ -1052,6 +1052,45 @@ export class AuthService {
         };
       }
 
+      if (newPassword.length < 8) {
+        return {
+          resultCode: '04',
+          resultMessage: 'Mật khẩu phải ít nhất 8 ký tự',
+        };
+      }
+      if (!/[A-Z]/.test(newPassword)) {
+        return {
+          resultCode: '05',
+          resultMessage: 'Phải có ít nhất 1 chữ hoa',
+        };
+      }
+      if (!/[a-z]/.test(newPassword)) {
+        return {
+          resultCode: '06',
+          resultMessage: 'Phải có ít nhất 1 chữ thường',
+        };
+      }
+      if (!/[0-9]/.test(newPassword)) {
+        return {
+          resultCode: '07',
+          resultMessage: 'Phải có ít nhất 1 chữ số',
+        };
+      }
+      if (!/[^A-Za-z0-9]/.test(newPassword)) {
+        return {
+          resultCode: '08',
+          resultMessage: 'Phải có ít nhất 1 ký tự đặc biệt',
+        };
+      }
+
+      const isSamePassword = await bcrypt.compare(newPassword, user.password);
+      if (isSamePassword) {
+        return {
+          resultCode: '09',
+          resultMessage: 'Mật khẩu mới không được trùng với mật khẩu hiện tại',
+        };
+      }
+
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
       await this.prisma.user.update({

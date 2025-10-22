@@ -186,10 +186,17 @@ export class BookingService {
       include: {
         bookings: {
           include: {
-            seats: true,
+            seats: {
+              select: {
+                id: true,
+                type: true,
+                seatNumber: true,
+                seatRow: true,
+              },
+            },
             mealOrders: true,
             flight: true,
-            passenger: true,
+            // passenger: true,
           },
         },
       },

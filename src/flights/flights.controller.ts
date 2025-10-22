@@ -54,10 +54,10 @@ export class FlightsController {
     return await this.flightService.findAllTerminal();
   }
 
-  @Post('createTerminal')
-  async createTerminal(@Body() data: CreateTerminalDto) {
-    return await this.flightService.createTerminal(data);
-  }
+  // @Post('createTerminal')
+  // async createTerminal(@Body() data: CreateTerminalDto) {
+  //   return await this.flightService.createTerminal(data);
+  // }
 
   @Post('createTerminal/bulk')
   async createTerminalBulk(@Body() dto: CreateTerminalDto[]) {
@@ -154,7 +154,7 @@ export class FlightsController {
   async updateFacility(
     @Param('id') id: string,
     @Body() data: UpdateFacilityDto,
-  ): Promise<BaseResponseDto<Facility>> {
+  ): Promise<BaseResponseDto<Facility | null>> {
     return this.flightService.updateFacility(id, data);
   }
 
@@ -194,6 +194,11 @@ export class FlightsController {
     return this.flightService.updateAirport(code, dto);
   }
 
+  @Post('airports/delete')
+  async removeAirport(@Body() code: string) {
+    return this.flightService.removeAirport(code);
+  }
+
   @Post('tickets')
   async createTicket(
     @Body()
@@ -213,6 +218,11 @@ export class FlightsController {
   async findAllTicket() {
     return this.flightService.findAllTicket();
   }
+
+  // @Get('getFlightCodeName')
+  // async getFlightCodeName() {
+  //   return this.flightService.getAllFlightCodeName();
+  // }
 
   @Get('getAllCode')
   async getAllCode() {

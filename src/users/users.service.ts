@@ -199,63 +199,71 @@ export class UsersService {
   async getUserInfo(
     id: number,
   ): Promise<BaseResponseDto<Partial<UserResponseDto>>> {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        pictureUrl: true,
-        rank: true,
-        role: true,
-        authType: true,
-        isEmailVerified: true,
-        mfaEnabledYn: true,
-        userAlias: true,
-        accountLockYn: true,
-        loginFailCnt: true,
-        lastLoginDate: true,
-        hireDate: true,
-        status: true,
-        baseSalary: true,
-        attendance: true,
-        position: true,
-        fromTransferAdminUserYn: true,
-        toTransferAdminUserYn: true,
-        phone: true,
-        createdAt: true,
-        updatedAt: true,
-        sessions: {
-          select: {
-            id: true,
-            createdAt: true,
-            userId: true,
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          pictureUrl: true,
+          rank: true,
+          role: true,
+          authType: true,
+          isEmailVerified: true,
+          mfaEnabledYn: true,
+          userAlias: true,
+          accountLockYn: true,
+          loginFailCnt: true,
+          lastLoginDate: true,
+          hireDate: true,
+          status: true,
+          baseSalary: true,
+          attendance: true,
+          position: true,
+          fromTransferAdminUserYn: true,
+          toTransferAdminUserYn: true,
+          phone: true,
+          createdAt: true,
+          updatedAt: true,
+          sessions: {
+            select: {
+              id: true,
+              createdAt: true,
+              userId: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!user) {
+      if (!user) {
+        return {
+          resultCode: '01',
+          resultMessage: 'Không tìm thấy người dùng',
+        };
+      }
+
+      const safeUser: UserResponseDto = {
+        ...user,
+        createdAt: (user.createdAt as Decimal).toNumber(),
+        updatedAt: (user.updatedAt as Decimal).toNumber(),
+        lastLoginDate: user.lastLoginDate
+          ? (user.lastLoginDate as Decimal).toNumber()
+          : undefined,
+      };
+
       return {
-        resultCode: '01',
-        resultMessage: 'Không tìm thấy người dùng',
+        resultCode: '00',
+        resultMessage: 'Lấy thông tin người dùng thành công!',
+        data: safeUser,
+      };
+    } catch (error) {
+      console.error('err', error);
+      return {
+        resultCode: '99',
+        resultMessage: 'Có lỗi xảy ra khi lấy thông tin người dùng',
       };
     }
-
-    const safeUser: UserResponseDto = {
-      ...user,
-      createdAt: (user.createdAt as Decimal).toNumber(),
-      updatedAt: (user.updatedAt as Decimal).toNumber(),
-      lastLoginDate: user.lastLoginDate
-        ? (user.lastLoginDate as Decimal).toNumber()
-        : undefined,
-    };
-
-    return {
-      resultCode: '00',
-      resultMessage: 'Lấy thông tin người dùng thành công!',
-      data: safeUser,
-    };
   }
 
   async createUserByAdmin(
@@ -900,6 +908,60 @@ export class UsersService {
     } catch (error) {
       console.error('Error:', error);
       throw error;
+    }
+  }
+
+  async deleteMyAccount(
+    id: number,
+    token: string,
+  ): Promise<BaseResponseDto<null>> {
+    try {
+      if (!token) {
+        return { resultCode: '01', resultMessage: 'Thiếu token xác thực!' };
+      }
+      const user = await this.prisma.user.findUnique({ where: { id } });
+
+      if (!user) {
+        return { resultCode: '01', resultMessage: 'Người dùng không tồn tại!' };
+      }
+
+      if (user.accountLockYn === 'Y') {
+        return { resultCode: '01', resultMessage: 'Tài khoản đã bị khóa!' };
+      }
+
+      if (user.status === 'SUSPENDED') {
+        return { resultCode: '01', resultMessage: 'Tài khoản đã bị cấm!' };
+      }
+
+      const deletedSession = await this.prisma.userSession.deleteMany({
+        where: { userId: id, token },
+      });
+
+      if (deletedSession.count === 0) {
+        return {
+          resultCode: '01',
+          resultMessage:
+            'Phiên đăng nhập không tồn tại hoặc đã đăng xuất trước đó!',
+        };
+      }
+
+      await this.prisma.user.update({
+        where: { id },
+        data: { lastLoginDate: nowDecimal() },
+      });
+
+      await this.prisma.user.delete({ where: { id } });
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Tài khoản đã được xóa thành công!',
+      };
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      return {
+        resultCode: '99',
+        resultMessage: 'Lỗi hệ thống! Không thể xóa tài khoản.',
+      };
     }
   }
 
