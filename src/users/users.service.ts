@@ -754,11 +754,18 @@ export class UsersService {
           role: true,
         },
       });
+      const formattedUsers = res.map((u) => ({
+        userId: u.id,
+        email: u.email,
+        name: u.name,
+        employeeNo: u.employeeNo,
+        role: u.role,
+      }));
 
       return {
         resultCode: '00',
         resultMessage: 'Search người dùng thành công!',
-        list: res,
+        list: formattedUsers,
       };
     } catch (error) {
       console.error('err', error);
@@ -965,26 +972,80 @@ export class UsersService {
     }
   }
 
-  async checkIn(employeeId: number) {
-    return this.prisma.attendance.create({
-      data: {
-        employeeId,
-        date: nowDecimal(),
-        checkIn: nowDecimal(),
-        checkOut: new Prisma.Decimal(0),
-        status: 'PRESENT',
-        createdAt: nowDecimal(),
+  async getAllAttendance() {
+    const attendances = await this.prisma.attendance.findMany({
+      include: {
+        employee: {
+          select: {
+            authType: true,
+            email: true,
+            department: true,
+            employeeNo: true,
+            lastLoginDate: true,
+            id: true,
+            leaveRequest: true,
+            name: true,
+            status: true,
+          },
+        },
       },
     });
+    return {
+      resultCode: '00',
+      resultMessage: 'Attendance find thành công!',
+      list: attendances,
+    };
+  }
+
+  async checkIn(employeeId: number) {
+    try {
+      await this.prisma.attendance.create({
+        data: {
+          employeeId,
+          date: nowDecimal(),
+          checkIn: nowDecimal(),
+          checkOut: new Prisma.Decimal(0),
+          status: 'PRESENT',
+          createdAt: nowDecimal(),
+        },
+      });
+      return {
+        resultCode: '00',
+        resultMessage: 'Attendance create successfully',
+      };
+    } catch (error) {
+      console.error('errt', error);
+    }
   }
 
   async checkOut(attendanceId: number) {
-    const checkOutTime = nowDecimal();
-    const record = await this.prisma.attendance.update({
-      where: { id: attendanceId },
-      data: { checkOut: checkOutTime },
-    });
-    return record;
+    try {
+      const attendance = await this.prisma.attendance.findUnique({
+        where: { id: attendanceId },
+      });
+
+      if (!attendance) {
+        return {
+          resultCode: '01',
+          resultMessage: `Attendance record with id ${attendanceId} not found`,
+        };
+      }
+      const checkOutTime = nowDecimal();
+      const workedHours =
+        (Number(checkOutTime) - Number(attendance.checkIn)) / 3600;
+
+      const record = await this.prisma.attendance.update({
+        where: { id: attendanceId },
+        data: {
+          checkOut: checkOutTime,
+          workedHours,
+          status: workedHours < 4 ? 'ABSENT' : 'PRESENT',
+        },
+      });
+      return record;
+    } catch (error) {
+      console.log('eror', error);
+    }
   }
 
   async deleteAttendance(employeeId: number) {
@@ -1371,7 +1432,6 @@ export class UsersService {
           flightNo: f.flightNo,
           departureAirport: f.departureAirport,
           arrivalAirport: f.arrivalAirport,
-          status: f.status,
           aircraftCode: f.aircraftCode,
           scheduledDeparture: decimalToDate(f.scheduledDeparture),
           scheduledArrival: decimalToDate(f.scheduledArrival),

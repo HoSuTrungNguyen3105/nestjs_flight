@@ -171,7 +171,7 @@ model Flight {
   flightNo           String   @unique @db.VarChar(10)
   departureAirport   String   @db.VarChar(10)
   arrivalAirport     String   @db.VarChar(10)
-  status             String   @db.VarChar(20)
+  // status             String   @db.VarChar(20)
   aircraftCode       String   @db.VarChar(10)
   scheduledDeparture Decimal  @db.Decimal(20, 3)
   scheduledArrival   Decimal  @db.Decimal(20, 3)
@@ -404,12 +404,12 @@ model MealOrder {
 }
 
 model FlightStatus {
-  id          Int     @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   flightId    Int
-  status      String  @db.VarChar(20)
-  description String? @db.VarChar(255)
-  updatedAt   Decimal @db.Decimal(20, 3)
-  flight      Flight  @relation(fields: [flightId], references: [flightId])
+  status      FlightStatusType @default(SCHEDULED)
+  description String?          @db.VarChar(255)
+  updatedAt   Decimal          @db.Decimal(20, 3)
+  flight      Flight           @relation(fields: [flightId], references: [flightId])
 
   @@index([flightId], map: "FlightStatus_flightId_fkey")
 }
@@ -431,6 +431,16 @@ enum UnlockStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum FlightStatusType {
+  SCHEDULED
+  BOARDING
+  LANDED
+  DELAYED
+  DEPARTED
+  ARRIVED
+  CANCELLED
 }
 
 enum EmployeeStatus {

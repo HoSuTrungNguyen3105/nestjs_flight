@@ -14,6 +14,7 @@ import {
   FacilityType,
   SeatType,
   MealType,
+  FlightStatusType,
 } from 'generated/prisma';
 
 interface ApiResponse<T> {
@@ -55,6 +56,11 @@ export class EnumController {
   @Get('attendance-statuses')
   getAttendanceStatuses() {
     return this.success(Object.values(AttendanceStatus));
+  }
+
+  @Get('flight-statuses')
+  getFlightStatuses() {
+    return this.success(Object.values(FlightStatusType));
   }
 
   @Get('payroll-statuses')

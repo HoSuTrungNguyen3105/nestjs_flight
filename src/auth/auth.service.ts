@@ -404,7 +404,6 @@ export class AuthService {
         scheduledArrival: true,
         actualDeparture: true,
         actualArrival: true,
-        status: true,
         gateId: true,
         tickets: {
           select: {

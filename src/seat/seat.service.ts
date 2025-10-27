@@ -152,6 +152,31 @@ export class SeatService {
     }
   }
 
+  async deleteSeatsInFlight(flightId: number) {
+    try {
+      const flight = await this.prisma.flight.findUnique({
+        where: { flightId },
+        select: { flightNo: true },
+      });
+
+      if (!flight) {
+        return { resultCode: '09', resultMessage: 'Flight not found.' };
+      }
+
+      const deleted = await this.prisma.seat.deleteMany({
+        where: { flightId },
+      });
+
+      return {
+        resultCode: '00',
+        resultMessage: `Deleted ${deleted.count} seat(s) in flight ${flight.flightNo} successfully.`,
+      };
+    } catch (err) {
+      console.error('Error deleting seats:', err);
+      throw err;
+    }
+  }
+
   async findAll() {
     const res = await this.prisma.seat.findMany();
     return {

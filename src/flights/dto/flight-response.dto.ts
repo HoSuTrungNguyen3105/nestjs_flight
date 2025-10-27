@@ -1,4 +1,5 @@
 import { Prisma } from 'generated/prisma';
+import { FlightStatusDto } from './flight-status.dto';
 
 export class FlightResponseDto {
   flightId: number;
@@ -6,7 +7,6 @@ export class FlightResponseDto {
   flightType: string;
   departureAirport: string;
   arrivalAirport: string;
-  status: string;
   aircraftCode: string;
   priceEconomy?: number | null;
   priceBusiness?: number | null;
@@ -19,4 +19,5 @@ export class FlightResponseDto {
   terminal?: string | null;
   isCancelled: boolean | null;
   delayMinutes?: number | null;
+  flightStatuses?: FlightStatusDto[];
 }

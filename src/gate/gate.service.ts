@@ -10,6 +10,12 @@ import {
   UpdateGateAssignmentDto,
 } from './dto/create-gate-assignment.dto';
 import { nowDecimal } from 'src/common/helpers/format';
+import { Facility, FacilityType, Prisma } from 'generated/prisma';
+import {
+  CreateFacilityDto,
+  UpdateFacilityDto,
+} from './dto/create-facility.dto';
+import { BaseResponseDto } from 'src/baseResponse/response.dto';
 
 @Injectable()
 export class GatesService {
@@ -455,7 +461,6 @@ export class GatesService {
             arrivalAirport: true,
             aircraft: true,
             flightStatuses: true,
-            status: true,
           },
         },
       },
@@ -473,6 +478,145 @@ export class GatesService {
       resultMessage: `Gate assignment with id ${id} has found`,
       data: assignment,
     };
+  }
+
+  async deleteFacility(id: string) {
+    await this.prisma.facility.delete({
+      where: { id },
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Delete facility thành công!',
+    };
+  }
+
+  async getFacilitiesByTerminal(terminalId: string): Promise<Facility[]> {
+    return this.prisma.facility.findMany({
+      where: { terminalId },
+      include: {
+        terminal: true,
+      },
+    });
+  }
+
+  async getFacilitiesByType(type: FacilityType): Promise<Facility[]> {
+    return this.prisma.facility.findMany({
+      where: { type },
+      include: {
+        terminal: {
+          include: {
+            airport: true,
+          },
+        },
+      },
+    });
+  }
+
+  async getFacilities(params: {
+    skip?: number;
+    take?: number;
+    where?: Prisma.FacilityWhereInput;
+    include?: Prisma.FacilityInclude;
+  }): Promise<BaseResponseDto<Facility>> {
+    const { skip, take, where, include } = params;
+    const res = await this.prisma.facility.findMany({
+      skip,
+      take,
+      where,
+      include: include || {
+        terminal: {
+          include: {
+            airport: true,
+          },
+        },
+      },
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Create facility thành công!',
+      list: res,
+    };
+  }
+
+  async getFacilityById(id: string): Promise<Facility | null> {
+    return this.prisma.facility.findUnique({
+      where: { id },
+      include: {
+        terminal: {
+          include: {
+            airport: true,
+          },
+        },
+      },
+    });
+  }
+
+  async createFacility(data: CreateFacilityDto) {
+    await this.prisma.facility.create({
+      data: {
+        ...data,
+        createdAt: nowDecimal(),
+        updatedAt: nowDecimal(),
+      },
+      include: {
+        terminal: {
+          include: {
+            airport: true,
+          },
+        },
+      },
+    });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Create facility thành công!',
+    };
+  }
+
+  async updateFacility(
+    id: string,
+    data: UpdateFacilityDto,
+  ): Promise<BaseResponseDto<Facility | null>> {
+    try {
+      const facility = await this.prisma.facility.findUnique({
+        where: { id },
+      });
+
+      if (!facility) {
+        return {
+          resultCode: '01',
+          resultMessage: 'Facility không tồn tại',
+        };
+      }
+      const res = await this.prisma.facility.update({
+        where: { id },
+        data: {
+          ...data,
+          updatedAt: nowDecimal(),
+        },
+        include: {
+          terminal: {
+            include: {
+              airport: true,
+            },
+          },
+        },
+      });
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Cập nhật cơ sở thành công',
+        data: res,
+      };
+    } catch (error) {
+      console.error(' Lỗi updateFacility:', error);
+
+      return {
+        resultCode: '99',
+        resultMessage: 'Cập nhật thất bại hoặc không tìm thấy cơ sở',
+        data: null,
+      };
+    }
   }
 
   async update(id: string, updateGateAssignmentDto: UpdateGateAssignmentDto) {

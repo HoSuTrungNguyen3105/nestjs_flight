@@ -9,6 +9,12 @@ import {
   CreateGateAssignmentDto,
   UpdateGateAssignmentDto,
 } from './dto/create-gate-assignment.dto';
+import { Facility } from 'generated/prisma';
+import {
+  CreateFacilityDto,
+  UpdateFacilityDto,
+} from './dto/create-facility.dto';
+import { BaseResponseDto } from 'src/baseResponse/response.dto';
 
 @Controller('sys/gates')
 export class GateController {
@@ -89,6 +95,47 @@ export class GateController {
   @Get('flight/:flightId')
   findByFlightId(@Param('flightId') flightId: number) {
     return this.gatesService.findByFlightId(flightId);
+  }
+
+  @Post('facilities')
+  async createFacility(@Body() data: CreateFacilityDto) {
+    return this.gatesService.createFacility(data);
+  }
+
+  @Post('facilities/delete/:id')
+  async deleteFacility(@Param('id') id: string) {
+    return this.gatesService.deleteFacility(id);
+  }
+
+  @Post('facilities/update/:id')
+  async updateFacility(
+    @Param('id') id: string,
+    @Body() data: UpdateFacilityDto,
+  ): Promise<BaseResponseDto<Facility | null>> {
+    return this.gatesService.updateFacility(id, data);
+  }
+
+  @Get('by-terminal/:terminalId')
+  async getFacilitiesByTerminal(
+    @Param('terminalId') terminalId: string,
+  ): Promise<Facility[]> {
+    return this.gatesService.getFacilitiesByTerminal(terminalId);
+  }
+
+  @Get('by-type/:type')
+  async getFacilitiesByType(@Param('type') type: string): Promise<Facility[]> {
+    return this.gatesService.getFacilitiesByType(type as any);
+  }
+
+  @Get()
+  async getFacilities(
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
+  ): Promise<BaseResponseDto<Facility>> {
+    return this.gatesService.getFacilities({
+      skip: skip ? Number(skip) : undefined,
+      take: take ? Number(take) : undefined,
+    });
   }
 
   @Post('updateGateAssignment/:id')

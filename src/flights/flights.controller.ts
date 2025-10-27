@@ -24,7 +24,7 @@ import { CreateTerminalDto } from './dto/create-terminal.dto';
 import {
   CreateFacilityDto,
   UpdateFacilityDto,
-} from './dto/create-facility.dto';
+} from '../gate/dto/create-facility.dto';
 import { CreateAirportDto, UpdateAirportDto } from './dto/create-airport.dto';
 // import { ApiOperation } from '@nestjs/swagger';
 
@@ -95,7 +95,7 @@ export class FlightsController {
     return this.flightService.getAllAircraft();
   }
 
-  @Get('flightIds')
+  @Get('flightIds/status')
   async findAllIdsFlight() {
     return this.flightService.findAllIdsFlight();
   }
@@ -138,47 +138,6 @@ export class FlightsController {
   @Post('aircraft/remove/:code')
   async removeAircraft(@Param('code') code: string) {
     return this.flightService.removeAircraft(code);
-  }
-
-  @Post('facilities')
-  async createFacility(@Body() data: CreateFacilityDto) {
-    return this.flightService.createFacility(data);
-  }
-
-  @Post('facilities/delete/:id')
-  async deleteFacility(@Param('id') id: string) {
-    return this.flightService.deleteFacility(id);
-  }
-
-  @Post('facilities/update/:id')
-  async updateFacility(
-    @Param('id') id: string,
-    @Body() data: UpdateFacilityDto,
-  ): Promise<BaseResponseDto<Facility | null>> {
-    return this.flightService.updateFacility(id, data);
-  }
-
-  @Get('by-terminal/:terminalId')
-  async getFacilitiesByTerminal(
-    @Param('terminalId') terminalId: string,
-  ): Promise<Facility[]> {
-    return this.flightService.getFacilitiesByTerminal(terminalId);
-  }
-
-  @Get('by-type/:type')
-  async getFacilitiesByType(@Param('type') type: string): Promise<Facility[]> {
-    return this.flightService.getFacilitiesByType(type as any);
-  }
-
-  @Get()
-  async getFacilities(
-    @Query('skip') skip?: string,
-    @Query('take') take?: string,
-  ): Promise<Facility[]> {
-    return this.flightService.getFacilities({
-      skip: skip ? Number(skip) : undefined,
-      take: take ? Number(take) : undefined,
-    });
   }
 
   @Get('airports')
@@ -244,11 +203,6 @@ export class FlightsController {
     @Body() body: { flightId: number; status: string; description?: string },
   ) {
     return this.flightService.createFlightStatus(body);
-  }
-
-  @Get('findAllFlightStatus')
-  findAllFlightStatus() {
-    return this.flightService.findAllFlightStatus();
   }
 
   @Post('updateFlightStatus')

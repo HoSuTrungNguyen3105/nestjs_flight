@@ -56,6 +56,11 @@ export class SeatController {
     return this.seatService.deleteAllByFlight(Number(flightId));
   }
 
+  @Post('flight/seats/delete')
+  async deleteSeatsInFlight(@Body('flightId') flightId: number) {
+    return this.seatService.deleteSeatsInFlight(flightId);
+  }
+
   @Delete('delete-all')
   async deleteAll() {
     await this.seatService.deleteAllSeats();
