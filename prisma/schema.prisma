@@ -17,6 +17,8 @@ model User {
   pictureUrl      String  @default("")
   rank            Rank    @default(NONE)
   authType        String  @default("ID,PW")
+  phone           String  @default("")
+  isDeleted       Boolean @default(false)
   prevPassword    String  @default("")
   isEmailVerified String  @default("N")
   userAlias       String  @default("")
@@ -31,7 +33,6 @@ model User {
   tempPassword      String?
   resetTokenExpires Decimal? @db.Decimal(20, 3)
   resetToken        String?
-  phone             String   @default("")
   otpCode           String?
   otpExpire         Decimal? @db.Decimal(20, 3)
 
@@ -167,25 +168,26 @@ model UnlockRequest {
 }
 
 model Flight {
-  flightId           Int      @id @default(autoincrement())
-  flightNo           String   @unique @db.VarChar(10)
-  departureAirport   String   @db.VarChar(10)
-  arrivalAirport     String   @db.VarChar(10)
+  flightId           Int        @id @default(autoincrement())
+  flightNo           String     @unique @db.VarChar(10)
+  departureAirport   String     @db.VarChar(10)
+  arrivalAirport     String     @db.VarChar(10)
   // status             String   @db.VarChar(20)
-  aircraftCode       String   @db.VarChar(10)
-  scheduledDeparture Decimal  @db.Decimal(20, 3)
-  scheduledArrival   Decimal  @db.Decimal(20, 3)
-  actualDeparture    Decimal? @db.Decimal(20, 3)
-  actualArrival      Decimal? @db.Decimal(20, 3)
+  aircraftCode       String     @db.VarChar(10)
+  scheduledDeparture Decimal    @db.Decimal(20, 3)
+  scheduledArrival   Decimal    @db.Decimal(20, 3)
+  actualDeparture    Decimal?   @db.Decimal(20, 3)
+  actualArrival      Decimal?   @db.Decimal(20, 3)
   delayMinutes       Int?
-  flightType         String   @db.VarChar(10)
-  isCancelled        Boolean  @default(false)
+  flightType         FlightType @default(oneway)
+  isCancelled        Boolean    @default(false)
+  isDomestic         Boolean    @default(true)
 
   priceBusiness Float?
   priceEconomy  Float?
   priceFirst    Float?
 
-  terminal            String?
+  // terminal            String?
   cancellationReason  String?          @db.VarChar(255)
   delayReason         String?          @db.VarChar(255)
   gateId              String?          @unique
@@ -448,6 +450,11 @@ enum EmployeeStatus {
   INACTIVE
   SUSPENDED
   TERMINATED
+}
+
+enum FlightType {
+  roundtrip
+  oneway
 }
 
 enum AttendanceStatus {

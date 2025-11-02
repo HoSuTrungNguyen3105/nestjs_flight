@@ -100,6 +100,11 @@ export class FlightsController {
     return this.flightService.findAllIdsFlight();
   }
 
+  @Post('flightIds/delete')
+  async deleteManyFlightIds(@Body() ids: number[]) {
+    return this.flightService.deleteManyFlightIds(ids);
+  }
+
   @Post('aircraft/batch')
   async createBatchAircraft(
     @Body() createBatchAircraftDto: CreateAircraftDto[],
@@ -198,14 +203,14 @@ export class FlightsController {
     return this.flightService.searchFlights(dto);
   }
 
-  @Post('createFlightStatus')
+  @Post('flight-status/add')
   createFlightStatus(
     @Body() body: { flightId: number; status: string; description?: string },
   ) {
     return this.flightService.createFlightStatus(body);
   }
 
-  @Post('updateFlightStatus')
+  @Post('flight-status/update')
   updateFlightStatus(@Body() body: { id: number; status: string }) {
     return this.flightService.updateFlightStatus(body.id, body);
   }

@@ -1,13 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import {
-  Aircraft,
-  Facility,
-  FacilityType,
   Flight,
   FlightStatusType,
+  FlightType,
   Prisma,
-  SeatType,
+  TerminalType,
 } from 'generated/prisma';
 import { CreateAirportDto, UpdateAirportDto } from './dto/create-airport.dto';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
@@ -24,10 +22,7 @@ import {
   CreateTerminalDto,
   UpdateTerminalDto,
 } from './dto/create-terminal.dto';
-import {
-  CreateFacilityDto,
-  UpdateFacilityDto,
-} from '../gate/dto/create-facility.dto';
+import { TicketResponseDto } from './dto/ticket-response.dto';
 
 @Injectable()
 export class FlightsService {
@@ -150,12 +145,10 @@ export class FlightsService {
       departDate,
       returnDate,
       flightType,
-      cabinClass,
       aircraftCode,
       status,
       minPrice,
       maxPrice,
-      gate,
       terminal,
       flightNo,
       minDelayMinutes,
@@ -171,11 +164,11 @@ export class FlightsService {
 
       // Các điều kiện optional từ dữ liệu của bạn
       ...(flightNo && { flightNo: { contains: flightNo.toUpperCase() } }),
-      ...(flightType && { flightType: flightType.toLowerCase() }),
+      ...(flightType && { flightType: flightType.toUpperCase() as FlightType }),
       ...(status && { status: status.toUpperCase() }),
       ...(aircraftCode && { aircraftCode: aircraftCode.toUpperCase() }),
       // ...(gate && { gate: { contains: gate.toUpperCase() } }),
-      ...(terminal && { terminal: { contains: terminal.toUpperCase() } }),
+      // ...(terminal && { terminal: { contains: terminal.toUpperCase() } }),
 
       // Điều kiện price
       ...(minPrice !== undefined && { priceEconomy: { gte: minPrice } }),
@@ -373,8 +366,6 @@ export class FlightsService {
       return { resultCode: '01', resultMessage: `Flight not found` };
     }
 
-    // const sanitizedSeats = flight.seats.map(({ note, price, ...rest }) => rest);
-
     return {
       resultCode: '00',
       resultMessage: `Flight with ID ${flightId} is found`,
@@ -435,6 +426,7 @@ export class FlightsService {
         resultMessage: 'Đã update toàn bộ chuyến bay thành công',
       };
     } catch (error) {
+      console.error('errr', error);
       throw error;
     }
   }
@@ -454,23 +446,88 @@ export class FlightsService {
     }
   }
 
+  async deleteManyFlightIds(ids: number[]) {
+    try {
+      console.log('ids', ids);
+      if (typeof ids === 'string') {
+        try {
+          ids = JSON.parse(ids);
+        } catch {
+          ids = [];
+        }
+      }
+      if (!ids || ids.length === 0) {
+        return {
+          resultCode: '01',
+          resultMessage: 'Không có chuyến bay nào được chọn',
+        };
+      }
+      const validIds = ids.filter((id) => typeof id === 'number');
+
+      if (validIds.length === 0) {
+        return {
+          resultCode: '01',
+          resultMessage: 'Không có chuyến bay hợp lệ để xoá',
+        };
+      }
+
+      await Promise.all(
+        validIds.map((id: number) =>
+          this.prisma.flight.deleteMany({ where: { flightId: id } }),
+        ),
+      );
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Đã xoá các chuyến bay được chọn thành công',
+      };
+    } catch (error) {
+      console.error('err', error);
+      return {
+        resultCode: '99',
+        resultMessage: error.message || 'Xoá các chuyến bay thất bại',
+      };
+    }
+  }
+
   async findAllIdsFlight() {
     try {
-      const res = await this.prisma.flightStatus.findMany({
+      // const flights = await this.prisma.flightStatus.findMany({
+      //   select: {
+      //     flightId: true,
+      //     status: true,
+      //     flight: {
+      //       select: {
+      //         flightNo: true,
+      //       },
+      //     },
+      //   },
+      // });
+
+      // const flights = await this.prisma.flight.findMany({
+      //   select: {
+      //     flightId: true,
+      //     flightNo: true,
+      //     flightStatuses: {
+      //       select: {
+      //         id: true,
+      //         status: true,
+      //       },
+      //     },
+      //   },
+      // });
+      const flights = await this.prisma.flight.findMany({
         select: {
           flightId: true,
-          status: true,
-          flight: {
-            select: {
-              flightNo: true,
-            },
-          },
+          flightNo: true,
+          flightStatuses: true,
         },
       });
+
       return {
         resultCode: '00',
         resultMessage: 'Lấy danh sách ID chuyến bay thành công',
-        list: res,
+        list: flights,
       };
     } catch (error) {
       return {
@@ -582,9 +639,9 @@ export class FlightsService {
           await this.prisma.aircraft.create({ data: aircraftData });
 
           return {
+            resultCode: '00',
+            resultMessage: 'Aircraft created successfully',
             code: aircraftData.code,
-            errorCode: '00',
-            errorMessage: 'Aircraft created successfully',
           };
         } catch (error) {
           return {
@@ -649,18 +706,52 @@ export class FlightsService {
     });
   }
 
-  async findAllTicket() {
-    const res = await this.prisma.ticket.findMany({
+  async findAllTicket(): Promise<BaseResponseDto<TicketResponseDto>> {
+    const tickets = await this.prisma.ticket.findMany({
       include: {
         boardingPass: true,
         baggage: true,
-        flight: true,
+        passenger: {
+          omit: {
+            isEmailVerified: true,
+            lastLoginDate: true,
+          },
+        },
+        flight: {
+          omit: {
+            cancellationReason: true,
+            delayReason: true,
+            delayMinutes: true,
+          },
+        },
       },
     });
+    const mapped = tickets.map((t) => ({
+      ...t,
+      bookedAt: Number(t.bookedAt),
+      flight: t.flight
+        ? {
+            ...t.flight,
+          }
+        : null,
+      boardingPass: t.boardingPass
+        ? {
+            ...t.boardingPass,
+            seatNo: t.seatNo,
+            issuedAt: Number(t.boardingPass.issuedAt),
+            boardingTime: Number(t.boardingPass.boardingTime),
+          }
+        : null,
+      baggage: t.baggage.map((b) => ({
+        ...b,
+        checkedAt: Number(b.checkedAt),
+        weight: Number(b.weight),
+      })),
+    }));
     return {
       resultCode: '00',
       resultMessage: 'Ticket list success !!',
-      list: res,
+      list: mapped,
     };
   }
 
@@ -1015,63 +1106,43 @@ export class FlightsService {
     return { resultCode: '00', resultMessage: 'Danh sách ghế', data: res };
   }
 
-  // async createTerminal(createTerminalDto: CreateTerminalDto) {
-  //   const hasCreate = await this.prisma.terminal.findUnique({
-  //     where: {
-  //       code: createTerminalDto.code,
-  //     },
-  //   });
-  //   if (hasCreate) {
-  //     return {
-  //       resultCode: '01',
-  //       resultMessage: 'Failed create',
-  //     };
-  //   }
-  //   const res = await this.prisma.terminal.create({
-  //     data: {
-  //       ...createTerminalDto,
-  //       createdAt: nowDecimal(),
-  //       updatedAt: nowDecimal(),
-  //     },
-  //   });
-  //   return {
-  //     resultCode: '00',
-  //     resultMessage: 'Success create',
-  //     data: res,
-  //   };
-  // }
-
   async creatManyTerminal(dto: CreateTerminalDto[]) {
-    const codes = dto.map((t) => t.code);
+    try {
+      const codes = dto.map((t) => t.code);
 
-    const existing = await this.prisma.terminal.findMany({
-      where: {
-        code: { in: codes },
-      },
-      select: { code: true },
-    });
+      const existing = await this.prisma.terminal.findMany({
+        where: {
+          code: { in: codes },
+        },
+        select: { code: true },
+      });
 
-    if (existing.length > 0) {
+      if (existing.length > 0) {
+        return {
+          resultCode: '01',
+          resultMessage: `Failed create. Duplicate codes: ${existing
+            .map((e) => e.code)
+            .join(', ')}`,
+        };
+      }
+      const res = await this.prisma.terminal.createMany({
+        data: dto.map((t) => ({
+          ...t,
+          type: t.type as TerminalType, // ép về enum Prisma
+          createdAt: nowDecimal(),
+          updatedAt: nowDecimal(),
+        })),
+        skipDuplicates: true,
+      });
       return {
-        resultCode: '01',
-        resultMessage: `Failed create. Duplicate codes: ${existing
-          .map((e) => e.code)
-          .join(', ')}`,
+        resultCode: '00',
+        resultMessage: 'Success create many terminal',
+        list: res,
       };
+    } catch (error) {
+      console.error('e', error);
+      throw error;
     }
-    const res = await this.prisma.terminal.createMany({
-      data: dto.map((t) => ({
-        ...t,
-        createdAt: nowDecimal(),
-        updatedAt: nowDecimal(),
-      })),
-      skipDuplicates: true,
-    });
-    return {
-      resultCode: '00',
-      resultMessage: 'Success create many terminal',
-      list: res,
-    };
   }
 
   async findAllTerminal() {
@@ -1116,10 +1187,19 @@ export class FlightsService {
 
   async updateFlightStatus(id: number, data: { status?: string }) {
     try {
-      // await this.prisma.flightStatus.update({
-      //   where: { flightId: id },
-      //   data: { status: data.status },
-      // });
+      const res = await this.prisma.flightStatus.findFirst({
+        where: { id },
+      });
+      if (!res) {
+        return {
+          resultCode: '01',
+          resultMessage: 'Update flight status not found',
+        };
+      }
+      await this.prisma.flightStatus.update({
+        where: { id },
+        data: { status: data.status as FlightStatusType },
+      });
       return {
         resultCode: '00',
         resultMessage: 'Update flight status success',

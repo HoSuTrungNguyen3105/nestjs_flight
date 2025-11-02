@@ -9,9 +9,10 @@ import {
   CreateGateAssignmentDto,
   UpdateGateAssignmentDto,
 } from './dto/create-gate-assignment.dto';
-import { Facility } from 'generated/prisma';
+import { Facility, FacilityType } from 'generated/prisma';
 import {
   CreateFacilityDto,
+  FacilityDto,
   UpdateFacilityDto,
 } from './dto/create-facility.dto';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
@@ -118,16 +119,18 @@ export class GateController {
   @Get('by-terminal/:terminalId')
   async getFacilitiesByTerminal(
     @Param('terminalId') terminalId: string,
-  ): Promise<Facility[]> {
+  ): Promise<BaseResponseDto<FacilityDto>> {
     return this.gatesService.getFacilitiesByTerminal(terminalId);
   }
 
-  @Get('by-type/:type')
-  async getFacilitiesByType(@Param('type') type: string): Promise<Facility[]> {
-    return this.gatesService.getFacilitiesByType(type as any);
+  @Get('facilities/by-type/:type')
+  async getFacilitiesByType(
+    @Param('type') type: string,
+  ): Promise<BaseResponseDto<FacilityDto>> {
+    return this.gatesService.getFacilitiesByType(type as FacilityType);
   }
 
-  @Get()
+  @Get('facilities/get')
   async getFacilities(
     @Query('skip') skip?: string,
     @Query('take') take?: string,

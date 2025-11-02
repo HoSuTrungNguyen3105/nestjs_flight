@@ -6,8 +6,8 @@ import {
   IsNotEmpty,
   Min,
   IsInt,
-  IsDecimal,
 } from 'class-validator';
+import { FlightType } from 'generated/prisma';
 
 export class CreateFlightDto {
   @IsNumber()
@@ -20,7 +20,7 @@ export class CreateFlightDto {
 
   @IsString()
   @IsNotEmpty()
-  flightType: string;
+  flightType: FlightType;
 
   @IsString()
   @IsNotEmpty()
@@ -53,11 +53,9 @@ export class CreateFlightDto {
   @Min(0)
   priceFirst?: number;
 
-  @IsDecimal()
   @IsNotEmpty()
   scheduledDeparture: string;
 
-  @IsDecimal()
   @IsNotEmpty()
   scheduledArrival: string;
 
@@ -65,9 +63,13 @@ export class CreateFlightDto {
   @IsString()
   gateId?: string;
 
+  // @IsOptional()
+  // @IsString()
+  // terminal?: string;
+
   @IsOptional()
-  @IsString()
-  terminal?: string;
+  @IsBoolean()
+  isDomestic?: boolean;
 
   @IsOptional()
   @IsBoolean()

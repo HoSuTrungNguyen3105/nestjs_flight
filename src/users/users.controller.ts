@@ -8,6 +8,8 @@ import {
   UseGuards,
   Res,
   Headers,
+  Query,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { BatchUpdateEmployeeNoDto, CreateUserDto } from './dto/create-user.dto';
@@ -82,9 +84,19 @@ export class UsersController {
     return this.userService.deleteUnlockRequestById(dto.id);
   }
 
-  @Post('approve-unlock/:id')
-  async approveUnlock(@Param('id', ParseIntPipe) id: number) {
-    return this.userService.approveUnlockRequest(id);
+  @Post('approve-unlock')
+  async approveUnlock(@Body('id', ParseIntPipe) requestId: number) {
+    return this.userService.approveUnlockRequest(requestId);
+  }
+
+  @Post('reject-unlock')
+  async rejectUnlock(@Body('id', ParseIntPipe) requestId: number) {
+    return this.userService.rejectUnlockRequest(requestId);
+  }
+
+  @Get('my_request-unlock/:id')
+  async getMyUnlockRequest(@Param('id', ParseIntPipe) requestId: number) {
+    return this.userService.getMyUnlockRequests(requestId);
   }
 
   @Post('modeTransfer')
@@ -102,11 +114,6 @@ export class UsersController {
   @Post('approve-unlock-all')
   async approveUnlockAll() {
     return this.userService.approveAllUnlockRequests();
-  }
-
-  @Post('reject-unlock/:id')
-  async rejectUnlock(@Param('id', ParseIntPipe) id: number) {
-    return this.userService.rejectUnlockRequest(id);
   }
 
   @Post('updateUserFromAdmin')
@@ -231,5 +238,35 @@ export class UsersController {
   @Get('init/exportFlightsToExcel')
   async exportFlights() {
     return this.userService.exportFlightsToExcel();
+  }
+
+  @Get('search/by-month')
+  async getTicketsByMonth(
+    @Query('year', new DefaultValuePipe(new Date().getFullYear()), ParseIntPipe)
+    year: number,
+    @Query(
+      'month',
+      new DefaultValuePipe(new Date().getMonth() + 1),
+      ParseIntPipe,
+    )
+    month: number,
+  ) {
+    const selectedYear = year || new Date().getFullYear();
+    const selectedMonth = month || new Date().getMonth() + 1;
+
+    const list = await this.userService.getDetailedTicketsByMonth(
+      selectedYear,
+      selectedMonth,
+    );
+
+    return {
+      resultCode: '00',
+      data: {
+        year: selectedYear,
+        month: selectedMonth,
+        total: list?.formattedData.length,
+        list,
+      },
+    };
   }
 }

@@ -26,4 +26,7 @@ export class CreateSeatDto {
   @IsInt()
   @IsOptional()
   price: number;
+
+  @IsInt()
+  size: number;
 }

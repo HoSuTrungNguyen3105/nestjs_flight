@@ -10,6 +10,7 @@ import {
   Airport,
   Booking,
   Flight,
+  FlightStatusType,
   Prisma,
   Seat,
 } from 'generated/prisma';
@@ -152,6 +153,7 @@ export class BookingService {
       include: {
         flight: true,
         seats: true,
+        passenger: true,
         mealOrders: true,
       },
     });
@@ -230,7 +232,6 @@ export class BookingService {
             priceFirst: true,
             flightType: true,
             gate: true,
-            terminal: true,
           },
         },
         ticket: true,
@@ -330,104 +331,85 @@ export class BookingService {
   }
 
   async searchBooking(dto: SearchBookingDto) {
-    const {
-      from,
-      to,
-      departDate,
-      returnDate,
-      flightType,
-      cabinClass,
-      flightNo,
-      aircraftCode,
-      status,
-      minPrice,
-      maxPrice,
-      terminal,
-      minDelayMinutes,
-      maxDelayMinutes,
-      includeCancelled = false,
-    } = dto;
+    try {
+      const {
+        from,
+        to,
+        departDate,
+        returnDate,
+        flightType,
+        cabinClass,
+        flightNo,
+        aircraftCode,
+        status,
+        minPrice,
+        maxPrice,
+        terminal,
+        minDelayMinutes,
+        maxDelayMinutes,
+        includeCancelled = false,
+      } = dto;
 
-    const whereCondition: Prisma.BookingWhereInput = {
-      flight: {
-        ...(from && { departureAirport: from.toUpperCase() }),
-        ...(to && { arrivalAirport: to.toUpperCase() }),
-        ...(flightNo && { flightNo: { contains: flightNo.toUpperCase() } }),
-        ...(aircraftCode && { aircraftCode: aircraftCode.toUpperCase() }),
-        ...(status && { status: status.toUpperCase() }),
-        ...(terminal && { terminal: { contains: terminal.toUpperCase() } }),
-        ...(minPrice !== undefined &&
-          cabinClass === 'ECONOMY' && { priceEconomy: { gte: minPrice } }),
-        ...(maxPrice !== undefined &&
-          cabinClass === 'ECONOMY' && { priceEconomy: { lte: maxPrice } }),
-        ...(minPrice !== undefined &&
-          cabinClass === 'BUSINESS' && { priceBusiness: { gte: minPrice } }),
-        ...(maxPrice !== undefined &&
-          cabinClass === 'BUSINESS' && { priceBusiness: { lte: maxPrice } }),
-        ...(minPrice !== undefined &&
-          cabinClass === 'FIRST' && { priceFirst: { gte: minPrice } }),
-        ...(maxPrice !== undefined &&
-          cabinClass === 'FIRST' && { priceFirst: { lte: maxPrice } }),
-
-        ...(minDelayMinutes !== undefined && {
-          delayMinutes: { gte: minDelayMinutes },
-        }),
-        ...(maxDelayMinutes !== undefined && {
-          delayMinutes: { lte: maxDelayMinutes },
-        }),
-        ...(!includeCancelled && { isCancelled: false }),
-        ...(departDate && {
-          scheduledDeparture: {
-            gte: new Prisma.Decimal(departDate),
-            lte: new Prisma.Decimal(departDate + 86399999),
-          },
-        }),
-      },
-      ...(cabinClass && {
-        seats: {
-          type: cabinClass,
-        },
-      }),
-    };
-
-    // lấy chiều đi
-    const outbound = await this.prisma.booking.findMany({
-      where: whereCondition,
-      include: {
+      const whereCondition: Prisma.BookingWhereInput = {
         flight: {
-          include: {
-            departureAirportRel: true,
-            arrivalAirportRel: true,
-            aircraft: true,
+          is: {
+            ...(from && { departureAirport: from.toUpperCase() }),
+            ...(to && { arrivalAirport: to.toUpperCase() }),
+            ...(flightNo && { flightNo: { contains: flightNo.toUpperCase() } }),
+            ...(aircraftCode && { aircraftCode: aircraftCode.toUpperCase() }),
+            // ...(status && { status: status.toUpperCase() }),
+            ...(terminal && { terminal: { contains: terminal.toUpperCase() } }),
+            ...(minPrice !== undefined &&
+              cabinClass === 'ECONOMY' && { priceEconomy: { gte: minPrice } }),
+            ...(maxPrice !== undefined &&
+              cabinClass === 'ECONOMY' && { priceEconomy: { lte: maxPrice } }),
+            ...(minPrice !== undefined &&
+              cabinClass === 'BUSINESS' && {
+                priceBusiness: { gte: minPrice },
+              }),
+            ...(maxPrice !== undefined &&
+              cabinClass === 'BUSINESS' && {
+                priceBusiness: { lte: maxPrice },
+              }),
+            ...(minPrice !== undefined &&
+              cabinClass === 'FIRST' && { priceFirst: { gte: minPrice } }),
+            ...(maxPrice !== undefined &&
+              cabinClass === 'FIRST' && { priceFirst: { lte: maxPrice } }),
+
+            ...(minDelayMinutes !== undefined && {
+              delayMinutes: { gte: minDelayMinutes },
+            }),
+            ...(maxDelayMinutes !== undefined && {
+              delayMinutes: { lte: maxDelayMinutes },
+            }),
+            ...(!includeCancelled && { isCancelled: false }),
+            ...(departDate && {
+              scheduledDeparture: {
+                gte: new Prisma.Decimal(departDate),
+                lte: new Prisma.Decimal(departDate + 86399999),
+              },
+            }),
           },
         },
-        seats: true,
-      },
-    });
-
-    // mặc định inbound rỗng
-    let inbound: (Booking & {
-      flight: Flight & {
-        aircraft: Aircraft;
-        arrivalAirportRel: Airport;
-        departureAirportRel: Airport;
-      };
-      seats: Seat | null;
-    })[] = [];
-
-    // nếu là khứ hồi thì mới query inbound
-    if (flightType === 'roundtrip' && returnDate) {
-      inbound = await this.prisma.booking.findMany({
-        where: {
+        ...(cabinClass && {
+          seats: {
+            type: cabinClass,
+          },
+        }),
+        ...(status && {
           flight: {
-            departureAirport: to?.toUpperCase(),
-            arrivalAirport: from?.toUpperCase(),
-            scheduledDeparture: {
-              gte: new Prisma.Decimal(returnDate),
-              lte: new Prisma.Decimal(returnDate + 86399999),
+            flightStatuses: {
+              every: {
+                status: status as FlightStatusType,
+              },
             },
           },
-        },
+        }),
+      };
+
+      // lấy chiều đi
+      const outbound = await this.prisma.booking.findMany({
+        where: whereCondition,
         include: {
           flight: {
             include: {
@@ -439,16 +421,58 @@ export class BookingService {
           seats: true,
         },
       });
-    }
 
-    return {
-      resultCode: '00',
-      resultMessage: 'Thành công',
-      data: {
-        outbound,
-        inbound,
-      },
-    };
+      // mặc định inbound rỗng
+      let inbound: (Booking & {
+        flight: Flight & {
+          aircraft: Aircraft;
+          arrivalAirportRel: Airport;
+          departureAirportRel: Airport;
+        };
+        seats: Seat | null;
+      })[] = [];
+
+      if (flightType === 'roundtrip' && returnDate) {
+        inbound = await this.prisma.booking.findMany({
+          where: {
+            flight: {
+              is: {
+                departureAirport: to?.toUpperCase(),
+                arrivalAirport: from?.toUpperCase(),
+                scheduledDeparture: {
+                  gte: new Prisma.Decimal(returnDate),
+                  lte: new Prisma.Decimal(returnDate + 86399999),
+                },
+              },
+            },
+          },
+          include: {
+            flight: {
+              include: {
+                departureAirportRel: true,
+                arrivalAirportRel: true,
+                aircraft: true,
+              },
+            },
+            seats: true,
+          },
+        });
+      }
+
+      console.log('outbound', outbound);
+      console.log('inbound', inbound);
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Thành công',
+        data: {
+          outbound,
+          inbound,
+        },
+      };
+    } catch (error) {
+      console.error('err', error);
+    }
   }
 
   async getFlightSeats(flightId: number) {

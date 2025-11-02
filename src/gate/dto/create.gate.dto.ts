@@ -7,26 +7,7 @@ import {
   IsInt,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { GateStatus, TerminalType } from 'generated/prisma';
-import { PartialType } from '@nestjs/mapped-types';
-
-export class CreateTerminalDto {
-  @IsString()
-  code: string;
-
-  @IsString()
-  name: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsEnum(TerminalType)
-  type: TerminalType;
-
-  @IsString()
-  airportId: string;
-}
+import { GateStatus } from 'generated/prisma';
 
 export class CreateGateDto {
   @IsString()

@@ -7,14 +7,13 @@ import {
 } from 'class-validator';
 import { TerminalType } from 'generated/prisma';
 import { PartialType } from '@nestjs/mapped-types';
+import { Decimal } from 'generated/prisma/runtime/library';
 
 export class CreateTerminalDto {
   @IsString()
-  @IsNotEmpty()
   code: string;
 
   @IsString()
-  @IsNotEmpty()
   name: string;
 
   @IsOptional()
@@ -22,19 +21,20 @@ export class CreateTerminalDto {
   description?: string;
 
   @IsEnum(TerminalType)
-  @IsNotEmpty()
   type: TerminalType;
 
   @IsString()
-  @IsNotEmpty()
   airportId: string;
+}
 
-  @IsOptional()
-  @IsNumber()
+export class TerminalDto {
+  id: string;
+  name: string;
+  type: TerminalType;
+  description: string | null;
+  code: string;
+  airportId: string;
   createdAt?: number;
-
-  @IsOptional()
-  @IsNumber()
   updatedAt?: number;
 }
 

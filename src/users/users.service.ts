@@ -25,6 +25,7 @@ import * as ExcelJS from 'exceljs';
 import { Blob } from 'buffer';
 import { RequestChangeRoleDto } from './dto/request-change-role.dto';
 import { UpdateMyInfoDto } from './dto/update-my-info.dto';
+import { MonthlyTicketStats } from './dto/response.dto';
 
 @Injectable()
 export class UsersService {
@@ -302,6 +303,7 @@ export class UsersService {
           tempPassword: hashedPassword,
           name: dto.name ?? '',
           pictureUrl: '',
+          employeeNo: dto.employeeNo,
           role: dto.role as Role,
           authType: 'ID,PW',
           userAlias: '',
@@ -643,7 +645,7 @@ export class UsersService {
     };
   }
 
-  async approveUnlockRequest(requestId: number) {
+  async rejectUnlockRequest(requestId: number) {
     const req = await this.prisma.unlockRequest.findUnique({
       where: { id: requestId },
       include: { user: true },
@@ -662,27 +664,83 @@ export class UsersService {
         resultMessage: 'Yêu cầu đã được xử lý!',
       };
     }
-
-    await this.prisma.user.update({
-      where: { id: req.employeeId },
-      data: {
-        accountLockYn: 'N',
-        loginFailCnt: 0,
-      },
-    });
-
     await this.prisma.unlockRequest.update({
       where: { id: requestId },
       data: {
-        status: 'APPROVED',
+        status: 'REJECTED',
         approvedAt: nowDecimal(),
+      },
+    });
+    return {
+      resultCode: '00',
+      resultMessage: 'Yêu cầu đã bị từ chối',
+    };
+  }
+
+  async getMyUnlockRequests(id: number) {
+    const res = await this.prisma.unlockRequest.findFirst({
+      where: { employeeId: id },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        reason: true,
       },
     });
 
     return {
       resultCode: '00',
-      resultMessage: 'Yêu cầu đã được duyệt và mở khóa.',
+      resultMessage: 'Lấy yêu cầu mở khóa gần nhất của tôi thành công!',
+      data: res,
     };
+  }
+
+  async approveUnlockRequest(requestId: number) {
+    try {
+      const req = await this.prisma.unlockRequest.findUnique({
+        where: { id: requestId },
+        include: { user: true },
+      });
+
+      if (!req) {
+        return {
+          resultCode: '01',
+          resultMessage: 'Yêu cầu không tồn tại!',
+        };
+      }
+
+      if (req.status !== 'PENDING') {
+        return {
+          resultCode: '01',
+          resultMessage: 'Yêu cầu đã được xử lý!',
+        };
+      }
+
+      await this.prisma.user.update({
+        where: { id: req.employeeId },
+        data: {
+          accountLockYn: 'N',
+          loginFailCnt: 0,
+        },
+      });
+
+      await this.prisma.unlockRequest.update({
+        where: { id: requestId },
+        data: {
+          status: 'APPROVED',
+          approvedAt: nowDecimal(),
+        },
+      });
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Yêu cầu đã được duyệt và mở khóa.',
+      };
+    } catch (error) {
+      console.error('err', error);
+      throw error;
+    }
   }
 
   async approveAllUnlockRequests() {
@@ -721,16 +779,6 @@ export class UsersService {
         resultCode: '00',
         resultMessage: `${requests.length} yêu cầu đã được duyệt và mở khóa.`,
       };
-    });
-  }
-
-  async rejectUnlockRequest(requestId: number) {
-    return this.prisma.unlockRequest.update({
-      where: { id: requestId },
-      data: {
-        status: 'REJECTED',
-        approvedAt: nowDecimal(),
-      },
     });
   }
 
@@ -1507,5 +1555,114 @@ export class UsersService {
         data: null,
       };
     }
+  }
+
+  async getDetailedTicketsByMonth(year: number, month: number) {
+    try {
+      const start = new Date(year, month - 1, 1).getTime();
+      const end = new Date(year, month, 1).getTime();
+
+      const tickets = await this.prisma.ticket.findMany({
+        where: {
+          bookedAt: {
+            gte: new Prisma.Decimal(start),
+            lt: new Prisma.Decimal(end),
+          },
+        },
+        include: {
+          flight: true,
+        },
+      });
+
+      const formattedData = tickets.map((t) => {
+        const flight = t.flight;
+        const departureTime = new Date(Number(flight.scheduledDeparture));
+        const arrivalTime = new Date(Number(flight.scheduledArrival));
+
+        const durationMs = arrivalTime.getTime() - departureTime.getTime();
+        const hours = Math.floor(durationMs / (1000 * 60 * 60));
+        const minutes = Math.floor(
+          (durationMs % (1000 * 60 * 60)) / (1000 * 60),
+        );
+
+        return {
+          id: t.id.toString(),
+          airline: flight.aircraftCode,
+          departure: {
+            city: flight.gateId,
+            airport: flight.departureAirport,
+            time: departureTime.toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+          },
+          arrival: {
+            city: flight.gateId,
+            airport: flight.arrivalAirport,
+            time: arrivalTime.toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+          },
+          date: departureTime.toLocaleDateString(),
+          duration: `${hours}h ${minutes}m`,
+        };
+      });
+
+      return {
+        formattedData,
+      };
+    } catch (error) {
+      console.error('errr', error);
+    }
+  }
+
+  async getTicketsStatsByMonth(year: number) {
+    // Tạo 12 tháng
+    const months = Array.from({ length: 12 }, (_, i) => i + 1);
+    const chartData: MonthlyTicketStats[] = [];
+
+    for (const m of months) {
+      const start = new Date(year, m - 1, 1).getTime();
+      const end = new Date(year, m, 1).getTime();
+
+      const tickets = await this.prisma.ticket.findMany({
+        where: {
+          bookedAt: {
+            gte: new Prisma.Decimal(start),
+            lt: new Prisma.Decimal(end),
+          },
+        },
+        include: {
+          flight: true,
+        },
+      });
+
+      // Thống kê vé domestic/international
+      let domestic = 0;
+      let international = 0;
+
+      tickets.forEach((t) => {
+        // if (t.flight.isDomestic) domestic++;
+        // else international++;
+      });
+
+      chartData.push({
+        month: new Date(year, m - 1).toLocaleString('en-US', {
+          month: 'short',
+        }), // Jan, Feb,...
+        domestic,
+        international,
+      });
+    }
+
+    return {
+      year,
+      total: chartData.reduce(
+        (sum, m) => sum + m.domestic + m.international,
+        0,
+      ),
+      chartData,
+    };
   }
 }

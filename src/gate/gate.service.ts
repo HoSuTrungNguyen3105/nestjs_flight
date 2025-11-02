@@ -13,6 +13,7 @@ import { nowDecimal } from 'src/common/helpers/format';
 import { Facility, FacilityType, Prisma } from 'generated/prisma';
 import {
   CreateFacilityDto,
+  FacilityDto,
   UpdateFacilityDto,
 } from './dto/create-facility.dto';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
@@ -301,6 +302,7 @@ export class GatesService {
     try {
       const res = await this.prisma.gate.findMany({
         select: {
+          id: true,
           code: true,
         },
       });
@@ -490,26 +492,75 @@ export class GatesService {
     };
   }
 
-  async getFacilitiesByTerminal(terminalId: string): Promise<Facility[]> {
-    return this.prisma.facility.findMany({
-      where: { terminalId },
-      include: {
-        terminal: true,
-      },
-    });
+  async getFacilitiesByTerminal(
+    terminalId: string,
+  ): Promise<BaseResponseDto<FacilityDto>> {
+    try {
+      const res = await this.prisma.facility.findMany({
+        where: { terminalId },
+        include: {
+          terminal: true,
+        },
+      });
+
+      const mapped = res.map((f) => ({
+        ...f,
+        createdAt: f.createdAt.toNumber(),
+        updatedAt: f.updatedAt.toNumber(),
+        terminal: {
+          ...f.terminal,
+          createdAt: f.terminal.createdAt.toNumber(),
+          updatedAt: f.terminal.updatedAt.toNumber(),
+        },
+      }));
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Find facility thành công!',
+        list: mapped, // res là mảng FacilityDto[]
+      };
+    } catch (error) {
+      return {
+        resultCode: '99',
+        resultMessage: 'Lỗi hệ thống',
+        list: [],
+      };
+    }
   }
 
-  async getFacilitiesByType(type: FacilityType): Promise<Facility[]> {
-    return this.prisma.facility.findMany({
+  async getFacilitiesByType(
+    type: FacilityType,
+  ): Promise<BaseResponseDto<FacilityDto>> {
+    const res = await this.prisma.facility.findMany({
       where: { type },
       include: {
         terminal: {
           include: {
-            airport: true,
+            facilities: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
     });
+    const mapped = res.map((f) => ({
+      ...f,
+      createdAt: f.createdAt.toNumber(),
+      updatedAt: f.updatedAt.toNumber(),
+      terminal: {
+        ...f.terminal,
+        createdAt: f.terminal.createdAt.toNumber(),
+        updatedAt: f.terminal.updatedAt.toNumber(),
+      },
+    }));
+    return {
+      resultCode: '00',
+      resultMessage: 'Find facility thành công!',
+      list: mapped,
+    };
   }
 
   async getFacilities(params: {
@@ -538,18 +589,18 @@ export class GatesService {
     };
   }
 
-  async getFacilityById(id: string): Promise<Facility | null> {
-    return this.prisma.facility.findUnique({
-      where: { id },
-      include: {
-        terminal: {
-          include: {
-            airport: true,
-          },
-        },
-      },
-    });
-  }
+  // async getFacilityById(id: string): Promise<Facility | null> {
+  //   return this.prisma.facility.findUnique({
+  //     where: { id },
+  //     include: {
+  //       terminal: {
+  //         include: {
+  //           airport: true,
+  //         },
+  //       },
+  //     },
+  //   });
+  // }
 
   async createFacility(data: CreateFacilityDto) {
     await this.prisma.facility.create({

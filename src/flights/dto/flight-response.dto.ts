@@ -16,7 +16,8 @@ export class FlightResponseDto {
   actualDeparture?: Prisma.Decimal | null;
   actualArrival?: Prisma.Decimal | null;
   gate?: string | null;
-  terminal?: string | null;
+  // terminal?: string | null;
+  isDomestic: boolean | null;
   isCancelled: boolean | null;
   delayMinutes?: number | null;
   flightStatuses?: FlightStatusDto[];

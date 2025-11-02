@@ -28,12 +28,12 @@ export class CreateTicketDto {
   @IsOptional()
   boardingTime?: number;
 
-  @IsOptional()
-  baggageWeight?: number;
+  // @IsOptional()
+  // baggageWeight?: number;
 
-  @IsOptional()
-  baggageStatus?: string;
+  // @IsOptional()
+  // baggageStatus?: string;
 
-  @IsOptional()
-  baggageCheckedAt?: number;
+  // @IsOptional()
+  // baggageCheckedAt?: number;
 }
