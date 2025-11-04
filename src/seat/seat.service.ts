@@ -41,7 +41,8 @@ export class SeatService {
       const columns = ['A', 'B', 'C', 'D', 'E', 'F'];
       const seats: Prisma.SeatCreateManyInput[] = [];
 
-      for (let number = 1; number <= data.size; number++) {
+      for (let number = 1; number <= 40; number++) {
+        // for (let number = 1; number <= data.size; number++) {
         for (const row of columns) {
           seats.push({
             seatRow: row,

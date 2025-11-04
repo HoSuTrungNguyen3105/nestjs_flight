@@ -1,6 +1,8 @@
 import { Type } from 'class-transformer';
-import { IsNumber, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 import { FlightResponseDto } from './flight-response.dto';
+import { EmployeeStatus, Role } from 'generated/prisma';
+import { Decimal } from 'generated/prisma/runtime/library';
 
 export class BaggageDto {
   @IsNumber()
@@ -44,19 +46,43 @@ export class BoardingPassDto {
 
 export class PassengerDto {
   @IsString()
-  id: string;
+  @IsNotEmpty()
+  fullName: string;
 
   @IsString()
-  name: string;
+  email: string;
 
   @IsString()
-  dateOfBirth: string;
+  @IsNotEmpty()
+  phone: string;
 
   @IsString()
-  nationality: string;
+  @IsNotEmpty()
+  passport: string;
 
+  @IsOptional()
   @IsString()
-  passportNumber: string;
+  accountLockYn?: string; // default = "N"
+
+  @IsOptional()
+  @IsString()
+  isEmailVerified?: string; // default = "Y"
+
+  @IsOptional()
+  lastLoginDate?: number; // Prisma Decimal -> number (timestamp or float)
+
+  @IsOptional()
+  role?: Role; // default = PASSENGER
+
+  @IsOptional()
+  @IsString()
+  otpCode?: string;
+
+  @IsOptional()
+  otpExpire?: number; // Prisma Decimal -> number
+
+  @IsOptional()
+  status?: EmployeeStatus; // default = ACTIVE
 }
 
 export class TicketResponseDto {

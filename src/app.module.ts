@@ -15,6 +15,7 @@ import { PayrollModule } from './payroll/payroll.module';
 import { GatesModule } from './gate/gate.module';
 import { EnumModule } from './enum/enum.module';
 import { MailModule } from './common/nodemailer/nodemailer.module';
+import { HotelsModule } from './hotel/hotel.module';
 
 @Module({
   controllers: [AppController],
@@ -33,6 +34,7 @@ import { MailModule } from './common/nodemailer/nodemailer.module';
     MailModule,
     GatesModule,
     EnumModule,
+    HotelsModule,
   ],
 })
 export class AppModule {}

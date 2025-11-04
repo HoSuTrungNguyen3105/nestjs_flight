@@ -97,7 +97,12 @@ export class FlightsController {
 
   @Get('flightIds/status')
   async findAllIdsFlight() {
-    return this.flightService.findAllIdsFlight();
+    return this.flightService.findAllFlightWithStatus();
+  }
+
+  @Get('flight-info/main')
+  async findAllMainInfoFlight() {
+    return this.flightService.findAllMainInfoFlight();
   }
 
   @Post('flightIds/delete')
@@ -201,6 +206,11 @@ export class FlightsController {
   @Post('search')
   async searchFlights(@Body() dto: SearchFlightDto) {
     return this.flightService.searchFlights(dto);
+  }
+
+  @Post('find-passenger-ticket')
+  async findTicketByPassengerID(@Body('id') id: string) {
+    return this.flightService.findTicketByPassengerID(id);
   }
 
   @Post('flight-status/add')

@@ -171,13 +171,19 @@ export class BookingService {
 
   async findAllPassenger() {
     const bookings = await this.prisma.passenger.findMany({
-      // include: {
-      //   bookings: {
-      //     select: {
-      //       id: true,
-      //     },
-      //   },
-      // },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        passport: true,
+        phone: true,
+        status: true,
+        bookings: {
+          select: {
+            id: true,
+          },
+        },
+      },
     });
     return { resultCode: '00', resultMessage: 'Success', list: bookings };
   }

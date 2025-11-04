@@ -23,6 +23,7 @@ import {
   UpdateTerminalDto,
 } from './dto/create-terminal.dto';
 import { TicketResponseDto } from './dto/ticket-response.dto';
+import * as QRCode from 'qrcode';
 
 @Injectable()
 export class FlightsService {
@@ -490,32 +491,8 @@ export class FlightsService {
     }
   }
 
-  async findAllIdsFlight() {
+  async findAllFlightWithStatus() {
     try {
-      // const flights = await this.prisma.flightStatus.findMany({
-      //   select: {
-      //     flightId: true,
-      //     status: true,
-      //     flight: {
-      //       select: {
-      //         flightNo: true,
-      //       },
-      //     },
-      //   },
-      // });
-
-      // const flights = await this.prisma.flight.findMany({
-      //   select: {
-      //     flightId: true,
-      //     flightNo: true,
-      //     flightStatuses: {
-      //       select: {
-      //         id: true,
-      //         status: true,
-      //       },
-      //     },
-      //   },
-      // });
       const flights = await this.prisma.flight.findMany({
         select: {
           flightId: true,
@@ -527,6 +504,40 @@ export class FlightsService {
       return {
         resultCode: '00',
         resultMessage: 'Lấy danh sách ID chuyến bay thành công',
+        list: flights,
+      };
+    } catch (error) {
+      return {
+        resultCode: '99',
+        resultMessage: error.message || 'Xoá toàn bộ flights thất bại',
+      };
+    }
+  }
+
+  async findAllMainInfoFlight() {
+    try {
+      const flights = await this.prisma.flight.findMany({
+        select: {
+          flightId: true,
+          flightNo: true,
+          aircraftCode: true,
+          arrivalAirport: true,
+          departureAirport: true,
+          gate: {
+            select: {
+              id: true,
+            },
+          },
+          priceBusiness: true,
+          priceEconomy: true,
+          priceFirst: true,
+          flightType: true,
+        },
+      });
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Lấy danh sách chuyến bay thành công',
         list: flights,
       };
     } catch (error) {
@@ -753,6 +764,99 @@ export class FlightsService {
       resultMessage: 'Ticket list success !!',
       list: mapped,
     };
+  }
+
+  async findTicketByPassengerID(
+    id: string,
+  ): Promise<BaseResponseDto<TicketResponseDto>> {
+    // 1️⃣ Lấy danh sách ticket của hành khách
+    try {
+      const tickets = await this.prisma.ticket.findMany({
+        where: { passengerId: id },
+        include: {
+          flight: true,
+          boardingPass: true,
+        },
+      });
+
+      // Nếu không có vé nào
+      if (!tickets || tickets.length === 0) {
+        return {
+          resultCode: '01',
+          resultMessage: 'No tickets found for this passenger.',
+          list: [],
+        };
+      }
+
+      // 2️Cập nhật mã QR cho từng vé (chỉ khi chưa có)
+      for (const t of tickets) {
+        // chỉ sinh QR mới nếu chưa có
+        if (!t.qrCodeImage) {
+          const qrData = `http://localhost:5173/ticket/${t.id}/verify`;
+          const qrCodeImage = await QRCode.toDataURL(qrData);
+
+          await this.prisma.ticket.update({
+            where: { id: t.id },
+            data: { qrCodeImage },
+          });
+        }
+      }
+
+      // 3️⃣ Lấy lại vé (để có cả mã QR)
+      const updatedTickets = await this.prisma.ticket.findMany({
+        where: { passengerId: id },
+        include: {
+          flight: {
+            include: {
+              flightStatuses: {
+                select: {
+                  id: true,
+                  flightId: true,
+                  status: true,
+                },
+              },
+            },
+          },
+          boardingPass: true,
+        },
+      });
+
+      // 4️Map dữ liệu ra DTO
+      const mapped = updatedTickets.map((t) => ({
+        ...t,
+        bookedAt: Number(t.bookedAt),
+        flight: t.flight
+          ? {
+              ...t.flight,
+
+              flightStatuses: t.flight.flightStatuses.map((fs) => ({
+                ...fs,
+              })),
+            }
+          : null,
+        boardingPass: t.boardingPass
+          ? {
+              ...t.boardingPass,
+              seatNo: t.seatNo,
+              issuedAt: Number(t.boardingPass.issuedAt),
+              boardingTime: Number(t.boardingPass.boardingTime),
+            }
+          : null,
+      }));
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Ticket list success !!',
+        list: mapped,
+      };
+    } catch (error) {
+      console.error('err', error);
+      return {
+        resultCode: '99',
+        resultMessage: 'Ticket list success !!',
+        list: [],
+      };
+    }
   }
 
   async createBaggage(data: {

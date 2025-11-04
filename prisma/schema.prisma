@@ -91,16 +91,23 @@ model UserSession {
 }
 
 model Passenger {
-  id              String    @id @default(cuid())
+  id              String   @id @default(cuid())
   fullName        String
-  email           String    @unique
+  password        String?  @db.VarChar(100)
+  email           String   @unique
   phone           String
   passport        String
-  accountLockYn   String    @default("N")
-  isEmailVerified String    @default("Y")
-  lastLoginDate   Decimal?  @db.Decimal(20, 3)
-  bookings        Booking[]
-  tickets         Ticket[]
+  accountLockYn   String   @default("N")
+  isEmailVerified String   @default("Y")
+  lastLoginDate   Decimal? @db.Decimal(20, 3)
+  role            Role     @default(PASSENGER)
+
+  otpCode   String?
+  otpExpire Decimal? @db.Decimal(20, 3)
+
+  status   EmployeeStatus @default(ACTIVE)
+  bookings Booking[]
+  tickets  Ticket[]
 }
 
 model Payroll {
@@ -235,9 +242,11 @@ model Ticket {
   ticketNo    String  @unique
   passengerId String
   flightId    Int
-  seatClass   String  @db.VarChar(20) // ECONOMY / BUSINESS
-  seatNo      String  @db.VarChar(10)
-  bookedAt    Decimal @db.Decimal(20, 3)
+  qrCodeImage String? @db.Text
+
+  seatClass String  @db.VarChar(20) // ECONOMY / BUSINESS
+  seatNo    String  @db.VarChar(10)
+  bookedAt  Decimal @db.Decimal(20, 3)
 
   passenger    Passenger     @relation(fields: [passengerId], references: [id])
   flight       Flight        @relation(fields: [flightId], references: [flightId])
@@ -416,7 +425,30 @@ model FlightStatus {
   @@index([flightId], map: "FlightStatus_flightId_fkey")
 }
 
+model Hotel {
+  id               Int     @id @default(autoincrement())
+  hotelCode        String? @unique
+  name             String
+  city             String
+  address          String
+  rating           Float
+  reviewCount      Int     @default(0)
+  distanceToCenter Float
+  imageUrl         String
+  price            Float
+  discountPercent  Float?
+  isPrime          Boolean @default(false)
+  freeWifi         Boolean @default(false)
+  covidMeasures    Boolean @default(false)
+  freeCancel       Boolean @default(false)
+  payLater         Boolean @default(false)
+  rooms            Int     @default(0)
+  createdAt        Decimal @db.Decimal(20, 3)
+  updatedAt        Decimal @db.Decimal(20, 3)
+}
+
 enum Role {
+  PASSENGER
   USER
   ADMIN
   MONITOR

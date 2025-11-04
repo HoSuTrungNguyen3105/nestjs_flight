@@ -9,7 +9,6 @@ import {
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto, MfaLoginDto } from './dto/login.dto';
-import { VerifyPasswordDto } from './dto/verifypw.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -163,5 +162,15 @@ export class AuthController {
   async getFacilityRelations(@Param('id') id: string) {
     const user = await this.authService.getFacilityRelations(id);
     return user;
+  }
+
+  @Post('update-batch-password')
+  async updateBatchPassword(@Body('password') password: string) {
+    return await this.authService.updateBatchPasswordToPassenger(password);
+  }
+
+  @Post('find-passenger-info')
+  findPassengerById(@Body('id') id: string) {
+    return this.authService.getPassengerInfo(id);
   }
 }

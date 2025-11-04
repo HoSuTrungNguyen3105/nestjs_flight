@@ -3,6 +3,48 @@ import { Decimal } from 'generated/prisma/runtime/library';
 import { UserResponseDto } from 'src/users/dto/info-user-dto';
 import { dateToDecimal } from './format';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+const DIGITS = '0123456789';
+const SPECIALS = '!@#$%^&*()-_=+[]{}|;:,.<>?/';
+
+export function generatePassword(allowSpecial = false) {
+  const minLength = allowSpecial ? 8 : 10;
+  const pool = LETTERS + DIGITS + (allowSpecial ? SPECIALS : '');
+
+  const pick = (str: string) => str[crypto.randomInt(0, str.length)];
+
+  const required = [
+    pick(LETTERS),
+    pick(DIGITS),
+    ...(allowSpecial ? [pick(SPECIALS)] : []),
+  ];
+
+  const remainingLength = minLength - required.length;
+  for (let i = 0; i < remainingLength; i++) {
+    required.push(pick(pool));
+  }
+
+  for (let i = required.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(0, i + 1);
+    [required[i], required[j]] = [required[j], required[i]];
+  }
+
+  return required.join('');
+}
+
+export function generateRandomInHotelCode(length = 10): string {
+  const pool = LETTERS + DIGITS;
+  const bytes = crypto.randomBytes(length);
+  let result = '';
+
+  for (let i = 0; i < length; i++) {
+    result += pool[bytes[i] % pool.length];
+  }
+
+  return result;
+}
 
 export function toEpochDecimal(): Prisma.Decimal {
   return new Prisma.Decimal(Date.now() / 1000);

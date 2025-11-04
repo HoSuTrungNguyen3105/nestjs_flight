@@ -14,6 +14,7 @@ import { Decimal } from 'generated/prisma/runtime/library';
 import { generateOtp, hashPassword } from 'src/common/helpers/hook';
 import { VerifyPasswordResponseDto } from './dto/verifypw.dto';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
+import { PassengerDto } from 'src/flights/dto/ticket-response.dto';
 
 @Injectable()
 export class AuthService {
@@ -24,7 +25,7 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    const existingUser = await this.prisma.user.findUnique({
+    const existingUser = await this.prisma.passenger.findUnique({
       where: { email: dto.email },
     });
 
@@ -34,21 +35,21 @@ export class AuthService {
 
     const { otp, hashedOtp, expireAt } = await generateOtp(5);
 
-    const user = await this.prisma.user.create({
+    const user = await this.prisma.passenger.create({
       data: {
         email: dto.email,
         password: await hashPassword(dto.password), // hash trước khi lưu
         phone: dto.phone,
-        tempPassword: '',
-        name: dto.name ?? '',
-        pictureUrl: '',
-        role: dto.role as Role,
-        authType: 'ID,PW',
-        userAlias: '',
+        passport: '',
+        fullName: dto.name ?? '',
+        // pictureUrl: '',
+        // role: dto.role as Role,
+        // authType: 'ID,PW',
+        //userAlias: '',
         otpCode: hashedOtp,
         otpExpire: expireAt,
-        createdAt: nowDecimal(), // lưu Decimal
-        updatedAt: nowDecimal(),
+        // createdAt: nowDecimal(), // lưu Decimal
+        // updatedAt: nowDecimal(),
       },
     });
 
@@ -226,8 +227,7 @@ export class AuthService {
         };
       }
 
-      // 🔹 2. ID,PW login
-      if (authType === 'ID,PW') {
+      if (authType === 'ADMIN') {
         const user = await this.prisma.user.findUnique({
           where: { email },
           include: { sessions: true },
@@ -258,7 +258,7 @@ export class AuthService {
           };
         }
 
-        // 🔸 3. Nếu có mật khẩu tạm
+        // 3. Nếu có mật khẩu tạm
         if (
           user.tempPassword &&
           user.password !== '' &&
@@ -284,7 +284,7 @@ export class AuthService {
           };
         }
 
-        // 🔸 4. Kiểm tra mật khẩu thật
+        // 4. Kiểm tra mật khẩu thật
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
         if (!isPasswordValid) {
@@ -304,7 +304,7 @@ export class AuthService {
           };
         }
 
-        // 🔸 5. Reset lại đếm sai mật khẩu
+        // 5. Reset lại đếm sai mật khẩu
         await this.prisma.user.update({
           where: { id: user.id },
           data: {
@@ -314,7 +314,7 @@ export class AuthService {
           },
         });
 
-        // 🔸 6. Sinh JWT + quản lý session
+        // 6. Sinh JWT + quản lý session
         const payload = { sub: user.id, email: user.email, role: user.role };
         const accessToken = await this.jwtService.signAsync(payload);
 
@@ -350,8 +350,44 @@ export class AuthService {
           data: { id: user.id },
         };
       }
+      // 2. ID,PW login
+      if (authType === 'ID,PW') {
+        const passenger = await this.prisma.passenger.findUnique({
+          where: { email },
+        });
+        if (!passenger)
+          return {
+            resultCode: '99',
+            resultMessage: 'Tài khoản không tồn tại!',
+          };
 
-      // 🔹 7. Trường hợp authType không hợp lệ
+        const isPasswordValid = await bcrypt.compare(
+          password,
+          passenger.password,
+        );
+
+        if (!isPasswordValid) {
+          return {
+            resultCode: '03',
+            resultMessage: 'Mật khẩu không đúng!',
+          };
+        }
+
+        const payload = {
+          sub: passenger.id,
+          email: passenger.email,
+          role: passenger.role,
+        };
+        const accessToken = await this.jwtService.signAsync(payload);
+
+        return {
+          resultCode: '00',
+          resultMessage: 'Đăng nhập thành công!',
+          accessToken,
+          data: { id: passenger.id },
+        };
+      }
+      // 7. Trường hợp authType không hợp lệ
       return {
         resultCode: '99',
         resultMessage: 'Loại xác thực không hợp lệ!',
@@ -666,10 +702,11 @@ export class AuthService {
         },
       };
     } catch (err) {
-      console.error('🔥 Lỗi tạo MFA:', err);
+      console.error(' Lỗi tạo MFA:', err);
       throw err;
     }
   }
+
   async verifyMfaSetup(email: string, code: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
 
@@ -941,75 +978,6 @@ export class AuthService {
     };
   }
 
-  //  async sendMultiEmail(emails: string[], titles: string[], contents: string[], options?: {
-  //   batchSize?: number;
-  //   delayBetweenBatches?: number;
-  //   maxRetries?: number;
-  // }) {
-  //   const {
-  //     batchSize = 50,
-  //     delayBetweenBatches = 1000,
-  //     maxRetries = 3
-  //   } = options || {};
-
-  //   // Kiểm tra dữ liệu đầu vào
-  //   if (emails.length !== titles.length || emails.length !== contents.length) {
-  //     throw new Error('Số lượng email, tiêu đề và nội dung không khớp');
-  //   }
-
-  //   const results = [];
-
-  //   // Hàm gửi email với retry
-  //   const sendEmailWithRetry = async (email: string, title: string, content: string, retries = maxRetries) => {
-  //     for (let attempt = 1; attempt <= retries; attempt++) {
-  //       try {
-  //         await this.mailer.sendMail(email, title, content);
-  //         return { success: true, attempt };
-  //       } catch (error) {
-  //         if (attempt === retries) {
-  //           throw error;
-  //         }
-  //         await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
-  //       }
-  //     }
-  //     return { success: false };
-  //   };
-
-  //   for (let i = 0; i < emails.length; i += batchSize) {
-  //     const batchEmails = emails.slice(i, i + batchSize);
-  //     const batchTitles = titles.slice(i, i + batchSize);
-  //     const batchContents = contents.slice(i, i + batchSize);
-
-  //     const batchPromises = batchEmails.map((email, index) =>
-  //       sendEmailWithRetry(email, batchTitles[index], batchContents[index])
-  //         .then(result => ({
-  //           email,
-  //           success: result.success,
-  //           attempt: result.attempt
-  //         }))
-  //         .catch(error => ({
-  //           email,
-  //           success: false,
-  //           error: error.message
-  //         }))
-  //     );
-
-  //     const batchResults = await Promise.all(batchPromises);
-  //     results.push(...batchResults);
-
-  //     if (i + batchSize < emails.length) {
-  //       await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
-  //     }
-  //   }
-
-  //   return {
-  //     total: emails.length,
-  //     successful: results.filter(r => r.success).length,
-  //     failed: results.filter(r => !r.success).length,
-  //     results
-  //   };
-  // }
-
   async forgotPasswordWithMfa(email: string, mfaCode: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
 
@@ -1200,5 +1168,72 @@ export class AuthService {
     });
 
     return { resultCode: '00', resultMessage: 'Logout successful' };
+  }
+
+  async updateBatchPasswordToPassenger(password: string) {
+    try {
+      if (!password) {
+        return {
+          resultCode: '99',
+          resultMessage: 'password not have output',
+        };
+      }
+
+      const hashedPassword = await hashPassword(password);
+
+      await this.prisma.passenger.updateMany({
+        data: { password: hashedPassword },
+      });
+      return { resultCode: '00', resultMessage: 'Update successful' };
+    } catch (error) {
+      console.error('error', error);
+      throw error;
+    }
+  }
+
+  async getPassengerInfo(id: string): Promise<BaseResponseDto<PassengerDto>> {
+    try {
+      const passenger = await this.prisma.passenger.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          isEmailVerified: true,
+          fullName: true,
+          passport: true,
+          accountLockYn: true,
+          lastLoginDate: true,
+          status: true,
+          phone: true,
+        },
+      });
+
+      if (!passenger) {
+        return {
+          resultCode: '01',
+          resultMessage: 'Không tìm thấy người dùng',
+        };
+      }
+
+      const safePassenger: PassengerDto = {
+        ...passenger,
+        lastLoginDate: passenger.lastLoginDate
+          ? (passenger.lastLoginDate as Decimal).toNumber()
+          : undefined,
+      };
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Lấy thông tin người dùng thành công!',
+        data: safePassenger,
+      };
+    } catch (error) {
+      console.error('err', error);
+      return {
+        resultCode: '99',
+        resultMessage: 'Có lỗi xảy ra khi lấy thông tin người dùng',
+      };
+    }
   }
 }

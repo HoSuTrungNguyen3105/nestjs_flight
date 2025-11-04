@@ -11,9 +11,8 @@ import {
   User,
 } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
-import { generatePassword } from './hooks/randompw';
 import { UserResponseDto } from './dto/info-user-dto';
-import { formatUserResponse } from 'src/common/helpers/hook';
+import { formatUserResponse, generatePassword } from 'src/common/helpers/hook';
 import { Decimal } from 'generated/prisma/runtime/library';
 import { MailService } from 'src/common/nodemailer/nodemailer.service';
 import { decimalToDate, nowDecimal } from 'src/common/helpers/format';
@@ -22,7 +21,6 @@ import { v2 as cloudinary } from 'cloudinary';
 import { CreateLeaveRequestDto } from './dto/leave-request.dto';
 import { BatchUpdateResult } from './dto/user-response.dto';
 import * as ExcelJS from 'exceljs';
-import { Blob } from 'buffer';
 import { RequestChangeRoleDto } from './dto/request-change-role.dto';
 import { UpdateMyInfoDto } from './dto/update-my-info.dto';
 import { MonthlyTicketStats } from './dto/response.dto';
