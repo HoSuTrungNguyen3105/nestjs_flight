@@ -4,7 +4,7 @@ import { PrismaService } from 'src/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { LoginDto, MfaLoginDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
-import { Prisma, Role } from 'generated/prisma';
+import { Prisma, Role, UserSession } from 'generated/prisma';
 import { decimalToDate, nowDecimal, TEN_DAYS } from 'src/common/helpers/format';
 import * as speakeasy from 'speakeasy';
 import * as QRCode from 'qrcode';
@@ -179,7 +179,37 @@ export class AuthService {
     }
   }
 
-  async loginUser(dto: LoginDto) {
+  private getDeviceInfo(userAgent: string): {
+    device: string;
+    browser: string;
+  } {
+    const ua = userAgent.toLowerCase();
+
+    let device = 'Unknown Device';
+    if (ua.includes('windows')) device = 'Windows';
+    else if (ua.includes('mac os')) device = 'Mac';
+    else if (ua.includes('android')) device = 'Android';
+    else if (ua.includes('iphone') || ua.includes('ipad')) device = 'iOS';
+    else if (ua.includes('linux')) device = 'Linux';
+
+    let browser = 'Unknown Browser';
+    if (ua.includes('chrome') && !ua.includes('edg')) browser = 'Chrome';
+    else if (ua.includes('firefox')) browser = 'Firefox';
+    else if (ua.includes('safari') && !ua.includes('chrome'))
+      browser = 'Safari';
+    else if (ua.includes('edge')) browser = 'Edge';
+    else if (ua.includes('opera')) browser = 'Opera';
+
+    return { device, browser };
+  }
+
+  private getLocationFromIp(ip: string): string {
+    // Trong thực tế, bạn có thể sử dụng service như ipinfo.io hoặc maxmind
+    // Ở đây trả về giá trị mặc định
+    return 'Unknown Location';
+  }
+
+  async loginAdmin(dto: LoginDto) {
     try {
       const { email, password, authType } = dto;
 
@@ -189,10 +219,9 @@ export class AuthService {
           resultMessage: 'Email và mật khẩu là bắt buộc!',
         };
       }
-
-      // 1. DEV login
       if (authType === 'DEV') {
         const user = await this.prisma.user.findUnique({ where: { email } });
+
         if (!user)
           return {
             resultCode: '99',
@@ -210,6 +239,9 @@ export class AuthService {
 
         const payload = { sub: user.id, email: user.email, role: user.role };
         const accessToken = await this.jwtService.signAsync(payload);
+
+        console.log('payload', payload);
+        console.log('accessToken', accessToken);
 
         await this.prisma.userSession.create({
           data: {
@@ -318,6 +350,9 @@ export class AuthService {
         const payload = { sub: user.id, email: user.email, role: user.role };
         const accessToken = await this.jwtService.signAsync(payload);
 
+        console.log('payload', payload);
+        console.log('accessToken', accessToken);
+
         for (const s of user.sessions) {
           if (Date.now() - Number(s.createdAt || 0) > TEN_DAYS) {
             await this.prisma.userSession.delete({ where: { id: s.id } });
@@ -328,18 +363,43 @@ export class AuthService {
           (s) => Date.now() - Number(s.createdAt || 0) <= TEN_DAYS,
         );
 
-        if (validSessions.length >= 2) {
+        // Giới hạn số session (ví dụ: tối đa 5 sessions)
+        if (validSessions.length >= 5) {
           const oldest = validSessions.sort(
             (a, b) => Number(a.createdAt) - Number(b.createdAt),
           )[0];
           await this.prisma.userSession.delete({ where: { id: oldest.id } });
         }
 
-        await this.prisma.userSession.create({
+        // Get device info
+        const deviceInfo = this.getDeviceInfo(dto.userAgent);
+        const location = this.getLocationFromIp(dto.ipAddress);
+
+        // Tạo session mới với đầy đủ thông tin
+        const resSeeson = await this.prisma.userSession.create({
           data: {
             userId: user.id,
             token: accessToken,
-            createdAt: nowDecimal(),
+            createdAt: nowDecimal(), // Current timestamp in seconds
+            device: deviceInfo.device,
+            browser: deviceInfo.browser,
+            location: location,
+            ipAddress: dto.ipAddress,
+            userAgent: dto.userAgent,
+            isCurrent: true, // Session hiện tại
+          },
+        });
+
+        console.log('resSeeson', resSeeson);
+
+        // Đánh dấu các session khác không phải current
+        await this.prisma.userSession.updateMany({
+          where: {
+            userId: user.id,
+            token: { not: accessToken },
+          },
+          data: {
+            isCurrent: false,
           },
         });
 
@@ -350,7 +410,22 @@ export class AuthService {
           data: { id: user.id },
         };
       }
-      // 2. ID,PW login
+    } catch (error) {
+      console.error('err', error);
+    }
+  }
+
+  async loginUser(dto: LoginDto) {
+    try {
+      const { email, password, authType } = dto;
+      console.log('userId', dto);
+      if (!email || !password) {
+        return {
+          resultCode: '99',
+          resultMessage: 'Email và mật khẩu là bắt buộc!',
+        };
+      }
+
       if (authType === 'ID,PW') {
         const passenger = await this.prisma.passenger.findUnique({
           where: { email },
@@ -387,11 +462,6 @@ export class AuthService {
           data: { id: passenger.id },
         };
       }
-      // 7. Trường hợp authType không hợp lệ
-      return {
-        resultCode: '99',
-        resultMessage: 'Loại xác thực không hợp lệ!',
-      };
     } catch (err) {
       console.error('Lỗi loginUser:', err);
       throw err;
@@ -561,6 +631,127 @@ export class AuthService {
     if (!flight) return { resultCode: '01', resultMessage: 'Flight not found' };
     return { resultCode: '00', resultMessage: 'Success', data: flight };
   }
+
+  async logoutAllOtherSessions(userId: number): Promise<BaseResponseDto> {
+    // Tìm session hiện tại
+    const currentSession = await this.prisma.userSession.findFirst({
+      where: {
+        userId,
+        isCurrent: true,
+      },
+    });
+
+    if (!currentSession) {
+      return { resultCode: '01', resultMessage: 'Current session not found' };
+    }
+
+    // Xóa tất cả sessions khác
+    await this.prisma.userSession.deleteMany({
+      where: {
+        userId,
+        id: {
+          not: currentSession.id,
+        },
+      },
+    });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Logged out from all other sessions successfully',
+    };
+  }
+
+  async logoutSession(
+    userId: number,
+    sessionId: number,
+  ): Promise<BaseResponseDto> {
+    const session = await this.prisma.userSession.findFirst({
+      where: {
+        id: sessionId,
+        userId,
+      },
+    });
+
+    if (!session) {
+      return {
+        resultCode: '00',
+        resultMessage: 'Session not found',
+      };
+    }
+
+    if (session.isCurrent) {
+      return {
+        resultCode: '00',
+        resultMessage: 'Cannot logout current session',
+      };
+    }
+
+    await this.prisma.userSession.delete({
+      where: {
+        id: sessionId,
+      },
+    });
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Session logged out successfully',
+    };
+  }
+
+  async getUserSessions(userId: number): Promise<BaseResponseDto<UserSession>> {
+    try {
+      console.log('user', userId);
+      const sessions = await this.prisma.userSession.findMany({
+        where: {
+          userId,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Success',
+        list: sessions,
+      };
+    } catch (error) {
+      console.error('err', error);
+      return {
+        resultCode: '00',
+        resultMessage: 'Success',
+        list: [],
+      };
+    }
+  }
+
+  // async getUserSessions(userId: number, token: string) {
+  //   return this.prisma.userSession.findFirst({
+  //     where: { userId, token },
+  //     include: {
+  //       user: {
+  //         select: {
+  //           email: true,
+  //           name: true,
+  //         },
+  //       },
+  //     },
+  //     orderBy: {
+  //       createdAt: 'desc',
+  //     },
+  //   });
+  // }
+
+  // async logoutAllOtherSessions(userId: number, currentSessionId: number) {
+  //   return this.prisma.userSession.deleteMany({
+  //     where: {
+  //       userId,
+  //       id: {
+  //         not: currentSessionId,
+  //       },
+  //     },
+  //   });
+  // }
 
   async getFacilityRelations(facilityId: string) {
     const facility = await this.prisma.facility.findUnique({
@@ -777,6 +968,9 @@ export class AuthService {
       const accessToken = await this.jwtService.signAsync(payload, {
         expiresIn: '2h',
       });
+
+      console.log('payload', payload);
+      console.log('accessToken', accessToken);
 
       await this.prisma.user.update({
         where: { id: user.id },

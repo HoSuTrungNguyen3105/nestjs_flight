@@ -769,7 +769,7 @@ export class FlightsService {
   async findTicketByPassengerID(
     id: string,
   ): Promise<BaseResponseDto<TicketResponseDto>> {
-    // 1️⃣ Lấy danh sách ticket của hành khách
+    // Lấy danh sách ticket của hành khách
     try {
       const tickets = await this.prisma.ticket.findMany({
         where: { passengerId: id },
@@ -802,7 +802,7 @@ export class FlightsService {
         }
       }
 
-      // 3️⃣ Lấy lại vé (để có cả mã QR)
+      // 3 Lấy lại vé (để có cả mã QR)
       const updatedTickets = await this.prisma.ticket.findMany({
         where: { passengerId: id },
         include: {
@@ -854,6 +854,69 @@ export class FlightsService {
       return {
         resultCode: '99',
         resultMessage: 'Ticket list success !!',
+        list: [],
+      };
+    }
+  }
+
+  async findOneTicketByPassengerID(
+    id: string,
+    ticketNo: string,
+  ): Promise<BaseResponseDto<TicketResponseDto>> {
+    try {
+      const ticket = await this.prisma.ticket.findFirst({
+        where: { passengerId: id, ticketNo },
+        include: {
+          flight: {
+            include: {
+              flightStatuses: true,
+            },
+          },
+          boardingPass: true,
+        },
+      });
+
+      if (!ticket) {
+        return {
+          resultCode: '01',
+          resultMessage: 'No tickets found for this passenger.',
+          list: [],
+        };
+      }
+
+      // Map dữ liệu ra DTO
+      const mapped: TicketResponseDto = {
+        ...ticket,
+        bookedAt: Number(ticket.bookedAt),
+        flight: ticket.flight
+          ? {
+              ...ticket.flight,
+              flightStatuses:
+                ticket.flight.flightStatuses?.map((fs) => ({
+                  ...fs,
+                })) || [],
+            }
+          : null,
+        boardingPass: ticket.boardingPass
+          ? {
+              ...ticket.boardingPass,
+              seatNo: ticket.seatNo, // lấy từ ticket
+              issuedAt: Number(ticket.boardingPass.issuedAt),
+              boardingTime: Number(ticket.boardingPass.boardingTime),
+            }
+          : null,
+      };
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Ticket query success !!',
+        list: [mapped],
+      };
+    } catch (error) {
+      console.error('err', error);
+      return {
+        resultCode: '99',
+        resultMessage: 'Ticket query failed !!',
         list: [],
       };
     }

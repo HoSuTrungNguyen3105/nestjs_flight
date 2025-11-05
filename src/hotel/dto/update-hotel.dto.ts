@@ -1,10 +1,6 @@
-import { OmitType } from '@nestjs/mapped-types';
 import { IsString, IsNumber, IsBoolean, IsOptional } from 'class-validator';
 
-export class ResponseHotelDto {
-  @IsNumber()
-  id: number;
-
+export class UpdateEntireHotelDto {
   @IsString()
   name: string;
 
@@ -55,12 +51,13 @@ export class ResponseHotelDto {
   distanceToCenter: number;
 
   @IsNumber()
-  createdAt: number;
-
-  @IsNumber()
   updatedAt: number;
 }
 
-export class CreateHotelDto extends OmitType(ResponseHotelDto, [
-  'id',
-] as const) {}
+// export class UpdatePatchHotelDto {
+//   @IsString()
+//   hotelCode: string;
+
+//   @IsNumber()
+//   updatedAt: number;
+// }

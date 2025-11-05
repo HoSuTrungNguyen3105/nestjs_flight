@@ -5,19 +5,46 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto, MfaLoginDto } from './dto/login.dto';
+import { AuthGuard } from '@nestjs/passport';
+import { GetUser, UserPayload } from 'src/baseResponse/response.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Post('getUserSessions')
+  async getUserSessions(@Body('userId') userId: number) {
+    console.log('User ID từ body:', userId);
+    const sessions = await this.authService.getUserSessions(userId);
+    return sessions;
+  }
+
+  @Post('logoutSession/:sessionId')
+  @UseGuards(AuthGuard('jwt'))
+  async logoutSession(
+    @GetUser() user: UserPayload,
+    @Param('sessionId', ParseIntPipe) sessionId: number,
+  ) {
+    const userId = user.sub;
+    const res = await this.authService.logoutSession(userId, sessionId);
+    return res;
+  }
+
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
+
+  @Post('login-admin')
+  async loginAdmin(@Body() dto: LoginDto) {
+    return this.authService.loginAdmin(dto);
+  }
+
   @Post('login')
   async login(@Body() dto: LoginDto) {
     return this.authService.loginUser(dto);
@@ -172,5 +199,14 @@ export class AuthController {
   @Post('find-passenger-info')
   findPassengerById(@Body('id') id: string) {
     return this.authService.getPassengerInfo(id);
+  }
+
+  @Post('logoutAllOtherSessions')
+  @UseGuards(AuthGuard('jwt'))
+  async logoutAllOtherSessions(@GetUser() user: UserPayload) {
+    const userId = user.sub;
+    console.log('refetchLogoutAllSessions', userId);
+    const res = await this.authService.logoutAllOtherSessions(userId);
+    return res;
   }
 }

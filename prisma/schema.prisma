@@ -81,11 +81,19 @@ model Message {
 }
 
 model UserSession {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  token     String   @db.Text
-  createdAt Decimal? @db.Decimal(20, 3)
-  user      User     @relation(fields: [userId], references: [id])
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  passengerId String
+  token       String    @db.Text
+  createdAt   Decimal?  @db.Decimal(20, 3)
+  device      String?
+  browser     String?
+  location    String?
+  ipAddress   String?
+  userAgent   String?
+  isCurrent   Boolean   @default(false)
+  passenger   Passenger @relation(fields: [passengerId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId], map: "UserSession_userId_fkey")
 }
@@ -108,6 +116,7 @@ model Passenger {
   status   EmployeeStatus @default(ACTIVE)
   bookings Booking[]
   tickets  Ticket[]
+  sessions UserSession[]
 }
 
 model Payroll {
@@ -242,11 +251,13 @@ model Ticket {
   ticketNo    String  @unique
   passengerId String
   flightId    Int
+  // seatId      Int // liên kết với seat
   qrCodeImage String? @db.Text
 
-  seatClass String  @db.VarChar(20) // ECONOMY / BUSINESS
-  seatNo    String  @db.VarChar(10)
-  bookedAt  Decimal @db.Decimal(20, 3)
+  seatClass String   @db.VarChar(20) // ECONOMY / BUSINESS
+  seatNo    String   @db.VarChar(10)
+  seatPrice Decimal? @db.Decimal(10, 2)
+  bookedAt  Decimal  @db.Decimal(20, 3)
 
   passenger    Passenger     @relation(fields: [passengerId], references: [id])
   flight       Flight        @relation(fields: [flightId], references: [flightId])
@@ -299,18 +310,19 @@ model Seat {
   seatNumber Int
   seatRow    String
 
-  isBooked             Boolean  @default(false)
-  isAvailable          Boolean  @default(true)
-  isExitRow            Boolean  @default(false)
-  isExtraLegroom       Boolean  @default(false)
+  isBooked             Boolean @default(false)
+  isAvailable          Boolean @default(true)
+  isExitRow            Boolean @default(false)
+  isExtraLegroom       Boolean @default(false)
   note                 String?
   price                Float?
-  isHandicapAccessible Boolean  @default(false)
-  isNearLavatory       Boolean  @default(false)
-  isUpperDeck          Boolean  @default(false)
-  isWing               Boolean  @default(false)
-  booking              Booking? @relation(fields: [bookingId], references: [id])
-  flight               Flight   @relation(fields: [flightId], references: [flightId])
+  isHandicapAccessible Boolean @default(false)
+  isNearLavatory       Boolean @default(false)
+  isUpperDeck          Boolean @default(false)
+  isWing               Boolean @default(false)
+
+  booking Booking? @relation(fields: [bookingId], references: [id])
+  flight  Flight   @relation(fields: [flightId], references: [flightId])
 
   @@index([flightId], map: "Seat_flightId_fkey")
 }

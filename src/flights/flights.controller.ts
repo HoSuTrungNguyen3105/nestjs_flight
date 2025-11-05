@@ -213,6 +213,14 @@ export class FlightsController {
     return this.flightService.findTicketByPassengerID(id);
   }
 
+  @Post('find-one-passenger-ticket')
+  async findOneTicketByPassengerID(
+    @Body('id') id: string,
+    @Body('ticketNo') ticketNo: string,
+  ) {
+    return this.flightService.findOneTicketByPassengerID(id, ticketNo);
+  }
+
   @Post('flight-status/add')
   createFlightStatus(
     @Body() body: { flightId: number; status: string; description?: string },

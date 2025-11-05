@@ -12,7 +12,14 @@ export class LoginDto {
 
   @IsString()
   tempPassword: string | null;
+
+  @IsString()
+  userAgent: string;
+
+  @IsString()
+  ipAddress: string;
 }
+
 export class MfaLoginDto {
   @IsEmail()
   email!: string;

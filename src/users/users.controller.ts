@@ -64,8 +64,13 @@ export class UsersController {
     return this.userService.getUserById(id);
   }
 
-  @Get('getUserInfo/:id')
-  async getUserInfo(@Param('id', ParseIntPipe) id: number) {
+  // @Get('getUserInfo/:id')
+  // async getUserInfo(@Param('id', ParseIntPipe) id: number) {
+  //   return this.userService.getUserInfo(id);
+  // }
+
+  @Post('get-user-info')
+  findPassengerById(@Body('id') id: number) {
     return this.userService.getUserInfo(id);
   }
 
