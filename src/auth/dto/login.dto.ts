@@ -18,6 +18,9 @@ export class LoginDto {
 
   @IsString()
   ipAddress: string;
+
+  @IsString()
+  location: string;
 }
 
 export class MfaLoginDto {

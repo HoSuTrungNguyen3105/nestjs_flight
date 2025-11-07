@@ -23,9 +23,15 @@ export class BookingController {
     return this.bookingService.createPseudoPassengers(body);
   }
 
-  @Post()
-  create(@Body() dto: CreateBookingDto) {
-    return this.bookingService.create(dto);
+  // @Post()
+  // create(@Body() dto: CreateBookingDto) {
+  //   return this.bookingService.cre(dto);
+  // }
+
+  @Post('find-passenger-from-booking')
+  findPassengerById(@Body('id') id: string) {
+    console.log('id', id);
+    return this.bookingService.findPassengerById(id);
   }
 
   @Get('findAllPassenger')
@@ -33,17 +39,12 @@ export class BookingController {
     return this.bookingService.findAllPassenger();
   }
 
-  @Post('findPassengerById')
-  findPassengerById(@Body('id') id: string) {
-    return this.bookingService.findPassengerById(id);
-  }
-
   @Get('findAllBooking')
   findAll() {
     return this.bookingService.findAll();
   }
 
-  @Post()
+  @Post('baggage/create')
   createBaggage(@Body() dto: CreateBaggageDto) {
     return this.bookingService.createBaggage(dto);
   }

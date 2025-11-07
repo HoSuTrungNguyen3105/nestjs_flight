@@ -415,4 +415,51 @@ export class SeatService {
       resultMessage: 'Seat deleted successfully.',
     };
   }
+
+  async updatePriceMulti(price: number, flightId: number) {
+    // Kiểm tra flight có tồn tại không
+    const flight = await this.prisma.flight.findUnique({
+      where: { flightId },
+    });
+
+    if (!flight) {
+      return {
+        resultCode: '01',
+        resultMessage: `Flight with ID ${flightId} not found.`,
+      };
+    }
+
+    // Kiểm tra xem có ghế nào chưa được đặt không
+    const seats = await this.prisma.seat.findMany({
+      where: { flightId },
+    });
+
+    if (!seats || seats.length === 0) {
+      return {
+        resultCode: '02',
+        resultMessage: 'No seats found for this flight.',
+      };
+    }
+
+    // Cập nhật tất cả ghế chưa đặt (isBooked = false)
+    const updated = await this.prisma.seat.updateMany({
+      where: {
+        flightId,
+        isBooked: false,
+      },
+      data: { price: price },
+    });
+
+    if (updated.count === 0) {
+      return {
+        resultCode: '03',
+        resultMessage: 'All seats are already booked. No price updated.',
+      };
+    }
+
+    return {
+      resultCode: '00',
+      resultMessage: `Updated price for ${updated.count} seats successfully.`,
+    };
+  }
 }

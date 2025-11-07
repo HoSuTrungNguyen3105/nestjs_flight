@@ -24,6 +24,7 @@ import * as ExcelJS from 'exceljs';
 import { RequestChangeRoleDto } from './dto/request-change-role.dto';
 import { UpdateMyInfoDto } from './dto/update-my-info.dto';
 import { MonthlyTicketStats } from './dto/response.dto';
+import { UpdatePassengerDto } from './dto/update-passenger.dto';
 
 @Injectable()
 export class UsersService {
@@ -506,28 +507,27 @@ export class UsersService {
     }
   }
 
-  // async rejectTransfer(userId: number) {
-  //   try {
-  //     const transfer = await this.prisma.transferAdmin.findUnique({
-  //       where: { userId },
-  //     });
+  async updatePassengerInProfile(id: string, data: UpdatePassengerDto) {
+    try {
+      const updateData = {
+        ...data,
+        lastLoginDate: data.lastLoginDate
+          ? new Decimal(data.lastLoginDate)
+          : undefined,
+      };
 
-  //     if (!transfer) {
-  //       return {
-  //         resultCode: '01',
-  //         resultMessage: `Không tìm thấy Transfer với userId = ${userId}`,
-  //       };
-  //     }
-
-  //     return await this.prisma.transferAdmin.update({
-  //       where: { userId },
-  //       data: { status: 'REJECTED' },
-  //     });
-  //   } catch (error) {
-  //     console.error('Error rejecting transfer:', error);
-  //     throw error;
-  //   }
-  // }
+      await this.prisma.passenger.update({
+        where: { id },
+        data: updateData,
+      });
+      return {
+        resultCode: '00',
+        resultMessage: 'Cập nhật passenger thành công',
+      };
+    } catch (error) {
+      console.error('Error on transfer:', error);
+    }
+  }
 
   async permissionToChangeRole(id: number, employeeNo: string) {
     try {
@@ -1560,9 +1560,9 @@ export class UsersService {
       const start = new Date(year, month - 1, 1).getTime();
       const end = new Date(year, month, 1).getTime();
 
-      const tickets = await this.prisma.ticket.findMany({
+      const tickets = await this.prisma.booking.findMany({
         where: {
-          bookedAt: {
+          bookingTime: {
             gte: new Prisma.Decimal(start),
             lt: new Prisma.Decimal(end),
           },
@@ -1624,9 +1624,9 @@ export class UsersService {
       const start = new Date(year, m - 1, 1).getTime();
       const end = new Date(year, m, 1).getTime();
 
-      const tickets = await this.prisma.ticket.findMany({
+      const tickets = await this.prisma.booking.findMany({
         where: {
-          bookedAt: {
+          bookingTime: {
             gte: new Prisma.Decimal(start),
             lt: new Prisma.Decimal(end),
           },

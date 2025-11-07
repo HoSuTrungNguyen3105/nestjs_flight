@@ -66,93 +66,93 @@ export class BookingService {
     }
   }
 
-  async create(dto: CreateBookingDto) {
-    const hasFlight = await this.prisma.flight.findUnique({
-      where: {
-        flightId: dto.flightId,
-      },
-    });
+  // async create(dto: CreateBookingDto) {
+  //   const hasFlight = await this.prisma.flight.findUnique({
+  //     where: {
+  //       flightId: dto.flightId,
+  //     },
+  //   });
 
-    if (!hasFlight) {
-      return {
-        resultCode: '01',
-        resultMessage: 'Flight not found',
-      };
-    }
+  //   if (!hasFlight) {
+  //     return {
+  //       resultCode: '01',
+  //       resultMessage: 'Flight not found',
+  //     };
+  //   }
 
-    const hasPassenger = await this.prisma.passenger.findUnique({
-      where: {
-        id: dto.passengerId,
-      },
-    });
+  //   const hasPassenger = await this.prisma.passenger.findUnique({
+  //     where: {
+  //       id: dto.passengerId,
+  //     },
+  //   });
 
-    if (!hasPassenger) {
-      return {
-        resultCode: '02',
-        resultMessage: 'Passenger not found',
-      };
-    }
+  //   if (!hasPassenger) {
+  //     return {
+  //       resultCode: '02',
+  //       resultMessage: 'Passenger not found',
+  //     };
+  //   }
 
-    if (dto.mealOrders && dto.mealOrders.length > 0) {
-      for (const meal of dto.mealOrders) {
-        const hasMeal = await this.prisma.meal.findUnique({
-          where: { id: meal.mealId },
-        });
-        if (!hasMeal) {
-          return {
-            resultCode: '03',
-            resultMessage: `Meal with id ${meal.mealId} not found`,
-          };
-        }
-      }
-    }
+  //   if (dto.mealOrders && dto.mealOrders.length > 0) {
+  //     for (const meal of dto.mealOrders) {
+  //       const hasMeal = await this.prisma.meal.findUnique({
+  //         where: { id: meal.mealId },
+  //       });
+  //       if (!hasMeal) {
+  //         return {
+  //           resultCode: '03',
+  //           resultMessage: `Meal with id ${meal.mealId} not found`,
+  //         };
+  //       }
+  //     }
+  //   }
 
-    const booking = await this.prisma.booking.create({
-      data: {
-        passengerId: dto.passengerId,
-        flightId: dto.flightId,
-        bookingTime: nowDecimal(),
-        mealOrders: dto.mealOrders
-          ? {
-              create: dto.mealOrders.map((meal) => ({
-                mealId: meal.mealId,
-                quantity: meal.quantity,
-              })),
-            }
-          : undefined,
-        seats: dto.seatId ? { connect: { id: dto.seatId } } : undefined,
-      },
-      include: {
-        flight: {
-          select: {
-            flightId: true,
-          },
-        },
-        mealOrders: {
-          select: {
-            id: true,
-          },
-        },
-        seats: {
-          select: {
-            id: true,
-          },
-        },
-      },
-    });
+  //   const booking = await this.prisma.booking.create({
+  //     data: {
+  //       passengerId: dto.passengerId,
+  //       flightId: dto.flightId,
+  //       bookingTime: nowDecimal(),
+  //       mealOrders: dto.mealOrders
+  //         ? {
+  //             create: dto.mealOrders.map((meal) => ({
+  //               mealId: meal.mealId,
+  //               quantity: meal.quantity,
+  //             })),
+  //           }
+  //         : undefined,
+  //       seat: dto.seatId ? { connect: { id: dto.seatId } } : undefined,
+  //     },
+  //     include: {
+  //       flight: {
+  //         select: {
+  //           flightId: true,
+  //         },
+  //       },
+  //       mealOrders: {
+  //         select: {
+  //           id: true,
+  //         },
+  //       },
+  //       seat: {
+  //         select: {
+  //           id: true,
+  //         },
+  //       },
+  //     },
+  //   });
 
-    return {
-      resultCode: '00',
-      resultMessage: 'Booking created successfully',
-      data: booking,
-    };
-  }
+  //   return {
+  //     resultCode: '00',
+  //     resultMessage: 'Booking created successfully',
+  //     data: booking,
+  //   };
+  // }
 
   async findAll() {
     const bookings = await this.prisma.booking.findMany({
       include: {
         flight: true,
-        seats: true,
+        seat: true,
         passenger: true,
         mealOrders: true,
       },
@@ -189,36 +189,43 @@ export class BookingService {
   }
 
   async findPassengerById(id: string) {
-    const passenger = await this.prisma.passenger.findUnique({
-      where: { id },
-      include: {
-        bookings: {
-          include: {
-            seats: {
-              select: {
-                id: true,
-                type: true,
-                seatNumber: true,
-                seatRow: true,
+    try {
+      const passenger = await this.prisma.passenger.findUnique({
+        where: { id: id },
+        omit: {
+          password: true,
+        },
+        include: {
+          bookings: {
+            include: {
+              seat: {
+                select: {
+                  id: true,
+                  type: true,
+                  seatNumber: true,
+                  seatRow: true,
+                },
               },
+              mealOrders: true,
+              flight: true,
+              // passenger: true,
             },
-            mealOrders: true,
-            flight: true,
-            // passenger: true,
           },
         },
-      },
-    });
+      });
 
-    if (!passenger) {
-      return {
-        resultCode: '01',
-        resultMessage: 'Passenger not found',
-        data: null,
-      };
+      if (!passenger) {
+        return {
+          resultCode: '01',
+          resultMessage: 'Passenger not found',
+          data: null,
+        };
+      }
+
+      return { resultCode: '00', resultMessage: 'Success', data: passenger };
+    } catch (error) {
+      console.error('error', error);
     }
-
-    return { resultCode: '00', resultMessage: 'Success', data: passenger };
   }
 
   async createBaggage(dto: CreateBaggageDto) {
@@ -258,81 +265,122 @@ export class BookingService {
     if (!baggage)
       return { resultCode: '01', resultMessage: 'Baggage not found' };
 
-    return baggage;
+    return {
+      resultCode: '00',
+      resultMessage: 'Baggage has found',
+      data: baggage,
+    };
   }
 
   async bookSeats(data: CreateBookingDto) {
-    const { passengerId, flightId, seatId } = data;
+    const {
+      passengerId,
+      flightId,
+      seatId,
+      bookingCode,
+      seatClass,
+      seatNo,
+      seatPrice,
+      bookingTime,
+      mealOrders,
+    } = data;
+
+    //  1. Kiểm tra đầu vào
     if (!Array.isArray(seatId) || seatId.length === 0) {
-      throw new BadRequestException('seatIds must be a non-empty');
+      throw new BadRequestException('Danh sách ghế không hợp lệ.');
     }
 
-    const availableSeats = await this.prisma.seat.findMany({
-      where: {
-        id: { in: seatId },
-        flightId: flightId,
-        bookingId: null,
-      },
-    });
-
-    if (availableSeats.length !== seatId.length) {
-      throw new BadRequestException(
-        'One or more selected seats are not available or do not exist.',
-      );
-    }
-
-    const passenger = await this.prisma.passenger.findUnique({
-      where: { id: passengerId }, //role: 'USER'
-    });
-
-    const flight = await this.prisma.flight.findUnique({
-      where: { flightId: flightId },
-    });
+    //  2. Kiểm tra hành khách & chuyến bay tồn tại
+    const [passenger, flight] = await Promise.all([
+      this.prisma.passenger.findUnique({ where: { id: passengerId } }),
+      this.prisma.flight.findUnique({ where: { flightId } }),
+    ]);
 
     if (!passenger || !flight) {
       return {
         resultCode: '01',
-        resultMessage: 'Passenger or Flight not found.',
+        resultMessage: 'Không tìm thấy hành khách hoặc chuyến bay.',
       };
     }
+
     try {
-      return this.prisma.$transaction(async (tx) => {
+      //  3. Dùng transaction để đảm bảo tính toàn vẹn dữ liệu
+      const result = await this.prisma.$transaction(async (tx) => {
+        // Kiểm tra lại ghế khả dụng trong transaction
         const availableSeats = await tx.seat.findMany({
           where: {
             id: { in: seatId },
             flightId,
+            isBooked: false,
             bookingId: null,
           },
         });
 
         if (availableSeats.length !== seatId.length) {
-          throw new BadRequestException(
-            'One or more selected seats are not available.',
-          );
+          return {
+            resultCode: '02',
+            resultMessage: 'Một hoặc nhiều ghế đã được đặt trước.',
+          };
         }
 
+        //  4. Tạo booking mới
         const booking = await tx.booking.create({
           data: {
             passengerId,
             flightId,
-            bookingTime: nowDecimal(),
+            bookingCode: bookingCode || `BK-${Date.now()}`,
+            seatClass: seatClass || 'ECONOMY',
+            seatNo:
+              seatNo ||
+              `${availableSeats[0]?.seatNumber}-${availableSeats[0]?.seatRow}` ||
+              '',
+            seatPrice: seatPrice || availableSeats[0]?.price || 0,
+            bookingTime: bookingTime || nowDecimal(),
+            status: 'PENDING',
           },
         });
 
+        // if (!mealOrders){
+        //   continue ;
+        // }
+
+        //  5. Cập nhật ghế đã được đặt
         await tx.seat.updateMany({
           where: { id: { in: seatId } },
-          data: { bookingId: booking.id, isBooked: true },
+          data: {
+            bookingId: booking.id,
+            isBooked: true,
+          },
         });
+
+        // 6. Tạo vé (ticket) cho từng ghế nếu cần
+        const tickets = await Promise.all(
+          availableSeats.map((seat) =>
+            tx.ticket.create({
+              data: {
+                ticketNo: `T-${Date.now()}-${seat.id}`,
+                passengerId,
+                flightId,
+                bookingId: booking.id,
+                // seatClass: seatClass || seat.seatClass,
+                // seatNo: seat.seatNo,
+                // seatPrice: seat.price,
+              },
+            }),
+          ),
+        );
 
         return {
           resultCode: '00',
-          resultMessage: 'Success.',
-          data: booking,
+          resultMessage: 'Đặt chỗ thành công.',
+          data: { booking, tickets },
         };
       });
+
+      return result;
     } catch (error) {
-      console.error('Booking error:', error);
-      throw error;
+      console.error(' Lỗi khi đặt chỗ:', error);
+      throw new BadRequestException('Không thể hoàn tất đặt chỗ.');
     }
   }
 
@@ -424,7 +472,7 @@ export class BookingService {
               aircraft: true,
             },
           },
-          seats: true,
+          seat: true,
         },
       });
 
@@ -435,7 +483,7 @@ export class BookingService {
           arrivalAirportRel: Airport;
           departureAirportRel: Airport;
         };
-        seats: Seat | null;
+        seat: Seat | null;
       })[] = [];
 
       if (flightType === 'roundtrip' && returnDate) {
@@ -460,7 +508,7 @@ export class BookingService {
                 aircraft: true,
               },
             },
-            seats: true,
+            seat: true,
           },
         });
       }

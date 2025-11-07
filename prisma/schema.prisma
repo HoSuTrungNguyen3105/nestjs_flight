@@ -8,6 +8,163 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PaymentMethod {
+  MOMO
+  ZALOPAY
+  STRIPE
+}
+
+enum PaymentStatus {
+  PENDING // chưa thanh toán
+  SUCCESS // thanh toán thành công
+  FAILED // thất bại
+  CANCELLED // hủy
+}
+
+enum Role {
+  PASSENGER
+  USER
+  ADMIN
+  MONITOR
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum UnlockStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum BoardingStatus {
+  PENDING // chưa boarding
+  BOARDED // đã lên tàu
+  EXPIRED // hết hạn
+}
+
+enum FlightStatusType {
+  SCHEDULED
+  BOARDING
+  LANDED
+  DELAYED
+  DEPARTED
+  ARRIVED
+  CANCELLED
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum FlightType {
+  roundtrip
+  oneway
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  ON_LEAVE
+  REMOTE
+}
+
+enum PayrollStatus {
+  DRAFT
+  FINALIZED
+  PAID
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  PAID
+}
+
+enum Department {
+  HR
+  IT
+  FINANCE
+  OPS
+  SECURITY
+  OTHER
+}
+
+enum Position {
+  INTERN
+  STAFF
+  SENIOR
+  MANAGER
+  DIRECTOR
+  EXECUTIVE
+}
+
+enum Rank {
+  JUNIOR
+  MID
+  SENIOR
+  LEAD
+  PRINCIPAL
+  NONE
+}
+
+enum TerminalType {
+  INTERNATIONAL
+  DOMESTIC
+  BUSINESS
+}
+
+enum GateStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+  CLOSED
+}
+
+enum FacilityType {
+  RESTAURANT
+  SHOP
+  LOUNGE
+  INFORMATION
+  SECURITY
+  TRANSPORTATION
+  OTHER
+}
+
+enum SeatType {
+  VIP
+  BUSINESS
+  ECONOMY
+  FIRST
+}
+
+enum MealType {
+  VEG
+  NONVEG
+  DRINK
+  DESSERT
+  BEVERAGE
+  SNACK
+  DINNER
+  LUNCH
+  BREAKFAST
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id              Int     @id @default(autoincrement())
   email           String  @unique
@@ -81,21 +238,22 @@ model Message {
 }
 
 model UserSession {
-  id          Int       @id @default(autoincrement())
-  userId      Int
-  passengerId String
-  token       String    @db.Text
-  createdAt   Decimal?  @db.Decimal(20, 3)
+  id          Int        @id @default(autoincrement())
+  userId      Int?
+  passengerId String?
+  token       String     @db.Text
+  createdAt   Decimal?   @db.Decimal(20, 3)
   device      String?
   browser     String?
   location    String?
   ipAddress   String?
   userAgent   String?
-  isCurrent   Boolean   @default(false)
-  passenger   Passenger @relation(fields: [passengerId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isCurrent   Boolean    @default(false)
+  user        User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passenger   Passenger? @relation(fields: [passengerId], references: [id], onDelete: Cascade)
 
   @@index([userId], map: "UserSession_userId_fkey")
+  @@index([passengerId], map: "UserSession_passengerId_fkey")
 }
 
 model Passenger {
@@ -220,11 +378,23 @@ model Flight {
   tickets        Ticket[]
   boardingPasses BoardingPass[]
   baggage        Baggage[]
+  discounts      FlightDiscount[]
 
   @@index([aircraftCode], map: "Flight_aircraftCode_fkey")
   @@index([arrivalAirport], map: "Flight_arrivalAirport_fkey")
   @@index([departureAirport], map: "Flight_departureAirport_fkey")
   @@index([gateId])
+}
+
+model FlightDiscount {
+  id             Int          @id @default(autoincrement())
+  discountCode   DiscountCode @relation(fields: [discountCodeId], references: [id])
+  discountCodeId Int
+  flight         Flight       @relation(fields: [flightId], references: [flightId])
+  flightId       Int
+  createdAt      Decimal      @db.Decimal(20, 3)
+
+  @@unique([discountCodeId, flightId]) // mỗi cặp chỉ 1 lần
 }
 
 model Aircraft {
@@ -246,36 +416,61 @@ model Airport {
   terminals  Terminal[]
 }
 
+model Booking {
+  id          Int           @id @default(autoincrement())
+  bookingCode String?       @unique
+  passengerId String
+  flightId    Int
+  seatNo      String        @default("N/A") @db.VarChar(10)
+  seatClass   SeatType      @default(ECONOMY)
+  seatPrice   Decimal?      @db.Decimal(10, 2)
+  bookingTime Decimal       @db.Decimal(20, 3)
+  status      BookingStatus @default(PENDING)
+
+  // Quan hệ
+  flight     Flight      @relation(fields: [flightId], references: [flightId])
+  passenger  Passenger   @relation(fields: [passengerId], references: [id])
+  tickets    Ticket[]    @relation(name: "BookingToTicket")
+  mealOrders MealOrder[]
+  seat       Seat? // ghế đã chọn nếu có
+
+  @@index([flightId])
+  @@index([passengerId])
+}
+
 model Ticket {
   id          Int     @id @default(autoincrement())
   ticketNo    String  @unique
+  bookingId   Int?
   passengerId String
   flightId    Int
-  // seatId      Int // liên kết với seat
   qrCodeImage String? @db.Text
 
-  seatClass String   @db.VarChar(20) // ECONOMY / BUSINESS
-  seatNo    String   @db.VarChar(10)
-  seatPrice Decimal? @db.Decimal(10, 2)
-  bookedAt  Decimal  @db.Decimal(20, 3)
-
+  // Quan hệ
+  booking      Booking?      @relation(name: "BookingToTicket", fields: [bookingId], references: [id])
   passenger    Passenger     @relation(fields: [passengerId], references: [id])
   flight       Flight        @relation(fields: [flightId], references: [flightId])
   boardingPass BoardingPass?
   baggage      Baggage[]
+  payments     Payment[]
+
+  @@index([bookingId])
+  @@index([passengerId])
+  @@index([flightId])
 }
 
 model BoardingPass {
-  id           Int     @id @default(autoincrement())
-  ticketId     Int     @unique
-  issuedAt     Decimal @db.Decimal(20, 3)
-  gate         String  @db.VarChar(10)
-  boardingTime Decimal @db.Decimal(20, 3)
-
-  ticket Ticket @relation(fields: [ticketId], references: [id])
-
+  id       Int            @id @default(autoincrement())
+  ticketId Int            @unique
   flightId Int
-  flight   Flight @relation(fields: [flightId], references: [flightId])
+  gateId   String
+  issuedAt Decimal        @db.Decimal(20, 3)
+  status   BoardingStatus @default(PENDING)
+
+  // Quan hệ
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  gate   Gate   @relation(fields: [gateId], references: [id])
+  flight Flight @relation(fields: [flightId], references: [flightId])
 }
 
 model Baggage {
@@ -303,10 +498,10 @@ model Meal {
 }
 
 model Seat {
-  id         Int      @id @default(autoincrement())
+  id         Int    @id @default(autoincrement())
   flightId   Int
-  bookingId  Int?     @unique
-  type       SeatType @default(ECONOMY)
+  bookingId  Int?   @unique
+  // type       SeatType @default(ECONOMY)
   seatNumber Int
   seatRow    String
 
@@ -325,6 +520,24 @@ model Seat {
   flight  Flight   @relation(fields: [flightId], references: [flightId])
 
   @@index([flightId], map: "Seat_flightId_fkey")
+}
+
+model DiscountCode {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique
+  description     String?
+  discountAmount  Decimal? // fixed amount (cents)
+  discountPercent Int? // 0..100 nếu % 
+  isPercentage    Boolean  @default(false)
+  active          Boolean  @default(true)
+  validFrom       Decimal  @db.Decimal(20, 3)
+  validTo         Decimal  @db.Decimal(20, 3)
+  usageLimit      Int? // tổng số lần có thể dùng
+  usedCount       Int      @default(0)
+  createdAt       Decimal  @db.Decimal(20, 3)
+  updatedAt       Decimal  @db.Decimal(20, 3)
+
+  flights FlightDiscount[]
 }
 
 model Facility {
@@ -374,31 +587,18 @@ model GateAssignment {
 }
 
 model Gate {
-  id            String           @id @default(cuid())
-  code          String           @unique
-  terminalId    String
-  status        GateStatus       @default(AVAILABLE)
-  createdAt     Decimal          @db.Decimal(20, 3)
-  updatedAt     Decimal          @db.Decimal(20, 3)
-  currentFlight Flight?
-  terminal      Terminal         @relation(fields: [terminalId], references: [id], onDelete: Cascade)
-  assignments   GateAssignment[]
+  id             String           @id @default(cuid())
+  code           String           @unique
+  terminalId     String
+  status         GateStatus       @default(AVAILABLE)
+  createdAt      Decimal          @db.Decimal(20, 3)
+  updatedAt      Decimal          @db.Decimal(20, 3)
+  currentFlight  Flight?
+  terminal       Terminal         @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+  assignments    GateAssignment[]
+  boardingPasses BoardingPass[]
 
   @@unique([terminalId, code])
-}
-
-model Booking {
-  id          Int         @id @default(autoincrement())
-  passengerId String
-  flightId    Int
-  bookingTime Decimal     @db.Decimal(20, 3)
-  flight      Flight      @relation(fields: [flightId], references: [flightId])
-  passenger   Passenger   @relation(fields: [passengerId], references: [id])
-  mealOrders  MealOrder[]
-  seats       Seat?
-
-  @@index([flightId], map: "Booking_flightId_fkey")
-  @@index([passengerId], map: "Booking_passengerId_fkey")
 }
 
 model FlightMeal {
@@ -459,133 +659,17 @@ model Hotel {
   updatedAt        Decimal @db.Decimal(20, 3)
 }
 
-enum Role {
-  PASSENGER
-  USER
-  ADMIN
-  MONITOR
-}
+model Payment {
+  id            Int           @id @default(autoincrement())
+  ticketId      Int
+  amount        Decimal       @db.Decimal(20, 3) // VNĐ hoặc cents cho Stripe
+  currency      String        @default("VND") // VND / USD
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  transactionId String?       @unique // từ Momo/ZaloPay/Stripe
+  paymentUrl    String? // QR code link / checkout link
+  createdAt     Decimal       @default(dbgenerated("(UNIX_TIMESTAMP()*1000)")) @db.Decimal(20, 3)
+  updatedAt     Decimal       @db.Decimal(20, 3)
 
-enum LeaveStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  CANCELLED
-}
-
-enum UnlockStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-enum FlightStatusType {
-  SCHEDULED
-  BOARDING
-  LANDED
-  DELAYED
-  DEPARTED
-  ARRIVED
-  CANCELLED
-}
-
-enum EmployeeStatus {
-  ACTIVE
-  INACTIVE
-  SUSPENDED
-  TERMINATED
-}
-
-enum FlightType {
-  roundtrip
-  oneway
-}
-
-enum AttendanceStatus {
-  PRESENT
-  ABSENT
-  LATE
-  ON_LEAVE
-  REMOTE
-}
-
-enum PayrollStatus {
-  DRAFT
-  FINALIZED
-  PAID
-}
-
-enum Department {
-  HR
-  IT
-  FINANCE
-  OPS
-  SECURITY
-  OTHER
-}
-
-enum Position {
-  INTERN
-  STAFF
-  SENIOR
-  MANAGER
-  DIRECTOR
-  EXECUTIVE
-}
-
-enum Rank {
-  JUNIOR
-  MID
-  SENIOR
-  LEAD
-  PRINCIPAL
-  NONE
-}
-
-enum TerminalType {
-  INTERNATIONAL
-  DOMESTIC
-  BUSINESS
-}
-
-enum GateStatus {
-  AVAILABLE
-  OCCUPIED
-  MAINTENANCE
-  CLOSED
-}
-
-enum FacilityType {
-  RESTAURANT
-  SHOP
-  LOUNGE
-  INFORMATION
-  SECURITY
-  TRANSPORTATION
-  OTHER
-}
-
-enum SeatType {
-  VIP
-  BUSINESS
-  ECONOMY
-  FIRST
-}
-
-enum MealType {
-  VEG
-  NONVEG
-  DRINK
-  DESSERT
-  BEVERAGE
-  SNACK
-  DINNER
-  LUNCH
-  BREAKFAST
-}
-
-enum TransferStatus {
-  PENDING
-  APPROVED
-  REJECTED
+  ticket Ticket @relation(fields: [ticketId], references: [id])
 }

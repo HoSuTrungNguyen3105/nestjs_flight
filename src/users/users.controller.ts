@@ -17,6 +17,7 @@ import { UpdateUserFromAdminDto } from './dto/update-user-from-admin.dto';
 import { CreateLeaveRequestDto } from './dto/leave-request.dto';
 import { RequestChangeRoleDto } from './dto/request-change-role.dto';
 import { UpdateMyInfoDto } from './dto/update-my-info.dto';
+import { UpdatePassengerDto } from './dto/update-passenger.dto';
 
 @Controller('sys/users')
 export class UsersController {
@@ -126,6 +127,14 @@ export class UsersController {
     @Body() dto: UpdateUserFromAdminDto & { id: number },
   ) {
     return this.userService.updateUserFromAdmin(dto.id, dto);
+  }
+
+  @Post('passenger/update/profile/:id')
+  async updatePassengerInProfile(
+    @Param('id') id: string,
+    @Body() data: UpdatePassengerDto,
+  ) {
+    return this.userService.updatePassengerInProfile(id, data);
   }
 
   // @UseGuards(JwtAuthGuard)

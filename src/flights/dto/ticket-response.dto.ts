@@ -34,14 +34,14 @@ export class BoardingPassDto {
   @IsNumber()
   flightId: number;
 
-  @IsString()
-  seatNo: string;
+  // @IsString()
+  // seatNo: string;
 
-  @IsString()
-  gate: string;
+  // @IsString()
+  // gate: string;
 
-  @IsString()
-  boardingTime: number | string;
+  // @IsString()
+  // boardingTime: number | string;
 }
 
 export class PassengerDto {
@@ -96,14 +96,14 @@ export class TicketResponseDto {
 
   @IsNumber() flightId: number;
 
-  @IsString() seatClass: string;
+  // @IsString() seatClass: string;
 
-  @IsString() seatNo: string;
+  // @IsString() seatNo: string;
 
-  @IsNumber() bookedAt: number;
+  // @IsNumber() bookedAt: number;
 
-  //   @Type(() => PassengerDto)
-  //   passenger?: PassengerDto;
+  @Type(() => PassengerDto)
+  passenger?: PassengerDto | null;
 
   @Type(() => FlightResponseDto)
   flight?: FlightResponseDto | null;

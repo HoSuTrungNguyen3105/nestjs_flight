@@ -89,4 +89,9 @@ export class SeatController {
   async getDistinctSeatTypes() {
     return this.seatService.getDistinctSeatTypes();
   }
+
+  @Post('update/price-multi')
+  async updatePriceMulti(@Body() data: { price: number; flightId: number }) {
+    return this.seatService.updatePriceMulti(data.price, data.flightId);
+  }
 }

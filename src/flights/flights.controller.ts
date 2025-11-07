@@ -8,6 +8,7 @@ import {
   HttpCode,
   HttpStatus,
   Query,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { FlightsService } from './flights.service';
 import { Facility, Prisma } from 'generated/prisma';
@@ -26,6 +27,10 @@ import {
   UpdateFacilityDto,
 } from '../gate/dto/create-facility.dto';
 import { CreateAirportDto, UpdateAirportDto } from './dto/create-airport.dto';
+import {
+  CreateFlightDiscountDto,
+  UpdateFlightDiscountDto,
+} from './dto/create-flight-discount.dto';
 // import { ApiOperation } from '@nestjs/swagger';
 
 @Controller('sys/flights')
@@ -231,5 +236,33 @@ export class FlightsController {
   @Post('flight-status/update')
   updateFlightStatus(@Body() body: { id: number; status: string }) {
     return this.flightService.updateFlightStatus(body.id, body);
+  }
+
+  @Post('flight-discount')
+  async createFlightDiscount(@Body() dto: CreateFlightDiscountDto) {
+    return this.flightService.createFlightDiscount(dto);
+  }
+
+  @Get('flight-discount')
+  async findAllFlightDiscount() {
+    return this.flightService.findAllFlightDiscount();
+  }
+
+  @Get('flight-discount/:id')
+  async findFlightDiscountByID(@Param('id', ParseIntPipe) id: number) {
+    return this.flightService.findFlightDiscountByID(id);
+  }
+
+  @Post('flight-discount/update/:id')
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateFlightDiscountDto,
+  ) {
+    return this.flightService.updateFlightDiscount(id, dto);
+  }
+
+  @Post('flight-discount/delete/:id')
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    return this.flightService.removeFlightDiscount(id);
   }
 }

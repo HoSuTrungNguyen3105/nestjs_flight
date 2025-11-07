@@ -16,8 +16,20 @@ export class CreateBookingDto {
   @IsNotEmpty()
   flightId: number;
 
+  @IsString()
+  bookingCode: string;
+
   @IsNotEmpty()
   seatId: number;
+
+  @IsString()
+  seatNo: string;
+
+  @IsString()
+  seatClass: string;
+
+  @IsInt()
+  seatPrice?: number;
 
   @IsNumber()
   bookingTime: number; // timestamp (ms)

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import {
   Flight,
+  FlightDiscount,
   FlightStatusType,
   FlightType,
   Prisma,
@@ -24,6 +25,11 @@ import {
 } from './dto/create-terminal.dto';
 import { TicketResponseDto } from './dto/ticket-response.dto';
 import * as QRCode from 'qrcode';
+import {
+  CreateFlightDiscountDto,
+  CreateMultiFlightDiscountDto,
+  UpdateFlightDiscountDto,
+} from './dto/create-flight-discount.dto';
 
 @Injectable()
 export class FlightsService {
@@ -683,7 +689,7 @@ export class FlightsService {
     ticketId: number;
     flightId: number;
     issuedAt: number; // hoặc Decimal
-    gate: string;
+    gateId: string;
     boardingTime: number; // hoặc Decimal
   }) {
     return this.prisma.boardingPass.create({
@@ -691,8 +697,9 @@ export class FlightsService {
         ticketId: data.ticketId,
         flightId: data.flightId,
         issuedAt: data.issuedAt,
-        gate: data.gate,
-        boardingTime: data.boardingTime,
+        gateId: data.gateId,
+        // gate: data.gate,
+        // boardingTime: data.boardingTime,
       },
     });
   }
@@ -710,9 +717,9 @@ export class FlightsService {
         ticketNo: data.ticketNo,
         passengerId: data.passengerId,
         flightId: data.flightId,
-        seatClass: data.seatClass,
-        seatNo: data.seatNo,
-        bookedAt: data.bookedAt,
+        // seatClass: data.seatClass,
+        // seatNo: data.seatNo,
+        // bookedAt: data.bookedAt,
       },
     });
   }
@@ -739,18 +746,32 @@ export class FlightsService {
     });
     const mapped = tickets.map((t) => ({
       ...t,
-      bookedAt: Number(t.bookedAt),
+      // bookedAt: Number(t.),
       flight: t.flight
         ? {
             ...t.flight,
           }
         : null,
+      passenger: t.passenger
+        ? {
+            ...t.passenger,
+            id: t.passenger.id,
+            fullName: t.passenger.fullName,
+            email: t.passenger.email,
+            phone: t.passenger.phone,
+            passport: t.passenger.passport,
+            role: t.passenger.role,
+            status: t.passenger.status,
+            otpCode: t.passenger.otpCode ?? undefined, // <-- chuyển null → undefined
+            otpExpire: t.passenger.otpExpire?.toNumber(),
+          }
+        : null,
       boardingPass: t.boardingPass
         ? {
             ...t.boardingPass,
-            seatNo: t.seatNo,
+            // seatNo: t.seatNo,
             issuedAt: Number(t.boardingPass.issuedAt),
-            boardingTime: Number(t.boardingPass.boardingTime),
+            // boardingTime: Number(t.boardingPass.boardingTime),
           }
         : null,
       baggage: t.baggage.map((b) => ({
@@ -776,6 +797,7 @@ export class FlightsService {
         include: {
           flight: true,
           boardingPass: true,
+          payments: true,
         },
       });
 
@@ -817,6 +839,7 @@ export class FlightsService {
               },
             },
           },
+          passenger: true,
           boardingPass: true,
         },
       });
@@ -824,7 +847,7 @@ export class FlightsService {
       // 4️Map dữ liệu ra DTO
       const mapped = updatedTickets.map((t) => ({
         ...t,
-        bookedAt: Number(t.bookedAt),
+        // bookedAt: Number(t.bookedAt),
         flight: t.flight
           ? {
               ...t.flight,
@@ -834,12 +857,27 @@ export class FlightsService {
               })),
             }
           : null,
+        passenger: t.passenger
+          ? {
+              ...t.passenger,
+              id: t.passenger.id,
+              fullName: t.passenger.fullName,
+              email: t.passenger.email,
+              phone: t.passenger.phone,
+              passport: t.passenger.passport,
+              role: t.passenger.role,
+              status: t.passenger.status,
+              otpCode: t.passenger.otpCode ?? undefined, // <-- chuyển null → undefined
+              otpExpire: t.passenger.otpExpire?.toNumber(),
+              lastLoginDate: t.passenger.lastLoginDate?.toNumber(),
+            }
+          : null,
         boardingPass: t.boardingPass
           ? {
               ...t.boardingPass,
-              seatNo: t.seatNo,
+              // seatNo: t.seatNo,
               issuedAt: Number(t.boardingPass.issuedAt),
-              boardingTime: Number(t.boardingPass.boardingTime),
+              // boardingTime: Number(t.boardingPass.boardingTime),
             }
           : null,
       }));
@@ -887,7 +925,7 @@ export class FlightsService {
       // Map dữ liệu ra DTO
       const mapped: TicketResponseDto = {
         ...ticket,
-        bookedAt: Number(ticket.bookedAt),
+        // bookedAt: Number(ticket.bookedAt),
         flight: ticket.flight
           ? {
               ...ticket.flight,
@@ -900,9 +938,9 @@ export class FlightsService {
         boardingPass: ticket.boardingPass
           ? {
               ...ticket.boardingPass,
-              seatNo: ticket.seatNo, // lấy từ ticket
+              // seatNo: ticket.seatNo, // lấy từ ticket
               issuedAt: Number(ticket.boardingPass.issuedAt),
-              boardingTime: Number(ticket.boardingPass.boardingTime),
+              // boardingTime: Number(ticket.boardingPass.boardingTime),
             }
           : null,
       };
@@ -1012,22 +1050,94 @@ export class FlightsService {
     }
   }
 
-  // async getAllFlightCodeName() {
-  //   try {
-  //     const res = await this.prisma.flight.findMany({
-  //       select: {
-  //         flightNo: true,
-  //       },
-  //     });
-  //     return {
-  //       resultCode: '00',
-  //       resultMessage: 'Flight code number success',
-  //       list: res,
-  //     };
-  //   } catch (error) {
-  //     return { resultCode: '01', resultMessage: 'Error in find flight number' };
-  //   }
-  // }
+  async createFlightDiscount(dto: CreateFlightDiscountDto) {
+    return this.prisma.flightDiscount.create({
+      data: {
+        discountCodeId: dto.discountCodeId,
+        flightId: dto.flightId,
+        createdAt: nowDecimal(), // nếu Decimal lưu timestamp
+      },
+      include: {
+        discountCode: true,
+        flight: true,
+      },
+    });
+  }
+
+  async findAllFlightDiscount() {
+    return this.prisma.flightDiscount.findMany({
+      include: {
+        discountCode: true,
+        flight: true,
+      },
+    });
+  }
+
+  async findFlightDiscountByID(id: number) {
+    return this.prisma.flightDiscount.findUnique({
+      where: { id },
+      include: {
+        discountCode: true,
+        flight: true,
+      },
+    });
+  }
+
+  async updateFlightDiscount(id: number, dto: UpdateFlightDiscountDto) {
+    return this.prisma.flightDiscount.update({
+      where: { id },
+      data: {
+        discountCodeId: dto.discountCodeId,
+        flightId: dto.flightId,
+      },
+      include: {
+        discountCode: true,
+        flight: true,
+      },
+    });
+  }
+
+  async removeFlightDiscount(id: number) {
+    return this.prisma.flightDiscount.delete({
+      where: { id },
+    });
+  }
+
+  async createBatch(dto: CreateMultiFlightDiscountDto) {
+    const { flightIds, discountCodeIds } = dto;
+
+    const created: FlightDiscount[] = [];
+
+    for (const flightId of flightIds) {
+      for (const discountCodeId of discountCodeIds) {
+        try {
+          const flightDiscount = await this.prisma.flightDiscount.create({
+            data: {
+              flightId,
+              discountCodeId,
+              createdAt: nowDecimal(), // lưu timestamp
+            },
+          });
+          created.push(flightDiscount);
+        } catch (err) {
+          // nếu trùng unique, skip
+          if (
+            err?.code === 'P2002' &&
+            err?.meta?.target?.includes('discountCodeId_flightId')
+          ) {
+            console.warn(
+              `Duplicate flightDiscount: flight ${flightId}, code ${discountCodeId}`,
+            );
+            continue;
+          } else {
+            throw err;
+          }
+        }
+      }
+    }
+
+    return created;
+  }
 
   async getAllCode() {
     try {

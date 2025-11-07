@@ -7,7 +7,7 @@ import {
   ParseIntPipe,
   UseGuards,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { AuthService, GetSession } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto, MfaLoginDto } from './dto/login.dto';
 import { AuthGuard } from '@nestjs/passport';
@@ -17,21 +17,47 @@ import { GetUser, UserPayload } from 'src/baseResponse/response.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('getUserSessions')
-  async getUserSessions(@Body('userId') userId: number) {
-    console.log('User ID từ body:', userId);
-    const sessions = await this.authService.getUserSessions(userId);
+  @Post('get-admin-sessions')
+  async getAdminSessions(@Body('userId') userId: number) {
+    const sessions = await this.authService.getAdminSessions(userId);
     return sessions;
   }
 
-  @Post('logoutSession/:sessionId')
-  @UseGuards(AuthGuard('jwt'))
+  @Post('get-passenger-sessions')
+  async getPassengerSessions(@Body('passengerId') passengerId: string) {
+    console.log('User ID từ body:', passengerId);
+    const sessions = await this.authService.getPassengerSessions(passengerId);
+    return sessions;
+  }
+
+  @Post('get-sessions-by-id')
+  async getSessionsById(@Body() data: GetSession) {
+    const res = await this.authService.getSessionsById({
+      passengerId: data.passengerId || null,
+      userId: data.userId || null,
+      token: data.token,
+    });
+
+    return res;
+  }
+
+  @Post('logoutSession')
+  // @UseGuards(AuthGuard('jwt'))
   async logoutSession(
-    @GetUser() user: UserPayload,
-    @Param('sessionId', ParseIntPipe) sessionId: number,
+    // @Param('sessionId', ParseIntPipe) sessionId: number,
+    @Body()
+    body: {
+      sessionId: number;
+      userId: number | null;
+      passengerId: string | null;
+    },
   ) {
-    const userId = user.sub;
-    const res = await this.authService.logoutSession(userId, sessionId);
+    const { userId, passengerId, sessionId } = body;
+    const res = await this.authService.logoutSession(
+      passengerId,
+      userId,
+      sessionId,
+    );
     return res;
   }
 
@@ -65,7 +91,7 @@ export class AuthController {
   // }
 
   @Post('logout')
-  async logout(@Body() dto: { id: number; token: string }) {
+  async logout(@Body() dto: { id: number | string; token: string }) {
     return this.authService.logout(dto.id, dto.token);
   }
 
@@ -148,8 +174,24 @@ export class AuthController {
   }
 
   @Post('verifyOtp')
-  async verifyOtp(@Body() body: { userId: number; otp: string }) {
-    return this.authService.verifyOtp(body.userId, body.otp);
+  async verifyOtp(
+    @Body() body: { userId: string; type: 'ADMIN' | 'IDPW'; otp: string },
+  ) {
+    return this.authService.verifyOtp(body.userId, body.type, body.otp);
+  }
+
+  @Post('passenger/change-email')
+  async changeEmailPassenger(@Body() body: { id: string; newEmail: string }) {
+    return this.authService.changeEmailPassenger(
+      // body.email,
+      body.id,
+      body.newEmail,
+    );
+  }
+
+  @Post('passenger/verify-otp')
+  async verifyOtpToAccessEmail(@Body() body: { id: string; otp: string }) {
+    return this.authService.verifyOtpToAccessEmail(body.id, body.otp);
   }
 
   @Post('loginmfa')
