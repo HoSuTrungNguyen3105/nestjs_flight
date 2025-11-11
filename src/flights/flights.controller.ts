@@ -7,11 +7,10 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
-  Query,
   ParseIntPipe,
 } from '@nestjs/common';
 import { FlightsService } from './flights.service';
-import { Facility, Prisma } from 'generated/prisma';
+import { Prisma } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { SearchFlightDto } from './dto/search.flight.dto';
 import { UpdateFlightDto } from './dto/update-flight.dto';
@@ -22,15 +21,12 @@ import {
   UpdateAircraftDto,
 } from './dto/create-aircraft.dto';
 import { CreateTerminalDto } from './dto/create-terminal.dto';
-import {
-  CreateFacilityDto,
-  UpdateFacilityDto,
-} from '../gate/dto/create-facility.dto';
 import { CreateAirportDto, UpdateAirportDto } from './dto/create-airport.dto';
 import {
   CreateFlightDiscountDto,
   UpdateFlightDiscountDto,
 } from './dto/create-flight-discount.dto';
+import { CreateDiscountDto } from './dto/create-discount.dto';
 // import { ApiOperation } from '@nestjs/swagger';
 
 @Controller('sys/flights')
@@ -173,20 +169,20 @@ export class FlightsController {
     return this.flightService.removeAirport(code);
   }
 
-  @Post('tickets')
-  async createTicket(
-    @Body()
-    data: {
-      ticketNo: string;
-      passengerId: string;
-      flightId: number;
-      seatClass: string;
-      seatNo: string;
-      bookedAt: number;
-    },
-  ) {
-    return this.flightService.createTicket(data);
-  }
+  // @Post('tickets')
+  // async createTicket(
+  //   @Body()
+  //   data: {
+  //     ticketNo: string;
+  //     passengerId: string;
+  //     flightId: number;
+  //     seatClass: string;
+  //     seatNo: string;
+  //     bookedAt: number;
+  //   },
+  // ) {
+  //   return this.flightService.createTicket(data);
+  // }
 
   @Get('tickets')
   async findAllTicket() {
@@ -201,6 +197,11 @@ export class FlightsController {
   @Get('getAllCode')
   async getAllCode() {
     return this.flightService.getAllCode();
+  }
+
+  @Get('getAllAirportIds')
+  async getAllAirportIds() {
+    return this.flightService.getAllAirportIds();
   }
 
   @Post('airports')
@@ -264,5 +265,25 @@ export class FlightsController {
   @Post('flight-discount/delete/:id')
   async remove(@Param('id', ParseIntPipe) id: number) {
     return this.flightService.removeFlightDiscount(id);
+  }
+
+  @Post('discount/create')
+  async createDiscount(@Body() createDto: CreateDiscountDto) {
+    return this.flightService.createDiscount(createDto);
+  }
+
+  @Post('discounts/create')
+  async createDiscounts(@Body() createDto: CreateDiscountDto[]) {
+    return this.flightService.createDiscounts(createDto);
+  }
+
+  @Get()
+  async getAllDiscounts() {
+    return this.flightService.getAllDiscounts();
+  }
+
+  @Get(':id')
+  async getDiscountById(@Param('id', ParseIntPipe) id: number) {
+    return this.flightService.getDiscountById(id);
   }
 }

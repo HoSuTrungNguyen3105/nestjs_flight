@@ -6,12 +6,15 @@ import {
   Param,
   ParseIntPipe,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { AuthService, GetSession } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto, MfaLoginDto } from './dto/login.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { GetUser, UserPayload } from 'src/baseResponse/response.dto';
+import { JwtAuthGuard } from 'src/common/mfa/jwt-auth.guard';
+import { JwtStrategy } from 'src/common/mfa/jwt-strategy';
 
 @Controller('auth')
 export class AuthController {
@@ -23,9 +26,16 @@ export class AuthController {
     return sessions;
   }
 
+  @UseGuards(JwtStrategy)
+  @Post('logout')
+  async logout(@Request() req) {
+    console.log('userId', req.body);
+    const userId = req.body.id;
+    return this.authService.logout(userId);
+  }
+
   @Post('get-passenger-sessions')
   async getPassengerSessions(@Body('passengerId') passengerId: string) {
-    console.log('User ID từ body:', passengerId);
     const sessions = await this.authService.getPassengerSessions(passengerId);
     return sessions;
   }
@@ -42,9 +52,7 @@ export class AuthController {
   }
 
   @Post('logoutSession')
-  // @UseGuards(AuthGuard('jwt'))
   async logoutSession(
-    // @Param('sessionId', ParseIntPipe) sessionId: number,
     @Body()
     body: {
       sessionId: number;
@@ -73,26 +81,16 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() dto: LoginDto) {
+    console.log('log', dto);
     return this.authService.loginUser(dto);
   }
 
   @Post('verify-password/:id')
-  // @UseGuards(JwtAuthGuard)
   async verifyPasswordToAdmin(
     @Param('id') id: number,
     @Body('password') password: string,
   ) {
     return this.authService.verifyPasswordToAdmin(id, password);
-  }
-
-  // @Post('login/:token')
-  // async loginAdmin(@Body() dto: LoginDto) {
-  //   return this.authService.loginUser(dto);
-  // }
-
-  @Post('logout')
-  async logout(@Body() dto: { id: number | string; token: string }) {
-    return this.authService.logout(dto.id, dto.token);
   }
 
   @Post('forgot-password')
@@ -141,10 +139,17 @@ export class AuthController {
 
   @Post('setmfa')
   async setupMfa(@Body() body: { email: string }) {
-    return this.authService.setMfa({
+    return this.authService.setMfaForAdmin({
       email: body.email,
     });
   }
+
+  // @Post('setmfa')
+  // async setupMfa(@Body() body: { email: string }) {
+  //   return this.authService.setMfa({
+  //     email: body.email,
+  //   });
+  // }
 
   @Post('checkMfaSettingYn')
   async checkMfaYn(@Body() body: { email: string }) {
@@ -175,7 +180,7 @@ export class AuthController {
 
   @Post('verifyOtp')
   async verifyOtp(
-    @Body() body: { userId: string; type: 'ADMIN' | 'IDPW'; otp: string },
+    @Body() body: { userId: string; type: 'ADMIN' | 'ID,PW'; otp: string },
   ) {
     return this.authService.verifyOtp(body.userId, body.type, body.otp);
   }

@@ -112,5 +112,5 @@ export class TicketResponseDto {
   boardingPass?: BoardingPassDto | null;
 
   @Type(() => BaggageDto)
-  baggage?: BaggageDto[];
+  baggage?: BaggageDto;
 }

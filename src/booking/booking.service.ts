@@ -13,6 +13,7 @@ import {
   FlightStatusType,
   Prisma,
   Seat,
+  SeatType,
 } from 'generated/prisma';
 import { SearchBookingDto } from './dto/search-booking.dto';
 import { CreateBaggageDto } from './dto/baggage.dto';
@@ -201,7 +202,7 @@ export class BookingService {
               seat: {
                 select: {
                   id: true,
-                  type: true,
+                  // type: true,
                   seatNumber: true,
                   seatRow: true,
                 },
@@ -329,7 +330,7 @@ export class BookingService {
             passengerId,
             flightId,
             bookingCode: bookingCode || `BK-${Date.now()}`,
-            seatClass: seatClass || 'ECONOMY',
+            seatClass: SeatType.ECONOMY,
             seatNo:
               seatNo ||
               `${availableSeats[0]?.seatNumber}-${availableSeats[0]?.seatRow}` ||
@@ -356,6 +357,7 @@ export class BookingService {
         // 6. Tạo vé (ticket) cho từng ghế nếu cần
         const tickets = await Promise.all(
           availableSeats.map((seat) =>
+            // this.createTicket(seat)
             tx.ticket.create({
               data: {
                 ticketNo: `T-${Date.now()}-${seat.id}`,
@@ -382,6 +384,20 @@ export class BookingService {
       console.error(' Lỗi khi đặt chỗ:', error);
       throw new BadRequestException('Không thể hoàn tất đặt chỗ.');
     }
+  }
+
+  async createTicket(data: {
+    ticketNo: string;
+    passengerId: string;
+    flightId: number;
+  }) {
+    return this.prisma.ticket.create({
+      data: {
+        ticketNo: data.ticketNo,
+        passengerId: data.passengerId,
+        flightId: data.flightId,
+      },
+    });
   }
 
   async searchBooking(dto: SearchBookingDto) {

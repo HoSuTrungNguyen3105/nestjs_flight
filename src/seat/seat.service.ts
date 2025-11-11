@@ -204,136 +204,136 @@ export class SeatService {
     };
   }
 
-  async getAllSeatTypes(): Promise<SeatTypesResponseDto> {
-    try {
-      const seatTypes = await this.prisma.seat.groupBy({
-        by: ['type'],
-        _count: {
-          id: true,
-        },
-        orderBy: {
-          type: 'asc',
-        },
-      });
+  // async getAllSeatTypes(): Promise<SeatTypesResponseDto> {
+  //   try {
+  //     const seatTypes = await this.prisma.seat.groupBy({
+  //       by: ['type'],
+  //       _count: {
+  //         id: true,
+  //       },
+  //       orderBy: {
+  //         type: 'asc',
+  //       },
+  //     });
 
-      const result: SeatTypeDto[] = seatTypes.map((item) => ({
-        type: item.type,
-        count: item._count.id,
-      }));
+  //     const result: SeatTypeDto[] = seatTypes.map((item) => ({
+  //       type: item.type,
+  //       count: item._count.id,
+  //     }));
 
-      return {
-        resultCode: '00',
-        resultMessage: 'Successfully retrieved all seat types',
-        data: result,
-      };
-    } catch (error) {
-      return {
-        resultCode: '99',
-        resultMessage: 'Error retrieving seat types',
-        error: error.message,
-      };
-    }
-  }
+  //     return {
+  //       resultCode: '00',
+  //       resultMessage: 'Successfully retrieved all seat types',
+  //       data: result,
+  //     };
+  //   } catch (error) {
+  //     return {
+  //       resultCode: '99',
+  //       resultMessage: 'Error retrieving seat types',
+  //       error: error.message,
+  //     };
+  //   }
+  // }
 
-  async getSeatTypesByFlight(flightId: number): Promise<SeatTypesResponseDto> {
-    try {
-      const seatTypes = await this.prisma.seat.groupBy({
-        by: ['type'],
-        where: {
-          flightId: flightId,
-        },
-        _count: {
-          id: true,
-        },
-        orderBy: {
-          type: 'asc',
-        },
-      });
+  // async getSeatTypesByFlight(flightId: number): Promise<SeatTypesResponseDto> {
+  //   try {
+  //     const seatTypes = await this.prisma.seat.groupBy({
+  //       by: ['type'],
+  //       where: {
+  //         flightId: flightId,
+  //       },
+  //       _count: {
+  //         id: true,
+  //       },
+  //       orderBy: {
+  //         type: 'asc',
+  //       },
+  //     });
 
-      const result: SeatTypeDto[] = seatTypes.map((item) => ({
-        type: item.type,
-        count: item._count.id,
-      }));
+  //     const result: SeatTypeDto[] = seatTypes.map((item) => ({
+  //       type: item.type,
+  //       count: item._count.id,
+  //     }));
 
-      return {
-        resultCode: '00',
-        resultMessage: `Successfully retrieved seat types for flight ${flightId}`,
-        data: result,
-      };
-    } catch (error) {
-      return {
-        resultCode: '99',
-        resultMessage: 'Error retrieving seat types by flight',
-        error: error.message,
-      };
-    }
-  }
+  //     return {
+  //       resultCode: '00',
+  //       resultMessage: `Successfully retrieved seat types for flight ${flightId}`,
+  //       data: result,
+  //     };
+  //   } catch (error) {
+  //     return {
+  //       resultCode: '99',
+  //       resultMessage: 'Error retrieving seat types by flight',
+  //       error: error.message,
+  //     };
+  //   }
+  // }
 
-  async getAvailableSeatTypes(
-    flightId?: number,
-  ): Promise<SeatTypesResponseDto> {
-    try {
-      const whereCondition: any = {
-        isAvailable: true,
-        isBooked: false,
-      };
+  // async getAvailableSeatTypes(
+  //   flightId?: number,
+  // ): Promise<SeatTypesResponseDto> {
+  //   try {
+  //     const whereCondition: any = {
+  //       isAvailable: true,
+  //       isBooked: false,
+  //     };
 
-      if (flightId) {
-        whereCondition.flightId = flightId;
-      }
+  //     if (flightId) {
+  //       whereCondition.flightId = flightId;
+  //     }
 
-      const seatTypes = await this.prisma.seat.groupBy({
-        by: ['type'],
-        where: whereCondition,
-        _count: {
-          id: true,
-        },
-        orderBy: {
-          type: 'asc',
-        },
-      });
+  //     const seatTypes = await this.prisma.seat.groupBy({
+  //       by: ['type'],
+  //       where: whereCondition,
+  //       _count: {
+  //         id: true,
+  //       },
+  //       orderBy: {
+  //         type: 'asc',
+  //       },
+  //     });
 
-      const result: SeatTypeDto[] = seatTypes.map((item) => ({
-        type: item.type.toString(), // ép về string
-        count: item._count.id,
-      }));
+  //     const result: SeatTypeDto[] = seatTypes.map((item) => ({
+  //       type: item.type.toString(), // ép về string
+  //       count: item._count.id,
+  //     }));
 
-      return {
-        resultCode: '00',
-        resultMessage: 'Successfully retrieved available seat types',
-        data: result,
-      };
-    } catch (error) {
-      return {
-        resultCode: '99',
-        resultMessage: 'Error retrieving available seat types',
-        error: error.message,
-      };
-    }
-  }
+  //     return {
+  //       resultCode: '00',
+  //       resultMessage: 'Successfully retrieved available seat types',
+  //       data: result,
+  //     };
+  //   } catch (error) {
+  //     return {
+  //       resultCode: '99',
+  //       resultMessage: 'Error retrieving available seat types',
+  //       error: error.message,
+  //     };
+  //   }
+  // }
 
-  async getDistinctSeatTypes() {
-    try {
-      const distinctTypes = await this.prisma.seat.groupBy({
-        by: ['type'],
-        orderBy: { type: 'asc' },
-      });
+  // async getDistinctSeatTypes() {
+  //   try {
+  //     const distinctTypes = await this.prisma.seat.groupBy({
+  //       by: ['type'],
+  //       orderBy: { type: 'asc' },
+  //     });
 
-      const types = distinctTypes.map((item) => item.type.toString()); // ép về string
+  //     const types = distinctTypes.map((item) => item.type.toString()); // ép về string
 
-      return {
-        resultCode: '00',
-        resultMessage: 'Successfully retrieved distinct seat types',
-        data: types,
-      };
-    } catch (error) {
-      return {
-        resultCode: '99',
-        resultMessage: 'Error retrieving distinct seat types',
-        data: [],
-      };
-    }
-  }
+  //     return {
+  //       resultCode: '00',
+  //       resultMessage: 'Successfully retrieved distinct seat types',
+  //       data: types,
+  //     };
+  //   } catch (error) {
+  //     return {
+  //       resultCode: '99',
+  //       resultMessage: 'Error retrieving distinct seat types',
+  //       data: [],
+  //     };
+  //   }
+  // }
 
   async updateSeats(seatIds: number[], data: UpdateSeatDto) {
     try {
@@ -357,22 +357,22 @@ export class SeatService {
         seats.map((seat) => {
           let finalPrice: number = data.price ?? seat.price ?? 0;
 
-          if (!data.price) {
-            switch (seat.type) {
-              case 'BUSINESS':
-                finalPrice += 500000;
-                break;
-              case 'FIRST':
-                finalPrice += 1000000;
-                break;
-              case 'ECONOMY':
-                finalPrice += 200000;
-                break;
-              case 'VIP':
-                finalPrice += 300000;
-                break;
-            }
-          }
+          // if (!data.price) {
+          //   switch (seat.type) {
+          //     case 'BUSINESS':
+          //       finalPrice += 500000;
+          //       break;
+          //     case 'FIRST':
+          //       finalPrice += 1000000;
+          //       break;
+          //     case 'ECONOMY':
+          //       finalPrice += 200000;
+          //       break;
+          //     case 'VIP':
+          //       finalPrice += 300000;
+          //       break;
+          //   }
+          // }
 
           return this.prisma.seat.update({
             where: { id: seat.id },

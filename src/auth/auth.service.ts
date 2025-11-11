@@ -31,49 +31,53 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    const existingUser = await this.prisma.passenger.findUnique({
-      where: { email: dto.email },
-    });
-
-    if (existingUser) {
-      return { resultCode: '99', resultMessage: 'Email already registered' };
-    }
-
-    const { otp, hashedOtp, expireAt } = await generateOtp(5);
-
-    const user = await this.prisma.passenger.create({
-      data: {
-        email: dto.email,
-        password: await hashPassword(dto.password), // hash trước khi lưu
-        phone: dto.phone,
-        passport: '',
-        fullName: dto.name ?? '',
-        otpCode: hashedOtp,
-        otpExpire: expireAt,
-      },
-    });
-
     try {
-      await this.mailer.sendMail(
-        dto.email,
-        'Xác nhận tài khoản',
-        `Xin chào ${dto.name ?? 'bạn'}, mã xác nhận của bạn là ${otp}`,
-        `<p>Xin chào <b>${dto.name ?? 'bạn'}</b>,</p>
+      const existingUser = await this.prisma.passenger.findUnique({
+        where: { email: dto.email },
+      });
+
+      if (existingUser) {
+        return { resultCode: '99', resultMessage: 'Email already registered' };
+      }
+
+      const { otp, hashedOtp, expireAt } = await generateOtp(5);
+
+      const user = await this.prisma.passenger.create({
+        data: {
+          email: dto.email,
+          password: await hashPassword(dto.password), // hash trước khi lưu
+          phone: dto.phone,
+          passport: '',
+          fullName: dto.name ?? '',
+          otpCode: hashedOtp,
+          otpExpire: expireAt,
+        },
+      });
+
+      try {
+        await this.mailer.sendMail(
+          dto.email,
+          'Xác nhận tài khoản',
+          `Xin chào ${dto.name ?? 'bạn'}, mã xác nhận của bạn là ${otp}`,
+          `<p>Xin chào <b>${dto.name ?? 'bạn'}</b>,</p>
        <p>Mã xác nhận của bạn là: <b>${otp}</b></p>
        <p>Mã có hiệu lực trong 5 phút.</p>`,
-      );
-    } catch (err) {
-      console.error('Gửi email thất bại:', err.message);
-    }
+        );
+      } catch (err) {
+        console.error('Gửi email thất bại:', err.message);
+      }
 
-    return {
-      resultCode: '00',
-      resultMessage: 'Đăng ký thành công!',
-      data: {
-        email: user.email,
-        userId: user.id,
-      },
-    };
+      return {
+        resultCode: '00',
+        resultMessage: 'Đăng ký thành công!',
+        data: {
+          email: user.email,
+          userId: user.id,
+        },
+      };
+    } catch (error) {
+      console.error('err', error);
+    }
   }
 
   async verifyPasswordToAdmin(
@@ -128,8 +132,9 @@ export class AuthService {
     }
   }
 
-  async verifyOtp(userId: string, type: 'ADMIN' | 'IDPW', otp: string) {
+  async verifyOtp(userId: string, type: 'ADMIN' | 'ID,PW', otp: string) {
     try {
+      console.log('user', userId);
       if (!userId) {
         return {
           resultCode: '09',
@@ -138,7 +143,6 @@ export class AuthService {
       }
 
       const isAdmin = type === 'ADMIN';
-      const model = isAdmin ? this.prisma.user : this.prisma.passenger;
       const id = isAdmin ? Number(userId) : userId;
 
       let entity: User | Passenger | null = null;
@@ -204,6 +208,56 @@ export class AuthService {
     }
   }
 
+  async logout(id: number | string) {
+    try {
+      let deleted;
+
+      // Kiểm tra nếu id là number thì xóa phiên người dùng
+      if (typeof id === 'number') {
+        deleted = await this.prisma.userSession.deleteMany({
+          where: { userId: id },
+        });
+
+        if (deleted.count === 0) {
+          return {
+            resultCode: '01',
+            resultMessage:
+              'Phiên đăng nhập người dùng không tồn tại hoặc đã logout trước đó!',
+          };
+        }
+
+        // Cập nhật lastLoginDate cho user
+        await this.prisma.user.update({
+          where: { id },
+          data: { lastLoginDate: nowDecimal() },
+        });
+      } else {
+        // Nếu id là string thì xóa phiên passenger
+        deleted = await this.prisma.userSession.deleteMany({
+          where: { passengerId: id },
+        });
+
+        if (deleted.count === 0) {
+          return {
+            resultCode: '01',
+            resultMessage:
+              'Phiên đăng nhập passenger không tồn tại hoặc đã logout trước đó!',
+          };
+        }
+
+        // Cập nhật lastLoginDate cho passenger
+        await this.prisma.passenger.update({
+          where: { id },
+          data: { lastLoginDate: nowDecimal() },
+        });
+      }
+
+      return { resultCode: '00', resultMessage: 'Logout successful' };
+    } catch (error) {
+      console.error('err', error);
+    }
+  }
+
   private getDeviceInfo(userAgent: string): {
     device: string;
     browser: string;
@@ -245,13 +299,27 @@ export class AuthService {
         };
       }
       if (authType === 'DEV') {
-        const user = await this.prisma.user.findUnique({ where: { email } });
+        const user = await this.prisma.user.findUnique({
+          where: { email },
+          include: {},
+        });
 
         if (!user)
           return {
             resultCode: '99',
             resultMessage: 'Tài khoản không tồn tại!',
           };
+
+        const sessions = await this.prisma.userSession.count({
+          where: { userId: user.id },
+        });
+
+        if (sessions >= 3) {
+          return {
+            resultCode: '99',
+            resultMessage: 'Tài khoản đã đăng nhập tối đa 3 thiết bị!',
+          };
+        }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
@@ -266,7 +334,6 @@ export class AuthService {
         const accessToken = await this.jwtService.signAsync(payload);
 
         console.log('payload', payload);
-        console.log('accessToken', accessToken);
 
         await this.prisma.userSession.create({
           data: {
@@ -291,7 +358,21 @@ export class AuthService {
         });
 
         if (!user)
-          return { resultCode: '99', resultMessage: 'Tài khoản chưa đăng ký!' };
+          return {
+            resultCode: '99',
+            resultMessage: 'Tài khoản chưa đăng ký account!',
+          };
+
+        const sessions = await this.prisma.userSession.count({
+          where: { userId: user.id },
+        });
+
+        if (sessions >= 3) {
+          return {
+            resultCode: '99',
+            resultMessage: 'Tài khoản đã đăng nhập tối đa 3 thiết bị!',
+          };
+        }
 
         if (user.accountLockYn === 'Y') {
           const hasSendRequest = await this.prisma.unlockRequest.findFirst({
@@ -380,6 +461,7 @@ export class AuthService {
             await this.prisma.userSession.delete({ where: { id: s.id } });
           }
         }
+        console.log('payload', payload);
 
         const validSessions = user.sessions.filter(
           (s) => Date.now() - Number(s.createdAt || 0) <= TEN_DAYS,
@@ -393,16 +475,13 @@ export class AuthService {
           await this.prisma.userSession.delete({ where: { id: oldest.id } });
         }
 
-        // Get device info
         const deviceInfo = this.getDeviceInfo(dto.userAgent);
-        // const location = this.getLocationFromIp(dto.ipAddress);
 
-        // Tạo session mới với đầy đủ thông tin
-        const resSeeson = await this.prisma.userSession.create({
+        await this.prisma.userSession.create({
           data: {
             userId: user.id,
             token: accessToken,
-            createdAt: nowDecimal(), // Current timestamp in seconds
+            createdAt: nowDecimal(),
             device: deviceInfo.device,
             browser: deviceInfo.browser,
             location: dto.location,
@@ -412,7 +491,6 @@ export class AuthService {
           },
         });
 
-        // Đánh dấu các session khác không phải current
         await this.prisma.userSession.updateMany({
           where: {
             userId: user.id,
@@ -432,6 +510,10 @@ export class AuthService {
       }
     } catch (error) {
       console.error('err', error);
+      return {
+        resultCode: '99',
+        resultMessage: 'Đăng nhập khong thành công!',
+      };
     }
   }
 
@@ -457,6 +539,17 @@ export class AuthService {
             resultMessage: 'Tài khoản không tồn tại!',
           };
 
+        const sessions = await this.prisma.userSession.count({
+          where: { passengerId: passenger.id },
+        });
+
+        if (sessions >= 3) {
+          return {
+            resultCode: '99',
+            resultMessage: 'Tài khoản đã đăng nhập tối đa 3 thiết bị!',
+          };
+        }
+
         const isPasswordValid = await bcrypt.compare(
           password,
           passenger.password,
@@ -474,6 +567,8 @@ export class AuthService {
           email: passenger.email,
           role: passenger.role,
         };
+
+        console.log('payload', payload);
 
         const accessToken = await this.jwtService.signAsync(payload);
 
@@ -498,6 +593,7 @@ export class AuthService {
         // Get device info
         const deviceInfo = this.getDeviceInfo(dto.userAgent);
         // const location = this.getLocationFromIp(dto.ipAddress);
+        console.log('validSessions', validSessions);
 
         // Tạo session mới với đầy đủ thông tin
         await this.prisma.userSession.create({
@@ -686,7 +782,7 @@ export class AuthService {
           },
         },
         seats: {
-          select: { id: true, seatNumber: true, type: true, isBooked: true },
+          select: { id: true, seatNumber: true, isBooked: true },
         },
         meals: { select: { id: true, mealId: true, meal: true } },
         flightStatuses: {
@@ -996,6 +1092,77 @@ export class AuthService {
 
   async setMfa(user: { email: string }) {
     try {
+      const hasRegisterEmail = await this.prisma.passenger.findUnique({
+        where: { email: user.email },
+      });
+
+      if (!hasRegisterEmail) {
+        return {
+          resultCode: '09',
+          resultMessage: 'Khong phai email da dang ki truoc do',
+        };
+      }
+      const secret = speakeasy.generateSecret({
+        name: `MyApp (${user.email})`,
+      });
+
+      let existingPassenger = await this.prisma.passenger.findUnique({
+        where: { email: user.email },
+      });
+
+      if (existingPassenger && existingPassenger.mfaEnabledYn === 'Y') {
+        return {
+          resultCode: '00',
+          resultMessage: 'MFA đã được kích hoạt cho user này',
+          data: {
+            hasVerified: 'Y',
+            secret: existingPassenger.mfaSecretKey,
+            qrCodeDataURL: null,
+          },
+        };
+      }
+
+      if (!existingPassenger) {
+        existingPassenger = await this.prisma.passenger.create({
+          data: {
+            email: user.email,
+            password: '', // tạm
+            passport: '',
+            phone: '',
+            fullName: '',
+            mfaSecretKey: secret.base32,
+            mfaEnabledYn: 'N',
+          },
+        });
+      } else {
+        await this.prisma.passenger.update({
+          where: { id: existingPassenger.id },
+          data: {
+            mfaSecretKey: secret.base32,
+            mfaEnabledYn: 'N',
+          },
+        });
+      }
+
+      const qrCodeDataURL = await QRCode.toDataURL(secret.otpauth_url);
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Khởi tạo MFA thành công, hãy xác thực code',
+        data: {
+          hasVerified: 'N',
+          secret: secret.base32,
+          qrCodeDataURL,
+        },
+      };
+    } catch (err) {
+      console.error(' Lỗi tạo MFA:', err);
+      throw err;
+    }
+  }
+
+  async setMfaForAdmin(user: { email: string }) {
+    try {
       const hasRegisterEmail = await this.prisma.user.findUnique({
         where: { email: user.email },
       });
@@ -1010,44 +1177,43 @@ export class AuthService {
         name: `MyApp (${user.email})`,
       });
 
-      let existingUser = await this.prisma.user.findUnique({
+      let existingPassenger = await this.prisma.user.findUnique({
         where: { email: user.email },
       });
 
-      if (existingUser && existingUser.mfaEnabledYn === 'Y') {
+      if (existingPassenger && existingPassenger.mfaEnabledYn === 'Y') {
         return {
           resultCode: '00',
-          resultMessage: 'MFA đã được kích hoạt cho user này',
+          resultMessage: 'MFA đã được kích hoạt cho account này',
           data: {
             hasVerified: 'Y',
-            secret: existingUser.mfaSecretKey,
+            secret: existingPassenger.mfaSecretKey,
             qrCodeDataURL: null,
           },
         };
       }
 
-      if (!existingUser) {
-        existingUser = await this.prisma.user.create({
+      if (!existingPassenger) {
+        existingPassenger = await this.prisma.user.create({
           data: {
             email: user.email,
             password: '', // tạm
-            phone: '',
-            userAlias: '',
             name: '',
-            pictureUrl: '',
             createdAt: nowDecimal(),
             updatedAt: nowDecimal(),
+            // passport: '',
+            // phone: '',
+            // fullName: '',
             mfaSecretKey: secret.base32,
             mfaEnabledYn: 'N',
           },
         });
       } else {
         await this.prisma.user.update({
-          where: { id: existingUser.id },
+          where: { id: existingPassenger.id },
           data: {
             mfaSecretKey: secret.base32,
             mfaEnabledYn: 'N',
-            updatedAt: new Prisma.Decimal(Date.now()),
           },
         });
       }
@@ -1073,11 +1239,15 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { email } });
 
     if (!user || !user.mfaSecretKey) {
-      throw new Error('User chưa khởi tạo MFA');
+      return {
+        resultCode: '01',
+        resultMessage: 'User chưa khởi tạo MFA',
+      };
     }
 
     const verified = this.verifyMfaCode(user.mfaSecretKey, code);
 
+    // console.log('email', email, code);
     if (!verified) {
       return {
         resultCode: '99',
@@ -1097,6 +1267,8 @@ export class AuthService {
   }
 
   verifyMfaCode(secret: string, code: string) {
+    console.log('email', secret, code);
+
     return speakeasy.totp.verify({
       secret,
       encoding: 'base32',
@@ -1352,7 +1524,6 @@ export class AuthService {
       }
 
       if (!user.email) {
-        console.error('User không có email');
         return {
           resultCode: '02',
           resultMessage: 'User chưa có email để gửi OTP',
@@ -1635,52 +1806,6 @@ export class AuthService {
       console.error('Lỗi change password:', err);
       throw err;
     }
-  }
-
-  async logout(id: number | string, token: string) {
-    let deleted;
-
-    // Kiểm tra nếu id là number thì xóa phiên người dùng
-    if (typeof id === 'number') {
-      deleted = await this.prisma.userSession.deleteMany({
-        where: { userId: id, token },
-      });
-
-      if (deleted.count === 0) {
-        return {
-          resultCode: '01',
-          resultMessage:
-            'Phiên đăng nhập người dùng không tồn tại hoặc đã logout trước đó!',
-        };
-      }
-
-      // Cập nhật lastLoginDate cho user
-      await this.prisma.user.update({
-        where: { id },
-        data: { lastLoginDate: nowDecimal() },
-      });
-    } else {
-      // Nếu id là string thì xóa phiên passenger
-      deleted = await this.prisma.userSession.deleteMany({
-        where: { passengerId: id, token },
-      });
-
-      if (deleted.count === 0) {
-        return {
-          resultCode: '01',
-          resultMessage:
-            'Phiên đăng nhập passenger không tồn tại hoặc đã logout trước đó!',
-        };
-      }
-
-      // Cập nhật lastLoginDate cho passenger
-      await this.prisma.passenger.update({
-        where: { id },
-        data: { lastLoginDate: nowDecimal() },
-      });
-    }
-
-    return { resultCode: '00', resultMessage: 'Logout successful' };
   }
 
   async updateBatchPasswordToPassenger(password: string) {

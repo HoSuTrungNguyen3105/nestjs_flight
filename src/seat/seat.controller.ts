@@ -66,29 +66,29 @@ export class SeatController {
     await this.seatService.deleteAllSeats();
   }
 
-  @Get()
-  async getAllSeatTypes(): Promise<SeatTypesResponseDto> {
-    return this.seatService.getAllSeatTypes();
-  }
+  // @Get()
+  // async getAllSeatTypes(): Promise<SeatTypesResponseDto> {
+  //   return this.seatService.getAllSeatTypes();
+  // }
 
-  @Get('flight/:flightId')
-  async getSeatTypesByFlight(
-    @Param('flightId') flightId: string,
-  ): Promise<SeatTypesResponseDto> {
-    return this.seatService.getSeatTypesByFlight(parseInt(flightId));
-  }
+  // @Get('flight/:flightId')
+  // async getSeatTypesByFlight(
+  //   @Param('flightId') flightId: string,
+  // ): Promise<SeatTypesResponseDto> {
+  //   return this.seatService.getSeatTypesByFlight(parseInt(flightId));
+  // }
 
-  @Get('available')
-  async getAvailableSeatTypes(
-    @Body('flightId') flightId?: number,
-  ): Promise<SeatTypesResponseDto> {
-    return this.seatService.getAvailableSeatTypes(flightId ?? undefined);
-  }
+  // @Get('available')
+  // async getAvailableSeatTypes(
+  //   @Body('flightId') flightId?: number,
+  // ): Promise<SeatTypesResponseDto> {
+  //   return this.seatService.getAvailableSeatTypes(flightId ?? undefined);
+  // }
 
-  @Get('distinct')
-  async getDistinctSeatTypes() {
-    return this.seatService.getDistinctSeatTypes();
-  }
+  // @Get('distinct')
+  // async getDistinctSeatTypes() {
+  //   return this.seatService.getDistinctSeatTypes();
+  // }
 
   @Post('update/price-multi')
   async updatePriceMulti(@Body() data: { price: number; flightId: number }) {

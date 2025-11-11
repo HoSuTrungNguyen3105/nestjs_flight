@@ -1,5 +1,12 @@
 import { IsEmail, IsString, Length } from 'class-validator';
 
+export interface JwtPayload {
+  sub: string;
+  email: string;
+  iat?: number;
+  exp?: number;
+}
+
 export class LoginDto {
   @IsEmail()
   email: string;

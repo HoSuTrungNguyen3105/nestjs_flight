@@ -30,6 +30,7 @@ import {
   CreateMultiFlightDiscountDto,
   UpdateFlightDiscountDto,
 } from './dto/create-flight-discount.dto';
+import { CreateDiscountDto } from './dto/create-discount.dto';
 
 @Injectable()
 export class FlightsService {
@@ -704,25 +705,25 @@ export class FlightsService {
     });
   }
 
-  async createTicket(data: {
-    ticketNo: string;
-    passengerId: string;
-    flightId: number;
-    seatClass: string;
-    seatNo: string;
-    bookedAt: number; // hoặc Decimal
-  }) {
-    return this.prisma.ticket.create({
-      data: {
-        ticketNo: data.ticketNo,
-        passengerId: data.passengerId,
-        flightId: data.flightId,
-        // seatClass: data.seatClass,
-        // seatNo: data.seatNo,
-        // bookedAt: data.bookedAt,
-      },
-    });
-  }
+  // async createTicket(data: {
+  //   ticketNo: string;
+  //   passengerId: string;
+  //   flightId: number;
+  //   // seatClass: string;
+  //   // seatNo: string;
+  //   // bookedAt: number; // hoặc Decimal
+  // }) {
+  //   return this.prisma.ticket.create({
+  //     data: {
+  //       ticketNo: data.ticketNo,
+  //       passengerId: data.passengerId,
+  //       flightId: data.flightId,
+  //       // seatClass: data.seatClass,
+  //       // seatNo: data.seatNo,
+  //       // bookedAt: data.bookedAt,
+  //     },
+  //   });
+  // }
 
   async findAllTicket(): Promise<BaseResponseDto<TicketResponseDto>> {
     const tickets = await this.prisma.ticket.findMany({
@@ -774,12 +775,15 @@ export class FlightsService {
             // boardingTime: Number(t.boardingPass.boardingTime),
           }
         : null,
-      baggage: t.baggage.map((b) => ({
-        ...b,
-        checkedAt: Number(b.checkedAt),
-        weight: Number(b.weight),
-      })),
+      baggage: t.baggage
+        ? {
+            ...t.baggage,
+            checkedAt: Number(t.baggage.checkedAt),
+            weight: Number(t.baggage.weight),
+          }
+        : undefined,
     }));
+
     return {
       resultCode: '00',
       resultMessage: 'Ticket list success !!',
@@ -1050,6 +1054,19 @@ export class FlightsService {
     }
   }
 
+  async getAllAirportIds() {
+    try {
+      const res = await this.prisma.airport.findMany({
+        select: {
+          code: true,
+        },
+      });
+      return { resultCode: '00', resultMessage: 'Airport', list: res };
+    } catch (error) {
+      return { resultCode: '01', resultMessage: 'Error Airport' };
+    }
+  }
+
   async createFlightDiscount(dto: CreateFlightDiscountDto) {
     return this.prisma.flightDiscount.create({
       data: {
@@ -1081,6 +1098,149 @@ export class FlightsService {
         flight: true,
       },
     });
+  }
+
+  async createDiscount(createDto: CreateDiscountDto) {
+    // Kiểm tra code đã tồn tại
+    const existing = await this.prisma.discountCode.findUnique({
+      where: { code: createDto.code },
+    });
+    if (existing) {
+      return {
+        resultCode: '01',
+        resultMessage: `Discount code ${createDto.code} already exists.`,
+      };
+    }
+
+    if (
+      createDto.isPercentage &&
+      (!createDto.discountPercent || createDto.discountPercent <= 0)
+    ) {
+      return {
+        resultCode: '02',
+        resultMessage:
+          'Discount percent must be greater than 0 when isPercentage is true.',
+      };
+    }
+
+    if (
+      !createDto.isPercentage &&
+      (!createDto.discountAmount || createDto.discountAmount <= 0)
+    ) {
+      return {
+        resultCode: '03',
+        resultMessage:
+          'Discount amount must be greater than 0 when isPercentage is false.',
+      };
+    }
+
+    await this.prisma.discountCode.create({
+      data: {
+        code: createDto.code,
+        description: createDto.description,
+        discountAmount: createDto.discountAmount,
+        discountPercent: createDto.discountPercent,
+        isPercentage: createDto.isPercentage,
+        active: createDto.active ?? true,
+        usageLimit: createDto.usageLimit ?? 0,
+        usedCount: 0,
+        validFrom: createDto.validFrom,
+        validTo: createDto.validTo,
+        createdAt: nowDecimal(),
+        updatedAt: nowDecimal(),
+      },
+    });
+
+    return {
+      resultCode: '00',
+      resultMessage: `Discount code has created`,
+    };
+  }
+
+  async createDiscounts(createDtos: CreateDiscountDto[]) {
+    const results = await Promise.all(
+      createDtos.map(async (dto) => {
+        // Kiểm tra code đã tồn tại
+        const existing = await this.prisma.discountCode.findUnique({
+          where: { code: dto.code },
+        });
+
+        if (existing) {
+          return {
+            code: dto.code,
+            resultCode: '01',
+            resultMessage: `Discount code ${dto.code} already exists.`,
+          };
+        }
+
+        if (
+          dto.isPercentage &&
+          (!dto.discountPercent || dto.discountPercent <= 0)
+        ) {
+          return {
+            code: dto.code,
+            resultCode: '02',
+            resultMessage:
+              'Discount percent must be > 0 when isPercentage is true.',
+          };
+        }
+
+        if (
+          !dto.isPercentage &&
+          (!dto.discountAmount || dto.discountAmount <= 0)
+        ) {
+          return {
+            code: dto.code,
+            resultCode: '03',
+            resultMessage:
+              'Discount amount must be > 0 when isPercentage is false.',
+          };
+        }
+
+        await this.prisma.discountCode.create({
+          data: {
+            code: dto.code,
+            description: dto.description,
+            discountAmount: dto.discountAmount,
+            discountPercent: dto.discountPercent,
+            isPercentage: dto.isPercentage,
+            active: dto.active ?? true,
+            usageLimit: dto.usageLimit ?? 0,
+            usedCount: 0,
+            validFrom: dto.validFrom,
+            validTo: dto.validTo,
+            createdAt: nowDecimal(),
+            updatedAt: nowDecimal(),
+          },
+        });
+
+        return {
+          code: dto.code,
+          resultCode: '00',
+          resultMessage: 'Discount code created successfully',
+        };
+      }),
+    );
+
+    return results;
+  }
+
+  async getAllDiscounts() {
+    const res = await this.prisma.discountCode.findMany();
+    return {
+      resultCode: '00',
+      resultMessage: `Discount code has found`,
+      list: res,
+    };
+  }
+
+  async getDiscountById(id: number) {
+    const res = await this.prisma.discountCode.findUnique({ where: { id } });
+    return {
+      resultCode: '00',
+      resultMessage: `Discount code with ID has found`,
+      data: res,
+    };
   }
 
   async updateFlightDiscount(id: number, dto: UpdateFlightDiscountDto) {
@@ -1373,7 +1533,6 @@ export class FlightsService {
             id: true,
             seatRow: true,
             seatNumber: true,
-            type: true,
             isBooked: true,
           },
         },
@@ -1417,7 +1576,7 @@ export class FlightsService {
         list: res,
       };
     } catch (error) {
-      console.error('e', error);
+      console.error('err', error);
       throw error;
     }
   }

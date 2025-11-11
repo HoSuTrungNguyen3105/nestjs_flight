@@ -8,6 +8,504 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                      Int             @id @default(autoincrement())
+  email                   String          @unique
+  name                    String          @db.VarChar(50)
+  role                    Role            @default(USER)
+  password                String          @db.VarChar(100)
+  pictureUrl              String          @default("")
+  rank                    Rank            @default(NONE)
+  authType                String          @default("ID,PW")
+  prevPassword            String          @default("")
+  isEmailVerified         String          @default("N")
+  userAlias               String          @default("")
+  createdAt               Decimal         @db.Decimal(20, 3)
+  updatedAt               Decimal         @db.Decimal(20, 3)
+  accountLockYn           String          @default("N")
+  lastLoginDate           Decimal?        @db.Decimal(20, 3)
+  loginFailCnt            Int             @default(0)
+  mfaEnabledYn            String          @default("N")
+  mfaSecretKey            String?         @default("")
+  tempPassword            String?
+  resetTokenExpires       Decimal?        @db.Decimal(20, 3)
+  resetToken              String?
+  phone                   String          @default("")
+  otpCode                 String?
+  otpExpire               Decimal?        @db.Decimal(20, 3)
+  baseSalary              Float?
+  department              Department?
+  employeeNo              String?         @unique
+  hireDate                Decimal?        @db.Decimal(20, 3)
+  position                Position?
+  status                  EmployeeStatus  @default(ACTIVE)
+  fromTransferAdminUserYn String?         @default("N")
+  toTransferAdminUserYn   String?         @default("N")
+  isDeleted               Boolean         @default(false)
+  attendance              Attendance[]
+  leaveRequest            LeaveRequest[]
+  receivedMessages        Message[]       @relation("ReceivedMessages")
+  sentMessages            Message[]       @relation("SentMessages")
+  payrolls                Payroll[]
+  transferAdmin           TransferAdmin?
+  unlockRequests          UnlockRequest[]
+  sessions                UserSession[]
+}
+
+model TransferAdmin {
+  id          Int            @id @default(autoincrement())
+  userId      Int            @unique
+  fromUserId  Int
+  toUserId    Int
+  status      TransferStatus @default(PENDING)
+  requestedAt Decimal        @db.Decimal(20, 3)
+  approvedAt  Decimal?       @db.Decimal(20, 3)
+  user        User           @relation(fields: [userId], references: [id])
+}
+
+model Message {
+  id         Int     @id @default(autoincrement())
+  content    String  @db.VarChar(100)
+  createdAt  Decimal @db.Decimal(20, 3)
+  senderId   Int
+  receiverId Int
+  receiver   User    @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User    @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+model UserSession {
+  id          Int        @id @default(autoincrement())
+  userId      Int?
+  token       String     @db.Text
+  createdAt   Decimal?   @db.Decimal(20, 3)
+  browser     String?
+  device      String?
+  ipAddress   String?
+  isCurrent   Boolean    @default(false)
+  location    String?
+  userAgent   String?
+  passengerId String?
+  passenger   Passenger? @relation(fields: [passengerId], references: [id], onDelete: Cascade)
+  user        User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "UserSession_userId_fkey")
+  @@index([passengerId], map: "UserSession_passengerId_fkey")
+}
+
+model Passenger {
+  id              String         @id @default(cuid())
+  fullName        String
+  email           String         @unique
+  phone           String
+  passport        String
+  accountLockYn   String         @default("N")
+  isEmailVerified String         @default("Y")
+  lastLoginDate   Decimal?       @db.Decimal(20, 3)
+  password        String?        @db.VarChar(100)
+  status          EmployeeStatus @default(ACTIVE)
+  otpCode         String?
+  otpExpire       Decimal?       @db.Decimal(20, 3)
+  role            Role           @default(PASSENGER)
+  loginFailCnt    Int            @default(0)
+  mfaEnabledYn    String         @default("N")
+  mfaSecretKey    String?        @default("")
+  bookings        Booking[]
+  tickets         Ticket[]
+  sessions        UserSession[]
+}
+
+model Payroll {
+  id          Int           @id @default(autoincrement())
+  employeeId  Int
+  month       Int
+  year        Int
+  baseSalary  Float
+  allowances  Float         @default(0)
+  deductions  Float         @default(0)
+  tax         Float         @default(0)
+  netPay      Float
+  status      PayrollStatus @default(DRAFT)
+  generatedAt Decimal       @db.Decimal(20, 3)
+  employee    User          @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, month, year])
+  @@index([employeeId])
+}
+
+model Attendance {
+  id          Int              @id @default(autoincrement())
+  employeeId  Int
+  date        Decimal          @db.Decimal(20, 3)
+  checkIn     Decimal          @db.Decimal(20, 3)
+  checkOut    Decimal          @db.Decimal(20, 3)
+  status      AttendanceStatus @default(PRESENT)
+  workedHours Float?
+  note        String?
+  createdAt   Decimal          @db.Decimal(20, 3)
+  employee    User             @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+}
+
+model LeaveRequest {
+  id           Int         @id @default(autoincrement())
+  employeeId   Int
+  leaveType    String
+  startDate    Decimal     @db.Decimal(20, 3)
+  endDate      Decimal     @db.Decimal(20, 3)
+  days         Float
+  reason       String?
+  status       LeaveStatus @default(PENDING)
+  approverId   Int?
+  approverNote String?
+  appliedAt    Decimal     @db.Decimal(20, 3)
+  decidedAt    Decimal?    @db.Decimal(20, 3)
+  employee     User        @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
+}
+
+model UnlockRequest {
+  id         Int          @id @default(autoincrement())
+  reason     String       @db.Text
+  status     UnlockStatus @default(PENDING)
+  createdAt  Decimal      @db.Decimal(20, 3)
+  approvedAt Decimal?     @db.Decimal(20, 3)
+  employeeId Int
+  user       User         @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId], map: "UnlockRequest_employeeId_fkey")
+}
+
+model Flight {
+  flightId            Int              @id @default(autoincrement())
+  flightNo            String           @unique @db.VarChar(10)
+  departureAirport    String           @db.VarChar(10)
+  arrivalAirport      String           @db.VarChar(10)
+  aircraftCode        String           @db.VarChar(10)
+  scheduledDeparture  Decimal          @db.Decimal(20, 3)
+  scheduledArrival    Decimal          @db.Decimal(20, 3)
+  actualDeparture     Decimal?         @db.Decimal(20, 3)
+  actualArrival       Decimal?         @db.Decimal(20, 3)
+  delayMinutes        Int?
+  flightType          FlightType       @default(oneway)
+  isCancelled         Boolean          @default(false)
+  priceBusiness       Float?
+  priceEconomy        Float?
+  priceFirst          Float?
+  cancellationReason  String?          @db.VarChar(255)
+  delayReason         String?          @db.VarChar(255)
+  gateId              String?          @unique
+  isDomestic          Boolean          @default(true)
+  baggage             Baggage[]
+  boardingPasses      BoardingPass[]
+  bookings            Booking[]
+  aircraft            Aircraft         @relation(fields: [aircraftCode], references: [code])
+  arrivalAirportRel   Airport          @relation("ArrivalRelation", fields: [arrivalAirport], references: [code])
+  departureAirportRel Airport          @relation("DepartureRelation", fields: [departureAirport], references: [code])
+  gate                Gate?            @relation(fields: [gateId], references: [id])
+  discounts           FlightDiscount[]
+  meals               FlightMeal[]
+  flightStatuses      FlightStatus[]
+  gateAssignments     GateAssignment[]
+  seats               Seat[]
+  tickets             Ticket[]
+
+  @@index([aircraftCode], map: "Flight_aircraftCode_fkey")
+  @@index([arrivalAirport], map: "Flight_arrivalAirport_fkey")
+  @@index([departureAirport], map: "Flight_departureAirport_fkey")
+  @@index([gateId])
+}
+
+model FlightDiscount {
+  id             Int          @id @default(autoincrement())
+  discountCodeId Int
+  flightId       Int
+  createdAt      Decimal      @db.Decimal(20, 3)
+  discountCode   DiscountCode @relation(fields: [discountCodeId], references: [id])
+  flight         Flight       @relation(fields: [flightId], references: [flightId])
+
+  @@unique([discountCodeId, flightId])
+  @@index([flightId], map: "FlightDiscount_flightId_fkey")
+}
+
+model Aircraft {
+  code    String   @id
+  model   String
+  range   Int
+  flights Flight[]
+}
+
+model Airport {
+  code       String     @id
+  name       String
+  city       String
+  country    String
+  createdAt  Decimal    @db.Decimal(20, 3)
+  updatedAt  Decimal?   @db.Decimal(20, 3)
+  arrivals   Flight[]   @relation("ArrivalRelation")
+  departures Flight[]   @relation("DepartureRelation")
+  terminals  Terminal[]
+}
+
+model Booking {
+  id          Int           @id @default(autoincrement())
+  passengerId String
+  flightId    Int
+  bookingTime Decimal       @db.Decimal(20, 3)
+  bookingCode String?       @unique
+  seatClass   SeatType      @default(ECONOMY)
+  seatNo      String        @default("N/A") @db.VarChar(10)
+  seatPrice   Decimal?      @db.Decimal(10, 2)
+  status      BookingStatus @default(PENDING)
+  flight      Flight        @relation(fields: [flightId], references: [flightId])
+  passenger   Passenger     @relation(fields: [passengerId], references: [id])
+  mealOrders  MealOrder[]
+  seat        Seat?
+  tickets     Ticket[]      @relation("BookingToTicket")
+
+  @@index([flightId])
+  @@index([passengerId])
+}
+
+model Ticket {
+  id           Int           @id @default(autoincrement())
+  ticketNo     String        @unique
+  passengerId  String
+  flightId     Int
+  qrCodeImage  String?       @db.Text
+  bookingId    Int?
+  baggage      Baggage?
+  boardingPass BoardingPass?
+  payments     Payment[]
+  booking      Booking?      @relation("BookingToTicket", fields: [bookingId], references: [id])
+  flight       Flight        @relation(fields: [flightId], references: [flightId])
+  passenger    Passenger     @relation(fields: [passengerId], references: [id])
+
+  @@index([bookingId])
+  @@index([passengerId])
+  @@index([flightId])
+}
+
+model BoardingPass {
+  id       Int            @id @default(autoincrement())
+  ticketId Int            @unique
+  issuedAt Decimal        @db.Decimal(20, 3)
+  flightId Int
+  status   BoardingStatus @default(PENDING)
+  gateId   String
+  flight   Flight         @relation(fields: [flightId], references: [flightId])
+  gate     Gate           @relation(fields: [gateId], references: [id])
+  ticket   Ticket         @relation(fields: [ticketId], references: [id])
+
+  @@index([flightId], map: "BoardingPass_flightId_fkey")
+  @@index([gateId], map: "BoardingPass_gateId_fkey")
+}
+
+model Baggage {
+  id        Int     @id @default(autoincrement())
+  flightId  Int
+  weight    Float
+  status    String  @db.VarChar(20)
+  checkedAt Decimal @db.Decimal(20, 3)
+  ticketId  Int     @unique
+  flight    Flight  @relation(fields: [flightId], references: [flightId])
+  ticket    Ticket  @relation(fields: [ticketId], references: [id])
+
+  @@index([flightId], map: "Baggage_flightId_fkey")
+}
+
+model Meal {
+  id          Int          @id @default(autoincrement())
+  name        String
+  mealType    MealType
+  description String?
+  price       Float?
+  isAvailable Boolean      @default(true)
+  mealCode    String       @unique
+  flightMeals FlightMeal[]
+  mealOrders  MealOrder[]
+}
+
+model Seat {
+  id                   Int       @id @default(autoincrement())
+  isBooked             Boolean   @default(false)
+  flightId             Int
+  bookingId            Int?      @unique
+  seatNumber           Int
+  seatRow              String
+  isAvailable          Boolean   @default(true)
+  isExitRow            Boolean   @default(false)
+  isExtraLegroom       Boolean   @default(false)
+  note                 String?
+  price                Float?
+  isHandicapAccessible Boolean   @default(false)
+  isNearLavatory       Boolean   @default(false)
+  isUpperDeck          Boolean   @default(false)
+  isWing               Boolean   @default(false)
+  type                 Seat_type @default(ECONOMY)
+  booking              Booking?  @relation(fields: [bookingId], references: [id])
+  flight               Flight    @relation(fields: [flightId], references: [flightId])
+
+  @@index([flightId], map: "Seat_flightId_fkey")
+}
+
+model DiscountCode {
+  id              Int              @id @default(autoincrement())
+  code            String           @unique
+  description     String?
+  discountAmount  Decimal?
+  discountPercent Int?
+  isPercentage    Boolean          @default(false)
+  active          Boolean          @default(true)
+  usageLimit      Int?
+  usedCount       Int              @default(0)
+  validFrom       Decimal          @db.Decimal(20, 3)
+  validTo         Decimal          @db.Decimal(20, 3)
+  createdAt       Decimal          @db.Decimal(20, 3)
+  updatedAt       Decimal          @db.Decimal(20, 3)
+  flights         FlightDiscount[]
+}
+
+model Facility {
+  id           String       @id @default(cuid())
+  name         String
+  type         FacilityType
+  description  String?
+  terminalId   String
+  location     String?
+  openingHours String?
+  createdAt    Decimal      @db.Decimal(20, 3)
+  updatedAt    Decimal      @db.Decimal(20, 3)
+  terminal     Terminal     @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+
+  @@index([terminalId], map: "Facility_terminalId_fkey")
+}
+
+model Terminal {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  name        String
+  description String?
+  type        TerminalType
+  airportId   String
+  createdAt   Decimal      @db.Decimal(20, 3)
+  updatedAt   Decimal      @db.Decimal(20, 3)
+  facilities  Facility[]
+  gates       Gate[]
+  airport     Airport      @relation(fields: [airportId], references: [code], onDelete: Cascade)
+
+  @@unique([airportId, code])
+}
+
+model GateAssignment {
+  id         String  @id @default(cuid())
+  gateId     String
+  flightId   Int
+  assignedAt Decimal @db.Decimal(20, 3)
+  releasedAt Decimal @db.Decimal(20, 3)
+  createdAt  Decimal @db.Decimal(20, 3)
+  updatedAt  Decimal @db.Decimal(20, 3)
+  flight     Flight  @relation(fields: [flightId], references: [flightId], onDelete: Cascade)
+  gate       Gate    @relation(fields: [gateId], references: [id], onDelete: Cascade)
+
+  @@unique([gateId, flightId])
+  @@index([flightId], map: "GateAssignment_flightId_fkey")
+}
+
+model Gate {
+  id             String           @id @default(cuid())
+  code           String           @unique
+  terminalId     String
+  status         GateStatus       @default(AVAILABLE)
+  createdAt      Decimal          @db.Decimal(20, 3)
+  updatedAt      Decimal          @db.Decimal(20, 3)
+  boardingPasses BoardingPass[]
+  currentFlight  Flight?
+  terminal       Terminal         @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+  assignments    GateAssignment[]
+
+  @@unique([terminalId, code])
+}
+
+model FlightMeal {
+  id       Int    @id @default(autoincrement())
+  flightId Int
+  mealId   Int
+  quantity Int    @default(1)
+  price    Float?
+  flight   Flight @relation(fields: [flightId], references: [flightId])
+  meal     Meal   @relation(fields: [mealId], references: [id])
+
+  @@index([flightId], map: "FlightMeal_flightId_fkey")
+  @@index([mealId], map: "FlightMeal_mealId_fkey")
+}
+
+model MealOrder {
+  id        Int     @id @default(autoincrement())
+  bookingId Int
+  mealId    Int
+  quantity  Int     @default(1)
+  booking   Booking @relation(fields: [bookingId], references: [id])
+  meal      Meal    @relation(fields: [mealId], references: [id])
+
+  @@index([bookingId], map: "MealOrder_bookingId_fkey")
+  @@index([mealId], map: "MealOrder_mealId_fkey")
+}
+
+model FlightStatus {
+  id          Int              @id @default(autoincrement())
+  flightId    Int
+  status      FlightStatusType @default(SCHEDULED)
+  description String?          @db.VarChar(255)
+  updatedAt   Decimal          @db.Decimal(20, 3)
+  flight      Flight           @relation(fields: [flightId], references: [flightId])
+
+  @@index([flightId], map: "FlightStatus_flightId_fkey")
+}
+
+model Hotel {
+  id               Int     @id @default(autoincrement())
+  name             String
+  city             String
+  address          String
+  rating           Float
+  reviewCount      Int     @default(0)
+  distanceToCenter Float
+  imageUrl         String
+  price            Float
+  discountPercent  Float?
+  isPrime          Boolean @default(false)
+  freeWifi         Boolean @default(false)
+  covidMeasures    Boolean @default(false)
+  freeCancel       Boolean @default(false)
+  payLater         Boolean @default(false)
+  rooms            Int     @default(0)
+  createdAt        Decimal @db.Decimal(20, 3)
+  updatedAt        Decimal @db.Decimal(20, 3)
+  hotelCode        String? @unique
+}
+
+model Payment {
+  id            Int           @id @default(autoincrement())
+  ticketId      Int
+  amount        Decimal       @db.Decimal(20, 3)
+  currency      String        @default("VND")
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  transactionId String?       @unique
+  paymentUrl    String?
+  createdAt     Decimal       @default(dbgenerated("(unix_timestamp() * 1000)")) @db.Decimal(20, 3)
+  updatedAt     Decimal       @db.Decimal(20, 3)
+  ticket        Ticket        @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId], map: "Payment_ticketId_fkey")
+}
+
 enum PaymentMethod {
   MOMO
   ZALOPAY
@@ -15,10 +513,10 @@ enum PaymentMethod {
 }
 
 enum PaymentStatus {
-  PENDING // chưa thanh toán
-  SUCCESS // thanh toán thành công
-  FAILED // thất bại
-  CANCELLED // hủy
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
 }
 
 enum Role {
@@ -42,9 +540,9 @@ enum UnlockStatus {
 }
 
 enum BoardingStatus {
-  PENDING // chưa boarding
-  BOARDED // đã lên tàu
-  EXPIRED // hết hạn
+  PENDING
+  BOARDED
+  EXPIRED
 }
 
 enum FlightStatusType {
@@ -165,511 +663,9 @@ enum TransferStatus {
   REJECTED
 }
 
-model User {
-  id              Int     @id @default(autoincrement())
-  email           String  @unique
-  name            String  @db.VarChar(50)
-  role            Role    @default(USER)
-  password        String  @db.VarChar(100)
-  pictureUrl      String  @default("")
-  rank            Rank    @default(NONE)
-  authType        String  @default("ID,PW")
-  phone           String  @default("")
-  isDeleted       Boolean @default(false)
-  prevPassword    String  @default("")
-  isEmailVerified String  @default("N")
-  userAlias       String  @default("")
-  createdAt       Decimal @db.Decimal(20, 3)
-  updatedAt       Decimal @db.Decimal(20, 3)
-  accountLockYn   String  @default("N")
-
-  lastLoginDate     Decimal? @db.Decimal(20, 3)
-  loginFailCnt      Int      @default(0)
-  mfaEnabledYn      String   @default("N")
-  mfaSecretKey      String?  @default("")
-  tempPassword      String?
-  resetTokenExpires Decimal? @db.Decimal(20, 3)
-  resetToken        String?
-  otpCode           String?
-  otpExpire         Decimal? @db.Decimal(20, 3)
-
-  toTransferAdminUserYn   String? @default("N")
-  fromTransferAdminUserYn String? @default("N")
-
-  baseSalary Float?
-  department Department?
-
-  employeeNo       String?         @unique
-  hireDate         Decimal?        @db.Decimal(20, 3)
-  position         Position?
-  status           EmployeeStatus  @default(ACTIVE)
-  attendance       Attendance[]
-  leaveRequest     LeaveRequest[]
-  receivedMessages Message[]       @relation("ReceivedMessages")
-  sentMessages     Message[]       @relation("SentMessages")
-  payrolls         Payroll[]
-  unlockRequests   UnlockRequest[]
-  sessions         UserSession[]
-  transferAdmin    TransferAdmin?
-}
-
-model TransferAdmin {
-  id          Int            @id @default(autoincrement())
-  userId      Int            @unique
-  fromUserId  Int
-  toUserId    Int
-  status      TransferStatus @default(PENDING)
-  requestedAt Decimal        @db.Decimal(20, 3)
-  approvedAt  Decimal?       @db.Decimal(20, 3)
-  user        User           @relation(fields: [userId], references: [id])
-}
-
-model Message {
-  id         Int     @id @default(autoincrement())
-  content    String  @db.VarChar(100)
-  createdAt  Decimal @db.Decimal(20, 3)
-  senderId   Int
-  receiverId Int
-  receiver   User    @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-  sender     User    @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-
-  @@index([senderId])
-  @@index([receiverId])
-}
-
-model UserSession {
-  id          Int        @id @default(autoincrement())
-  userId      Int?
-  passengerId String?
-  token       String     @db.Text
-  createdAt   Decimal?   @db.Decimal(20, 3)
-  device      String?
-  browser     String?
-  location    String?
-  ipAddress   String?
-  userAgent   String?
-  isCurrent   Boolean    @default(false)
-  user        User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  passenger   Passenger? @relation(fields: [passengerId], references: [id], onDelete: Cascade)
-
-  @@index([userId], map: "UserSession_userId_fkey")
-  @@index([passengerId], map: "UserSession_passengerId_fkey")
-}
-
-model Passenger {
-  id              String   @id @default(cuid())
-  fullName        String
-  password        String?  @db.VarChar(100)
-  email           String   @unique
-  phone           String
-  passport        String
-  accountLockYn   String   @default("N")
-  isEmailVerified String   @default("Y")
-  lastLoginDate   Decimal? @db.Decimal(20, 3)
-  role            Role     @default(PASSENGER)
-
-  otpCode   String?
-  otpExpire Decimal? @db.Decimal(20, 3)
-
-  status   EmployeeStatus @default(ACTIVE)
-  bookings Booking[]
-  tickets  Ticket[]
-  sessions UserSession[]
-}
-
-model Payroll {
-  id          Int           @id @default(autoincrement())
-  employeeId  Int
-  month       Int
-  year        Int
-  baseSalary  Float
-  allowances  Float         @default(0)
-  deductions  Float         @default(0)
-  tax         Float         @default(0)
-  netPay      Float
-  status      PayrollStatus @default(DRAFT)
-  generatedAt Decimal       @db.Decimal(20, 3)
-  employee    User          @relation(fields: [employeeId], references: [id])
-
-  @@unique([employeeId, month, year])
-  @@index([employeeId])
-}
-
-model Attendance {
-  id          Int              @id @default(autoincrement())
-  employeeId  Int
-  date        Decimal          @db.Decimal(20, 3)
-  checkIn     Decimal          @db.Decimal(20, 3)
-  checkOut    Decimal          @db.Decimal(20, 3)
-  status      AttendanceStatus @default(PRESENT)
-  workedHours Float?
-  note        String?
-  createdAt   Decimal          @db.Decimal(20, 3)
-  employee    User             @relation(fields: [employeeId], references: [id])
-
-  @@unique([employeeId, date])
-  @@index([employeeId])
-}
-
-model LeaveRequest {
-  id           Int         @id @default(autoincrement())
-  employeeId   Int
-  leaveType    String
-  startDate    Decimal     @db.Decimal(20, 3)
-  endDate      Decimal     @db.Decimal(20, 3)
-  days         Float
-  reason       String?
-  status       LeaveStatus @default(PENDING)
-  approverId   Int?
-  approverNote String?
-  appliedAt    Decimal     @db.Decimal(20, 3)
-  decidedAt    Decimal?    @db.Decimal(20, 3)
-  employee     User        @relation(fields: [employeeId], references: [id])
-
-  @@index([employeeId])
-}
-
-model UnlockRequest {
-  id         Int          @id @default(autoincrement())
-  employeeId Int
-  reason     String       @db.Text
-  status     UnlockStatus @default(PENDING)
-  createdAt  Decimal      @db.Decimal(20, 3)
-  approvedAt Decimal?     @db.Decimal(20, 3)
-  user       User         @relation(fields: [employeeId], references: [id])
-
-  @@index([employeeId], map: "UnlockRequest_employeeId_fkey")
-}
-
-model Flight {
-  flightId           Int        @id @default(autoincrement())
-  flightNo           String     @unique @db.VarChar(10)
-  departureAirport   String     @db.VarChar(10)
-  arrivalAirport     String     @db.VarChar(10)
-  // status             String   @db.VarChar(20)
-  aircraftCode       String     @db.VarChar(10)
-  scheduledDeparture Decimal    @db.Decimal(20, 3)
-  scheduledArrival   Decimal    @db.Decimal(20, 3)
-  actualDeparture    Decimal?   @db.Decimal(20, 3)
-  actualArrival      Decimal?   @db.Decimal(20, 3)
-  delayMinutes       Int?
-  flightType         FlightType @default(oneway)
-  isCancelled        Boolean    @default(false)
-  isDomestic         Boolean    @default(true)
-
-  priceBusiness Float?
-  priceEconomy  Float?
-  priceFirst    Float?
-
-  // terminal            String?
-  cancellationReason  String?          @db.VarChar(255)
-  delayReason         String?          @db.VarChar(255)
-  gateId              String?          @unique
-  bookings            Booking[]
-  aircraft            Aircraft         @relation(fields: [aircraftCode], references: [code])
-  arrivalAirportRel   Airport          @relation("ArrivalRelation", fields: [arrivalAirport], references: [code])
-  departureAirportRel Airport          @relation("DepartureRelation", fields: [departureAirport], references: [code])
-  gate                Gate?            @relation(fields: [gateId], references: [id])
-  meals               FlightMeal[]
-  flightStatuses      FlightStatus[]
-  gateAssignments     GateAssignment[]
-  seats               Seat[]
-
-  tickets        Ticket[]
-  boardingPasses BoardingPass[]
-  baggage        Baggage[]
-  discounts      FlightDiscount[]
-
-  @@index([aircraftCode], map: "Flight_aircraftCode_fkey")
-  @@index([arrivalAirport], map: "Flight_arrivalAirport_fkey")
-  @@index([departureAirport], map: "Flight_departureAirport_fkey")
-  @@index([gateId])
-}
-
-model FlightDiscount {
-  id             Int          @id @default(autoincrement())
-  discountCode   DiscountCode @relation(fields: [discountCodeId], references: [id])
-  discountCodeId Int
-  flight         Flight       @relation(fields: [flightId], references: [flightId])
-  flightId       Int
-  createdAt      Decimal      @db.Decimal(20, 3)
-
-  @@unique([discountCodeId, flightId]) // mỗi cặp chỉ 1 lần
-}
-
-model Aircraft {
-  code    String   @id
-  model   String
-  range   Int
-  flights Flight[]
-}
-
-model Airport {
-  code       String     @id
-  name       String
-  city       String
-  country    String
-  createdAt  Decimal    @db.Decimal(20, 3)
-  updatedAt  Decimal?   @db.Decimal(20, 3)
-  arrivals   Flight[]   @relation("ArrivalRelation")
-  departures Flight[]   @relation("DepartureRelation")
-  terminals  Terminal[]
-}
-
-model Booking {
-  id          Int           @id @default(autoincrement())
-  bookingCode String?       @unique
-  passengerId String
-  flightId    Int
-  seatNo      String        @default("N/A") @db.VarChar(10)
-  seatClass   SeatType      @default(ECONOMY)
-  seatPrice   Decimal?      @db.Decimal(10, 2)
-  bookingTime Decimal       @db.Decimal(20, 3)
-  status      BookingStatus @default(PENDING)
-
-  // Quan hệ
-  flight     Flight      @relation(fields: [flightId], references: [flightId])
-  passenger  Passenger   @relation(fields: [passengerId], references: [id])
-  tickets    Ticket[]    @relation(name: "BookingToTicket")
-  mealOrders MealOrder[]
-  seat       Seat? // ghế đã chọn nếu có
-
-  @@index([flightId])
-  @@index([passengerId])
-}
-
-model Ticket {
-  id          Int     @id @default(autoincrement())
-  ticketNo    String  @unique
-  bookingId   Int?
-  passengerId String
-  flightId    Int
-  qrCodeImage String? @db.Text
-
-  // Quan hệ
-  booking      Booking?      @relation(name: "BookingToTicket", fields: [bookingId], references: [id])
-  passenger    Passenger     @relation(fields: [passengerId], references: [id])
-  flight       Flight        @relation(fields: [flightId], references: [flightId])
-  boardingPass BoardingPass?
-  baggage      Baggage[]
-  payments     Payment[]
-
-  @@index([bookingId])
-  @@index([passengerId])
-  @@index([flightId])
-}
-
-model BoardingPass {
-  id       Int            @id @default(autoincrement())
-  ticketId Int            @unique
-  flightId Int
-  gateId   String
-  issuedAt Decimal        @db.Decimal(20, 3)
-  status   BoardingStatus @default(PENDING)
-
-  // Quan hệ
-  ticket Ticket @relation(fields: [ticketId], references: [id])
-  gate   Gate   @relation(fields: [gateId], references: [id])
-  flight Flight @relation(fields: [flightId], references: [flightId])
-}
-
-model Baggage {
-  id        Int     @id @default(autoincrement())
-  flightId  Int
-  weight    Float
-  status    String  @db.VarChar(20) // CHECKED_IN / LOADED / CLAIMED / LOST
-  checkedAt Decimal @db.Decimal(20, 3)
-
-  flight   Flight @relation(fields: [flightId], references: [flightId])
-  ticketId Int    @unique
-  ticket   Ticket @relation(fields: [ticketId], references: [id])
-}
-
-model Meal {
-  id          Int          @id @default(autoincrement())
-  name        String
-  mealType    MealType
-  description String?
-  price       Float?
-  isAvailable Boolean      @default(true)
-  mealCode    String       @unique
-  flightMeals FlightMeal[]
-  mealOrders  MealOrder[]
-}
-
-model Seat {
-  id         Int    @id @default(autoincrement())
-  flightId   Int
-  bookingId  Int?   @unique
-  // type       SeatType @default(ECONOMY)
-  seatNumber Int
-  seatRow    String
-
-  isBooked             Boolean @default(false)
-  isAvailable          Boolean @default(true)
-  isExitRow            Boolean @default(false)
-  isExtraLegroom       Boolean @default(false)
-  note                 String?
-  price                Float?
-  isHandicapAccessible Boolean @default(false)
-  isNearLavatory       Boolean @default(false)
-  isUpperDeck          Boolean @default(false)
-  isWing               Boolean @default(false)
-
-  booking Booking? @relation(fields: [bookingId], references: [id])
-  flight  Flight   @relation(fields: [flightId], references: [flightId])
-
-  @@index([flightId], map: "Seat_flightId_fkey")
-}
-
-model DiscountCode {
-  id              Int      @id @default(autoincrement())
-  code            String   @unique
-  description     String?
-  discountAmount  Decimal? // fixed amount (cents)
-  discountPercent Int? // 0..100 nếu % 
-  isPercentage    Boolean  @default(false)
-  active          Boolean  @default(true)
-  validFrom       Decimal  @db.Decimal(20, 3)
-  validTo         Decimal  @db.Decimal(20, 3)
-  usageLimit      Int? // tổng số lần có thể dùng
-  usedCount       Int      @default(0)
-  createdAt       Decimal  @db.Decimal(20, 3)
-  updatedAt       Decimal  @db.Decimal(20, 3)
-
-  flights FlightDiscount[]
-}
-
-model Facility {
-  id           String       @id @default(cuid())
-  name         String
-  type         FacilityType
-  description  String?
-  terminalId   String
-  location     String?
-  openingHours String?
-  createdAt    Decimal      @db.Decimal(20, 3)
-  updatedAt    Decimal      @db.Decimal(20, 3)
-  terminal     Terminal     @relation(fields: [terminalId], references: [id], onDelete: Cascade)
-
-  @@index([terminalId], map: "Facility_terminalId_fkey")
-}
-
-model Terminal {
-  id          String       @id @default(cuid())
-  code        String       @unique
-  name        String
-  description String?
-  type        TerminalType
-  airportId   String
-  createdAt   Decimal      @db.Decimal(20, 3)
-  updatedAt   Decimal      @db.Decimal(20, 3)
-  facilities  Facility[]
-  gates       Gate[]
-  airport     Airport      @relation(fields: [airportId], references: [code], onDelete: Cascade)
-
-  @@unique([airportId, code])
-}
-
-model GateAssignment {
-  id         String  @id @default(cuid())
-  gateId     String
-  flightId   Int
-  assignedAt Decimal @db.Decimal(20, 3)
-  releasedAt Decimal @db.Decimal(20, 3)
-  createdAt  Decimal @db.Decimal(20, 3)
-  updatedAt  Decimal @db.Decimal(20, 3)
-  flight     Flight  @relation(fields: [flightId], references: [flightId], onDelete: Cascade)
-  gate       Gate    @relation(fields: [gateId], references: [id], onDelete: Cascade)
-
-  @@unique([gateId, flightId])
-  @@index([flightId], map: "GateAssignment_flightId_fkey")
-}
-
-model Gate {
-  id             String           @id @default(cuid())
-  code           String           @unique
-  terminalId     String
-  status         GateStatus       @default(AVAILABLE)
-  createdAt      Decimal          @db.Decimal(20, 3)
-  updatedAt      Decimal          @db.Decimal(20, 3)
-  currentFlight  Flight?
-  terminal       Terminal         @relation(fields: [terminalId], references: [id], onDelete: Cascade)
-  assignments    GateAssignment[]
-  boardingPasses BoardingPass[]
-
-  @@unique([terminalId, code])
-}
-
-model FlightMeal {
-  id       Int    @id @default(autoincrement())
-  flightId Int
-  mealId   Int
-  quantity Int    @default(1)
-  price    Float?
-  flight   Flight @relation(fields: [flightId], references: [flightId])
-  meal     Meal   @relation(fields: [mealId], references: [id])
-
-  @@index([flightId], map: "FlightMeal_flightId_fkey")
-  @@index([mealId], map: "FlightMeal_mealId_fkey")
-}
-
-model MealOrder {
-  id        Int     @id @default(autoincrement())
-  bookingId Int
-  mealId    Int
-  quantity  Int     @default(1)
-  booking   Booking @relation(fields: [bookingId], references: [id])
-  meal      Meal    @relation(fields: [mealId], references: [id])
-
-  @@index([bookingId], map: "MealOrder_bookingId_fkey")
-  @@index([mealId], map: "MealOrder_mealId_fkey")
-}
-
-model FlightStatus {
-  id          Int              @id @default(autoincrement())
-  flightId    Int
-  status      FlightStatusType @default(SCHEDULED)
-  description String?          @db.VarChar(255)
-  updatedAt   Decimal          @db.Decimal(20, 3)
-  flight      Flight           @relation(fields: [flightId], references: [flightId])
-
-  @@index([flightId], map: "FlightStatus_flightId_fkey")
-}
-
-model Hotel {
-  id               Int     @id @default(autoincrement())
-  hotelCode        String? @unique
-  name             String
-  city             String
-  address          String
-  rating           Float
-  reviewCount      Int     @default(0)
-  distanceToCenter Float
-  imageUrl         String
-  price            Float
-  discountPercent  Float?
-  isPrime          Boolean @default(false)
-  freeWifi         Boolean @default(false)
-  covidMeasures    Boolean @default(false)
-  freeCancel       Boolean @default(false)
-  payLater         Boolean @default(false)
-  rooms            Int     @default(0)
-  createdAt        Decimal @db.Decimal(20, 3)
-  updatedAt        Decimal @db.Decimal(20, 3)
-}
-
-model Payment {
-  id            Int           @id @default(autoincrement())
-  ticketId      Int
-  amount        Decimal       @db.Decimal(20, 3) // VNĐ hoặc cents cho Stripe
-  currency      String        @default("VND") // VND / USD
-  method        PaymentMethod
-  status        PaymentStatus @default(PENDING)
-  transactionId String?       @unique // từ Momo/ZaloPay/Stripe
-  paymentUrl    String? // QR code link / checkout link
-  createdAt     Decimal       @default(dbgenerated("(UNIX_TIMESTAMP()*1000)")) @db.Decimal(20, 3)
-  updatedAt     Decimal       @db.Decimal(20, 3)
-
-  ticket Ticket @relation(fields: [ticketId], references: [id])
+enum Seat_type {
+  VIP
+  BUSINESS
+  ECONOMY
+  FIRST
 }

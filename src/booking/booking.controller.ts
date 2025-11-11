@@ -78,4 +78,19 @@ export class BookingController {
   async getFlightSeats(@Param('flightId', ParseIntPipe) flightId: number) {
     return this.bookingService.getFlightSeats(flightId);
   }
+
+  @Post('tickets')
+  async createTicket(
+    @Body()
+    data: {
+      ticketNo: string;
+      passengerId: string;
+      flightId: number;
+      seatClass: string;
+      seatNo: string;
+      bookedAt: number;
+    },
+  ) {
+    return this.bookingService.createTicket(data);
+  }
 }

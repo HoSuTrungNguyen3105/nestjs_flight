@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE `User` ADD COLUMN `otpCode` VARCHAR(191) NULL,
-    ADD COLUMN `otpExpire` DECIMAL(20, 3) NULL;
