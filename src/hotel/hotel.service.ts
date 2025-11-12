@@ -12,24 +12,85 @@ export class HotelService {
 
   async createManyHotels(data: CreateHotelDto[]) {
     try {
-      const result = await this.prisma.hotel.createMany({
-        data: data.map((item) => ({
-          ...item,
-          createdAt: nowDecimal(),
-          updatedAt: nowDecimal(),
-        })),
+      if (!data || data.length === 0) {
+        return {
+          resultCode: '05',
+          resultMessage: 'No flight data provided',
+          list: [],
+        };
+      }
 
-        skipDuplicates: true, // tránh lỗi nếu trùng name hoặc unique field
+      const tasks = data.map(async (item) => {
+        try {
+          if (!item.hotelCode) {
+            return {
+              code: item.hotelCode || '(empty)',
+              errorCode: '01',
+              errorMessage: 'Missing required field: hotelCode',
+            };
+          }
+
+          //  const existingAircraft = await this.prisma.aircraft.findUnique({
+          //    where: { code: item.flightNo },
+          //  });
+
+          //  if (existingAircraft) {
+          //    return {
+          //      code: item.flightNo,
+          //      errorCode: '01',
+          //      errorMessage: `Aircraft with code ${item.flightNo} already exists`,
+          //    };
+          //  }
+
+          const existingFlight = await this.prisma.hotel.findUnique({
+            where: { hotelCode: item.hotelCode },
+          });
+
+          if (existingFlight) {
+            return {
+              code: item.hotelCode,
+              errorCode: '02',
+              errorMessage: `Hotel ${item.hotelCode} already exists`,
+            };
+          }
+
+          await this.prisma.hotel.create({
+            data: { ...item, createdAt: nowDecimal(), updatedAt: nowDecimal() },
+          });
+
+          return {
+            //  code: item.flightNo,
+            errorCode: '00',
+            errorMessage: 'Flight created successfully',
+          };
+        } catch (error) {
+          console.error(` Error creating hotel ${item.hotelCode}:`, error);
+          return {
+            //  code: item.flightNo,
+            errorCode: '99',
+            errorMessage: `Unexpected error while creating hotel ${item.hotelCode}`,
+          };
+        }
       });
+
+      const results = await Promise.all(tasks);
+
+      const hasError = results.some((r) => r.errorCode !== '00');
+
       return {
-        resultCode: '00',
-        resultMessage: `Created ${result.count} hotels successfully`,
-        data: {
-          count: result.count,
-        },
+        resultCode: hasError ? '01' : '00',
+        resultMessage: hasError
+          ? 'Some hotel failed to create'
+          : 'All hotels created successfully',
+        list: results,
       };
     } catch (error) {
-      console.error('err', error);
+      console.error(' Batch creation failed:', error);
+      return {
+        resultCode: '99',
+        resultMessage: 'Critical error during batch hotel creation',
+        list: [],
+      };
     }
   }
 

@@ -8,11 +8,15 @@ import {
   HttpCode,
   HttpStatus,
   ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import { FlightsService } from './flights.service';
 import { Prisma } from 'generated/prisma';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
-import { SearchFlightDto } from './dto/search.flight.dto';
+import {
+  SearchFlightDto,
+  SearchFlightFromPassengerDto,
+} from './dto/search.flight.dto';
 import { UpdateFlightDto } from './dto/update-flight.dto';
 import { CreateFlightDto } from './dto/create-flight.dto';
 import { FlightResponseDto } from './dto/flight-response.dto';
@@ -212,6 +216,13 @@ export class FlightsController {
   @Post('search')
   async searchFlights(@Body() dto: SearchFlightDto) {
     return this.flightService.searchFlights(dto);
+  }
+
+  @Get('passenger/searchs')
+  async searchFlightFromPassenger(
+    @Query() search: SearchFlightFromPassengerDto,
+  ) {
+    return this.flightService.searchFlightFromPassenger(search);
   }
 
   @Post('find-passenger-ticket')

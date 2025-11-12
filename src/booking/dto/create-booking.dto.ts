@@ -35,6 +35,10 @@ export class CreateBookingDto {
   bookingTime: number; // timestamp (ms)
 
   @IsOptional()
+  @IsString()
+  discountCode?: string;
+
+  @IsOptional()
   @Type(() => MealOrderDto)
   mealOrders?: MealOrderDto[];
 }
@@ -45,6 +49,10 @@ export class MealOrderDto {
 
   @IsInt()
   quantity: number;
+
+  @IsOptional()
+  @IsNumber()
+  price?: number;
 }
 
 export class CreatePassengerPseudoDto {

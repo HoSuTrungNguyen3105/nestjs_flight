@@ -85,3 +85,29 @@ export class SearchFlightDto {
   @IsBoolean()
   includeCancelled?: boolean;
 }
+
+export class SearchFlightFromPassengerDto {
+  @IsOptional()
+  @IsString()
+  departureAirport?: string;
+
+  @IsOptional()
+  @IsString()
+  arrivalAirport?: string;
+
+  @IsOptional()
+  @IsNumber()
+  scheduledDeparture?: number; // timestamp hoặc Date string
+
+  @IsOptional()
+  @IsNumber()
+  scheduledArrival?: number; // timestamp hoặc Date string
+
+  @IsOptional()
+  @IsNumber()
+  passengers?: number;
+
+  @IsOptional()
+  @IsString()
+  flightClass?: string; // ECONOMY, BUSINESS, ...
+}

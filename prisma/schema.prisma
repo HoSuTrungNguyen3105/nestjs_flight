@@ -115,6 +115,7 @@ model Passenger {
   bookings        Booking[]
   tickets         Ticket[]
   sessions        UserSession[]
+  reviews         HotelReview[]
 }
 
 model Payroll {
@@ -265,7 +266,9 @@ model Booking {
   flight      Flight        @relation(fields: [flightId], references: [flightId])
   passenger   Passenger     @relation(fields: [passengerId], references: [id])
   mealOrders  MealOrder[]
-  seat        Seat?
+  seatId      Int
+  seat        Seat          @relation(fields: [seatId], references: [id])
+  // seat        Seat?
   tickets     Ticket[]      @relation("BookingToTicket")
 
   @@index([flightId])
@@ -335,7 +338,7 @@ model Seat {
   id                   Int       @id @default(autoincrement())
   isBooked             Boolean   @default(false)
   flightId             Int
-  bookingId            Int?      @unique
+  // bookingId            Int?     
   seatNumber           Int
   seatRow              String
   isAvailable          Boolean   @default(true)
@@ -348,7 +351,8 @@ model Seat {
   isUpperDeck          Boolean   @default(false)
   isWing               Boolean   @default(false)
   type                 Seat_type @default(ECONOMY)
-  booking              Booking?  @relation(fields: [bookingId], references: [id])
+  bookings             Booking[]
+  // booking              Booking?  @relation(fields: [bookingId], references: [id])
   flight               Flight    @relation(fields: [flightId], references: [flightId])
 
   @@index([flightId], map: "Seat_flightId_fkey")
@@ -470,6 +474,7 @@ model FlightStatus {
 
 model Hotel {
   id               Int     @id @default(autoincrement())
+  hotelCode        String? @unique
   name             String
   city             String
   address          String
@@ -485,9 +490,28 @@ model Hotel {
   freeCancel       Boolean @default(false)
   payLater         Boolean @default(false)
   rooms            Int     @default(0)
-  createdAt        Decimal @db.Decimal(20, 3)
-  updatedAt        Decimal @db.Decimal(20, 3)
-  hotelCode        String? @unique
+
+  externalSource String? // ví dụ: 'AMADEUS', 'BOOKING', 'RAPIDAPI'
+  externalId     String? // id từ hệ thống ngoài
+  isImported     Boolean @default(false)
+
+  createdAt Decimal @db.Decimal(20, 3)
+  updatedAt Decimal @db.Decimal(20, 3)
+
+  reviews HotelReview[]
+}
+
+model HotelReview {
+  id          Int      @id @default(autoincrement())
+  passengerId String
+  hotelId     Int
+  rating      Float // ví dụ: 4.5 sao
+  comment     String? // nội dung đánh giá
+  createdAt   DateTime @default(now())
+
+  // Quan hệ
+  passenger Passenger @relation(fields: [passengerId], references: [id])
+  hotel     Hotel     @relation(fields: [hotelId], references: [id])
 }
 
 model Payment {

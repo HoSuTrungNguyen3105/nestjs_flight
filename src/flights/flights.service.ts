@@ -6,11 +6,15 @@ import {
   FlightStatusType,
   FlightType,
   Prisma,
+  SeatType,
   TerminalType,
 } from 'generated/prisma';
 import { CreateAirportDto, UpdateAirportDto } from './dto/create-airport.dto';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
-import { SearchFlightDto } from './dto/search.flight.dto';
+import {
+  SearchFlightDto,
+  SearchFlightFromPassengerDto,
+} from './dto/search.flight.dto';
 import { UpdateFlightDto } from './dto/update-flight.dto';
 import { CreateFlightDto } from './dto/create-flight.dto';
 import { FlightResponseDto } from './dto/flight-response.dto';
@@ -31,6 +35,7 @@ import {
   UpdateFlightDiscountDto,
 } from './dto/create-flight-discount.dto';
 import { CreateDiscountDto } from './dto/create-discount.dto';
+import { Decimal } from 'generated/prisma/runtime/library';
 
 @Injectable()
 export class FlightsService {
@@ -521,6 +526,61 @@ export class FlightsService {
     }
   }
 
+  async getFlightByMonth() {
+    const flights = await this.prisma.flight.findMany({
+      select: {
+        aircraftCode: true,
+        scheduledDeparture: true,
+        isDomestic: true,
+      },
+    });
+
+    const monthlyStats = flights.reduce(
+      (acc, flight) => {
+        const depTimestamp = Number(
+          (flight.scheduledDeparture as Decimal).toNumber(),
+        );
+        const month = new Date(depTimestamp).toLocaleString('en-US', {
+          month: 'short',
+        });
+
+        if (!acc[month]) {
+          acc[month] = {
+            month,
+            domestic: 0,
+            international: 0,
+            aircrafts: new Set<string>(),
+          };
+        }
+
+        if (flight.isDomestic) acc[month].domestic++;
+        else acc[month].international++;
+
+        acc[month].aircrafts.add(flight.aircraftCode);
+        return acc;
+      },
+      {} as Record<
+        string,
+        {
+          month: string;
+          domestic: number;
+          international: number;
+          aircrafts: Set<string>;
+        }
+      >,
+    );
+
+    const res = await Object.values(monthlyStats).map((m) => ({
+      ...m,
+      aircrafts: Array.from(m.aircrafts),
+    }));
+    return {
+      resultCode: '00',
+      resultMessage: 'Lấy danh sách chuyến bay thành công',
+      list: res,
+    };
+  }
+
   async findAllMainInfoFlight() {
     try {
       const flights = await this.prisma.flight.findMany({
@@ -788,6 +848,74 @@ export class FlightsService {
       resultCode: '00',
       resultMessage: 'Ticket list success !!',
       list: mapped,
+    };
+  }
+
+  async searchFlightFromPassenger(search: SearchFlightFromPassengerDto) {
+    const scheduledDepartureDate = search.scheduledDeparture
+      ? new Decimal(search.scheduledDeparture).toNumber()
+      : undefined;
+
+    const scheduledArrivalDate = search.scheduledArrival
+      ? new Decimal(search.scheduledArrival).toNumber()
+      : undefined;
+
+    const seatTypeEnum: SeatType | undefined = search.flightClass
+      ? SeatType[search.flightClass.toUpperCase() as keyof typeof SeatType]
+      : undefined;
+
+    const flights = await this.prisma.flight.findMany({
+      where: {
+        departureAirport: search.departureAirport
+          ? { contains: search.departureAirport.toLowerCase() }
+          : undefined,
+        arrivalAirport: search.arrivalAirport
+          ? { contains: search.arrivalAirport.toLowerCase() }
+          : undefined,
+        seats: seatTypeEnum
+          ? { some: { type: seatTypeEnum, isBooked: false } } // đúng enum type
+          : { some: { isBooked: false } },
+
+        scheduledDeparture: scheduledDepartureDate
+          ? { gte: scheduledDepartureDate }
+          : undefined,
+        scheduledArrival: scheduledArrivalDate
+          ? { lte: scheduledArrivalDate }
+          : undefined,
+      },
+      include: {
+        seats: true,
+      },
+    });
+
+    // Tính số ghế trống theo seatTypeEnum
+    const mappedFlights = flights.map((f) => {
+      const availableSeats = f.seats.filter(
+        (s) => !s.isBooked && (!seatTypeEnum || s.type === seatTypeEnum),
+      );
+
+      return {
+        // flightId: f.flightId,
+        // flightNo: f.flightNo,
+        // departureAirport: f.departureAirport,
+        // arrivalAirport: f.arrivalAirport,
+        // scheduledDeparture: f.scheduledDeparture,
+        // scheduledArrival: f.scheduledArrival,
+        // flightClass: f.flightClass,
+        ...f,
+        availableSeats: availableSeats.length, // chỉ trả số ghế trống
+      };
+    });
+
+    // Filter flight có đủ ghế cho search.passengers
+    const filteredFlights = mappedFlights.filter(
+      (f) => f.availableSeats >= (search.passengers || 1),
+    );
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Success',
+      list: filteredFlights,
     };
   }
 

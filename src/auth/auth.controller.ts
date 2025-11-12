@@ -137,19 +137,19 @@ export class AuthController {
     return this.authService.forgotPasswordWithMfa(dto.email, dto.mfaCode);
   }
 
-  @Post('setmfa')
-  async setupMfa(@Body() body: { email: string }) {
+  @Post('setMfaForAdmin')
+  async setMfaForAdmin(@Body() body: { email: string }) {
     return this.authService.setMfaForAdmin({
       email: body.email,
     });
   }
 
-  // @Post('setmfa')
-  // async setupMfa(@Body() body: { email: string }) {
-  //   return this.authService.setMfa({
-  //     email: body.email,
-  //   });
-  // }
+  @Post('setmfa')
+  async setupMfa(@Body() body: { email: string }) {
+    return this.authService.setMfa({
+      email: body.email,
+    });
+  }
 
   @Post('checkMfaSettingYn')
   async checkMfaYn(@Body() body: { email: string }) {

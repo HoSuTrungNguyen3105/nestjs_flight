@@ -23,14 +23,8 @@ export class BookingController {
     return this.bookingService.createPseudoPassengers(body);
   }
 
-  // @Post()
-  // create(@Body() dto: CreateBookingDto) {
-  //   return this.bookingService.cre(dto);
-  // }
-
   @Post('find-passenger-from-booking')
   findPassengerById(@Body('id') id: string) {
-    console.log('id', id);
     return this.bookingService.findPassengerById(id);
   }
 

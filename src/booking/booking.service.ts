@@ -17,6 +17,7 @@ import {
 } from 'generated/prisma';
 import { SearchBookingDto } from './dto/search-booking.dto';
 import { CreateBaggageDto } from './dto/baggage.dto';
+import { Decimal } from 'generated/prisma/runtime/library';
 
 @Injectable()
 export class BookingService {
@@ -273,7 +274,7 @@ export class BookingService {
     };
   }
 
-  async bookSeats(data: CreateBookingDto) {
+  async bookSeats(data: CreateBookingDto & { discountCode?: string }) {
     const {
       passengerId,
       flightId,
@@ -281,92 +282,151 @@ export class BookingService {
       bookingCode,
       seatClass,
       seatNo,
-      seatPrice,
+      seatPrice: seatPriceInput,
       bookingTime,
       mealOrders,
+      discountCode,
     } = data;
 
-    //  1. Kiểm tra đầu vào
-    if (!Array.isArray(seatId) || seatId.length === 0) {
-      throw new BadRequestException('Danh sách ghế không hợp lệ.');
-    }
-
-    //  2. Kiểm tra hành khách & chuyến bay tồn tại
-    const [passenger, flight] = await Promise.all([
-      this.prisma.passenger.findUnique({ where: { id: passengerId } }),
-      this.prisma.flight.findUnique({ where: { flightId } }),
-    ]);
-
-    if (!passenger || !flight) {
-      return {
-        resultCode: '01',
-        resultMessage: 'Không tìm thấy hành khách hoặc chuyến bay.',
-      };
-    }
-
     try {
-      //  3. Dùng transaction để đảm bảo tính toàn vẹn dữ liệu
-      const result = await this.prisma.$transaction(async (tx) => {
-        // Kiểm tra lại ghế khả dụng trong transaction
-        const availableSeats = await tx.seat.findMany({
-          where: {
-            id: { in: seatId },
-            flightId,
-            isBooked: false,
-            bookingId: null,
+      // Kiểm tra đầu vào
+      const seatIds = Array.isArray(seatId) ? seatId : [seatId];
+      if (seatIds.length === 0) {
+        throw new BadRequestException('Danh sách ghế không hợp lệ.');
+      }
+
+      // Hành khách & chuyến bay
+      const [passenger, flight] = await Promise.all([
+        this.prisma.passenger.findUnique({ where: { id: passengerId } }),
+        this.prisma.flight.findUnique({ where: { flightId } }),
+      ]);
+
+      if (!passenger || !flight) {
+        return {
+          resultCode: '01',
+          resultMessage: 'Không tìm thấy hành khách hoặc chuyến bay.',
+        };
+      }
+
+      // Giá cơ bản
+      let basePrice =
+        seatClass === SeatType.BUSINESS
+          ? flight.priceBusiness
+          : flight.priceEconomy;
+
+      let finalSeatPrice = seatPriceInput ?? basePrice;
+
+      // Áp dụng discount nếu có
+      if (discountCode) {
+        const flightDiscount = await this.prisma.flightDiscount.findFirst({
+          where: { flightId, discountCode: { code: discountCode } },
+          include: {
+            discountCode: {
+              select: { discountAmount: true, isPercentage: true },
+            },
           },
         });
 
-        if (availableSeats.length !== seatId.length) {
+        if (!flightDiscount) {
+          throw new BadRequestException(
+            'Discount code không hợp lệ cho chuyến bay này',
+          );
+        }
+        if (finalSeatPrice === null) {
+          throw new BadRequestException('Không xác định được giá ghế.');
+        }
+        const discountAmount =
+          flightDiscount.discountCode.discountAmount ?? new Decimal(0);
+        const discountValue = discountAmount.toNumber();
+
+        finalSeatPrice = flightDiscount.discountCode.isPercentage
+          ? finalSeatPrice * (1 - discountValue / 100)
+          : Math.max(finalSeatPrice - discountValue, 0);
+
+        if (finalSeatPrice < 0) {
+          finalSeatPrice = 0;
+        }
+
+        // Tính mealOrders nếu có
+        if (mealOrders && mealOrders.length > 0) {
+          const mealPrice = mealOrders.reduce(
+            (sum, meal) => sum + (meal.price ?? 0) * (meal.quantity ?? 1),
+            0,
+          );
+          finalSeatPrice += mealPrice;
+        }
+      }
+
+      // if (finalSeatPrice < 0) {
+      //   finalSeatPrice = 0;
+      // }
+
+      // // Tính mealOrders nếu có
+      // if (mealOrders && mealOrders.length > 0) {
+      //   const mealPrice = mealOrders.reduce(
+      //     (sum, meal) => sum + (meal.price ?? 0) * (meal.quantity ?? 1),
+      //     0,
+      //   );
+      //   finalSeatPrice += mealPrice;
+      // }
+
+      // Transaction
+      const result = await this.prisma.$transaction(async (tx) => {
+        const availableSeats = await tx.seat.findMany({
+          where: {
+            id: { in: seatIds },
+            flightId,
+            isBooked: false,
+            // bookingId: null,
+          },
+        });
+
+        console.log('Đã cập nhật ghế ngồi cho availableSeats:', availableSeats);
+
+        if (availableSeats.length !== seatIds.length) {
           return {
             resultCode: '02',
             resultMessage: 'Một hoặc nhiều ghế đã được đặt trước.',
           };
         }
 
-        //  4. Tạo booking mới
         const booking = await tx.booking.create({
           data: {
             passengerId,
             flightId,
-            bookingCode: bookingCode || `BK-${Date.now()}`,
-            seatClass: SeatType.ECONOMY,
-            seatNo:
-              seatNo ||
-              `${availableSeats[0]?.seatNumber}-${availableSeats[0]?.seatRow}` ||
-              '',
-            seatPrice: seatPrice || availableSeats[0]?.price || 0,
+            bookingCode: bookingCode || `BK-${nowDecimal()}`,
+            seatClass: (seatClass as SeatType) ?? SeatType.ECONOMY,
+            seatNo: seatNo || availableSeats.map((s) => s.seatNumber).join(','),
+            seatPrice: finalSeatPrice,
             bookingTime: bookingTime || nowDecimal(),
             status: 'PENDING',
+            seatId: seatIds.length === 1 ? seatIds[0] : null,
           },
         });
 
-        // if (!mealOrders){
-        //   continue ;
-        // }
+        // await tx.seat.updateMany({
+        //   where: { id: { in: availableSeats.map((s) => s.id) } },
+        //   data: { bookingId: booking.id, isBooked: true },
+        // });
 
-        //  5. Cập nhật ghế đã được đặt
-        await tx.seat.updateMany({
-          where: { id: { in: seatId } },
-          data: {
-            bookingId: booking.id,
-            isBooked: true,
-          },
-        });
+        for (const seat of availableSeats) {
+          await tx.seat.update({
+            where: { id: seat.id },
+            data: { isBooked: true },
+          });
+        }
 
-        // 6. Tạo vé (ticket) cho từng ghế nếu cần
         const tickets = await Promise.all(
           availableSeats.map((seat) =>
-            // this.createTicket(seat)
             tx.ticket.create({
               data: {
                 ticketNo: `T-${Date.now()}-${seat.id}`,
                 passengerId,
                 flightId,
                 bookingId: booking.id,
-                // seatClass: seatClass || seat.seatClass,
-                // seatNo: seat.seatNo,
-                // seatPrice: seat.price,
+                // seatClass: seatClass ?? seat.seatClass,
+                // seatNo: seat.seatNumber,
+                // seatPrice: finalSeatPrice,
               },
             }),
           ),
@@ -381,8 +441,8 @@ export class BookingService {
 
       return result;
     } catch (error) {
-      console.error(' Lỗi khi đặt chỗ:', error);
-      throw new BadRequestException('Không thể hoàn tất đặt chỗ.');
+      console.error('Lỗi khi đặt chỗ:', error);
+      throw error;
     }
   }
 
