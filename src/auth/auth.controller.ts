@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   UseGuards,
   Request,
+  Req,
 } from '@nestjs/common';
 import { AuthService, GetSession } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -26,11 +27,18 @@ export class AuthController {
     return sessions;
   }
 
-  @UseGuards(JwtStrategy)
+  // @UseGuards(JwtStrategy)
+  // @Post('logout')
+  // async logout(@Request() req) {
+  //   console.log('userId', req);
+  //   const userId = req.body.id;
+  //   return this.authService.logout(userId);
+  // }
+
   @Post('logout')
+  @UseGuards(AuthGuard('jwt'))
   async logout(@Request() req) {
-    console.log('userId', req.body);
-    const userId = req.body.id;
+    const userId = req.user.sub;
     return this.authService.logout(userId);
   }
 

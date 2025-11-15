@@ -18,6 +18,7 @@ import { MailModule } from './common/nodemailer/nodemailer.module';
 import { HotelsModule } from './hotel/hotel.module';
 import { LocaleController } from './common/services/locale.controller';
 import { LocaleModule } from './common/services/locale.module';
+import { AmadeusModule } from './common/amadeus/amadeus.module';
 
 @Module({
   controllers: [AppController],
@@ -38,6 +39,7 @@ import { LocaleModule } from './common/services/locale.module';
     EnumModule,
     HotelsModule,
     LocaleModule,
+    AmadeusModule,
   ],
 })
 export class AppModule {}

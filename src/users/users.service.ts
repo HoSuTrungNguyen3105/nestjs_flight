@@ -1448,7 +1448,7 @@ export class UsersService {
   async exportFlightsToExcel() {
     try {
       const flights = await this.prisma.flight.findMany({
-        include: { bookings: true },
+        include: { bookings: true, flightStatuses: true },
       });
 
       const workbook = new ExcelJS.Workbook();
@@ -1483,9 +1483,11 @@ export class UsersService {
           scheduledArrival: decimalToDate(f.scheduledArrival),
           actualDeparture: decimalToDate(f.actualDeparture) ?? '',
           actualArrival: decimalToDate(f.actualArrival) ?? '',
-          delayMinutes: f.delayMinutes ?? '',
+          // delayMinutes: f.delayMinutes ?? '',
           flightType: f.flightType,
-          isCancelled: f.isCancelled ? 'Yes' : 'No',
+          flightStatus:
+            f.flightStatuses.length > 0 ? f.flightStatuses[0].status : '',
+          // isCancelled: f.isCancelled ? 'Yes' : 'No',
           priceBusiness: f.priceBusiness ?? '',
           priceEconomy: f.priceEconomy ?? '',
           priceFirst: f.priceFirst ?? '',

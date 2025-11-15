@@ -41,11 +41,11 @@ export class FlightMealController {
     return this.flightMealService.remove(+id);
   }
 
-  @Post(':id/meals')
-  async addMealsToFlight(
-    @Param('id') flightId: string,
-    @Body() body: CreateFlightMealsDto,
-  ) {
-    return this.flightMealService.addMealsToFlight(+flightId, body.meals);
-  }
+  // @Post(':id/meals')
+  // async addMealsToFlight(
+  //   @Param('id') flightId: string,
+  //   @Body() body: CreateFlightMealsDto,
+  // ) {
+  //   return this.flightMealService.addMealsToFlight(+flightId, body.meals);
+  // }
 }

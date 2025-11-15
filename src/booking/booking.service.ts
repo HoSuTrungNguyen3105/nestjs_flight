@@ -316,7 +316,6 @@ export class BookingService {
 
       let finalSeatPrice = seatPriceInput ?? basePrice;
 
-      // Áp dụng discount nếu có
       if (discountCode) {
         const flightDiscount = await this.prisma.flightDiscount.findFirst({
           where: { flightId, discountCode: { code: discountCode } },
@@ -357,31 +356,14 @@ export class BookingService {
         }
       }
 
-      // if (finalSeatPrice < 0) {
-      //   finalSeatPrice = 0;
-      // }
-
-      // // Tính mealOrders nếu có
-      // if (mealOrders && mealOrders.length > 0) {
-      //   const mealPrice = mealOrders.reduce(
-      //     (sum, meal) => sum + (meal.price ?? 0) * (meal.quantity ?? 1),
-      //     0,
-      //   );
-      //   finalSeatPrice += mealPrice;
-      // }
-
-      // Transaction
       const result = await this.prisma.$transaction(async (tx) => {
         const availableSeats = await tx.seat.findMany({
           where: {
             id: { in: seatIds },
             flightId,
             isBooked: false,
-            // bookingId: null,
           },
         });
-
-        console.log('Đã cập nhật ghế ngồi cho availableSeats:', availableSeats);
 
         if (availableSeats.length !== seatIds.length) {
           return {
@@ -401,21 +383,16 @@ export class BookingService {
             bookingTime: bookingTime || nowDecimal(),
             status: 'PENDING',
             seatId: seatIds.length === 1 ? seatIds[0] : null,
+            // flight : flightId,
           },
         });
 
-        // await tx.seat.updateMany({
-        //   where: { id: { in: availableSeats.map((s) => s.id) } },
-        //   data: { bookingId: booking.id, isBooked: true },
-        // });
+        await tx.seat.updateMany({
+          where: { id: { in: seatIds } },
+          data: { isBooked: true, isAvailable: false },
+        });
 
-        for (const seat of availableSeats) {
-          await tx.seat.update({
-            where: { id: seat.id },
-            data: { isBooked: true },
-          });
-        }
-
+        // Tạo ticket
         const tickets = await Promise.all(
           availableSeats.map((seat) =>
             tx.ticket.create({
@@ -424,9 +401,6 @@ export class BookingService {
                 passengerId,
                 flightId,
                 bookingId: booking.id,
-                // seatClass: seatClass ?? seat.seatClass,
-                // seatNo: seat.seatNumber,
-                // seatPrice: finalSeatPrice,
               },
             }),
           ),

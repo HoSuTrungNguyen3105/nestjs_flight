@@ -615,55 +615,55 @@ export class FlightsService {
     }
   }
 
-  async cancelFlight(flightId: number) {
-    try {
-      const existingFlight = await this.prisma.flight.findUnique({
-        where: { flightId },
-        include: { flightStatuses: true },
-      });
+  // async cancelFlight(flightId: number) {
+  //   try {
+  //     const existingFlight = await this.prisma.flight.findUnique({
+  //       where: { flightId },
+  //       include: { flightStatuses: true },
+  //     });
 
-      if (!existingFlight) {
-        return {
-          resultCode: '01',
-          resultMessage: 'Flight not found!!!',
-        };
-      }
+  //     if (!existingFlight) {
+  //       return {
+  //         resultCode: '01',
+  //         resultMessage: 'Flight not found!!!',
+  //       };
+  //     }
 
-      await this.prisma.flight.update({
-        where: { flightId },
-        data: { isCancelled: true },
-      });
+  //     await this.prisma.flight.update({
+  //       where: { flightId },
+  //       data: { isCancelled: true },
+  //     });
 
-      if (
-        existingFlight.flightStatuses &&
-        existingFlight.flightStatuses.length > 0
-      ) {
-        const latestStatusId = existingFlight.flightStatuses[0].id;
+  //     if (
+  //       existingFlight.flightStatuses &&
+  //       existingFlight.flightStatuses.length > 0
+  //     ) {
+  //       const latestStatusId = existingFlight.flightStatuses[0].id;
 
-        await this.prisma.flightStatus.update({
-          where: { id: latestStatusId },
-          data: { status: 'CANCELLED' },
-        });
-      } else {
-        return {
-          resultCode: '02',
-          resultMessage: 'Flight Status not found!!!',
-        };
-      }
+  //       await this.prisma.flightStatus.update({
+  //         where: { id: latestStatusId },
+  //         data: { status: 'CANCELLED' },
+  //       });
+  //     } else {
+  //       return {
+  //         resultCode: '02',
+  //         resultMessage: 'Flight Status not found!!!',
+  //       };
+  //     }
 
-      return {
-        resultCode: '00',
-        resultMessage: 'Flight cancelled successfully!',
-      };
-    } catch (error) {
-      console.error(' Cancel flight error:', error);
-      return {
-        resultCode: '99',
-        resultMessage: 'Internal server error!',
-        error: error.message,
-      };
-    }
-  }
+  //     return {
+  //       resultCode: '00',
+  //       resultMessage: 'Flight cancelled successfully!',
+  //     };
+  //   } catch (error) {
+  //     console.error(' Cancel flight error:', error);
+  //     return {
+  //       resultCode: '99',
+  //       resultMessage: 'Internal server error!',
+  //       error: error.message,
+  //     };
+  //   }
+  // }
 
   async createAircraft(data: CreateAircraftDto) {
     try {
@@ -797,11 +797,17 @@ export class FlightsService {
           },
         },
         flight: {
-          omit: {
-            cancellationReason: true,
-            delayReason: true,
-            delayMinutes: true,
+          include: {
+            flightStatuses: true,
           },
+          // select:{
+          //   flightStatuses: true
+          // }
+          // omit: {
+          //   cancellationReason: true,
+          //   delayReason: true,
+          //   delayMinutes: true,
+          // },
         },
       },
     });
@@ -851,7 +857,79 @@ export class FlightsService {
     };
   }
 
+  // async createRandomFlights(count: number = 10) {
+  //   const airports = await this.prisma.airport.findMany();
+  //   const aircrafts = await this.prisma.aircraft.findMany();
+
+  //   if (airports.length < 2) throw new Error('Not enough airports');
+  //   if (aircrafts.length < 1) throw new Error('No aircraft found');
+
+  //   const flights: Flight[] = []; // FIX
+
+  //   const toDecimal = (date: Date) =>
+  //     new Decimal((date.getTime() / 1000).toFixed(3));
+
+  //   const randomFlightNo = () => {
+  //     const prefix = ['VN', 'QH', 'VJ', 'CX', 'SQ'][
+  //       Math.floor(Math.random() * 5)
+  //     ];
+  //     return prefix + Math.floor(100 + Math.random() * 900);
+  //   };
+
+  //   for (let i = 0; i < count; i++) {
+  //     // random airport
+  //     let origin = airports[Math.floor(Math.random() * airports.length)];
+  //     let destination = airports[Math.floor(Math.random() * airports.length)];
+
+  //     while (destination.code === origin.code) {
+  //       destination = airports[Math.floor(Math.random() * airports.length)];
+  //     }
+
+  //     // random aircraft
+  //     const aircraft = aircrafts[Math.floor(Math.random() * aircrafts.length)];
+
+  //     // random times
+  //     const departureTime = new Date(
+  //       Date.now() + Math.random() * 20 * 24 * 3600 * 1000,
+  //     );
+  //     const arrivalTime = new Date(
+  //       departureTime.getTime() + (1 + Math.random() * 6) * 3600 * 1000,
+  //     );
+
+  //     // price
+  //     const economy = Number((50 + Math.random() * 300).toFixed(2));
+  //     const business = Number((200 + Math.random() * 500).toFixed(2));
+  //     const first = Number((400 + Math.random() * 800).toFixed(2));
+
+  //     // create flight
+  //     const flight = await this.prisma.flight.create({
+  //       data: {
+  //         flightNo: randomFlightNo(),
+  //         departureAirport: origin.code,
+  //         arrivalAirport: destination.code,
+  //         aircraftCode: aircraft.code,
+  //         scheduledDeparture: toDecimal(departureTime),
+  //         scheduledArrival: toDecimal(arrivalTime),
+
+  //         actualDeparture: null,
+  //         actualArrival: null,
+
+  //         priceEconomy: economy,
+  //         priceBusiness: business,
+  //         priceFirst: first,
+
+  //         isDomestic: origin.country === destination.country,
+  //       },
+  //     });
+
+  //     flights.push(flight);
+  //   }
+
+  //   return flights;
+  // }
+
   async searchFlightFromPassenger(search: SearchFlightFromPassengerDto) {
+    console.log('search', search);
     const scheduledDepartureDate = search.scheduledDeparture
       ? new Decimal(search.scheduledDeparture).toNumber()
       : undefined;
@@ -895,13 +973,6 @@ export class FlightsService {
       );
 
       return {
-        // flightId: f.flightId,
-        // flightNo: f.flightNo,
-        // departureAirport: f.departureAirport,
-        // arrivalAirport: f.arrivalAirport,
-        // scheduledDeparture: f.scheduledDeparture,
-        // scheduledArrival: f.scheduledArrival,
-        // flightClass: f.flightClass,
         ...f,
         availableSeats: availableSeats.length, // chỉ trả số ghế trống
       };
@@ -1040,6 +1111,7 @@ export class FlightsService {
           flight: {
             include: {
               flightStatuses: true,
+              bookings: true,
             },
           },
           boardingPass: true,

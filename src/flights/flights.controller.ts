@@ -59,11 +59,6 @@ export class FlightsController {
     return await this.flightService.findAllTerminal();
   }
 
-  // @Post('createTerminal')
-  // async createTerminal(@Body() data: CreateTerminalDto) {
-  //   return await this.flightService.createTerminal(data);
-  // }
-
   @Post('createTerminal/bulk')
   async createTerminalBulk(@Body() dto: CreateTerminalDto[]) {
     return await this.flightService.creatManyTerminal(dto);

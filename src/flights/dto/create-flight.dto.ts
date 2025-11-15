@@ -71,19 +71,19 @@ export class CreateFlightDto {
   @IsBoolean()
   isDomestic?: boolean;
 
-  @IsOptional()
-  @IsBoolean()
-  isCancelled?: boolean;
+  // @IsOptional()
+  // @IsBoolean()
+  // isCancelled?: boolean;
 
-  @IsOptional()
-  @IsInt()
-  delayMinutes?: number;
+  // @IsOptional()
+  // @IsInt()
+  // delayMinutes?: number;
 
-  @IsOptional()
-  @IsString()
-  cancellationReason?: string;
+  // @IsOptional()
+  // @IsString()
+  // cancellationReason?: string;
 
-  @IsOptional()
-  @IsString()
-  delayReason?: string;
+  // @IsOptional()
+  // @IsString()
+  // delayReason?: string;
 }

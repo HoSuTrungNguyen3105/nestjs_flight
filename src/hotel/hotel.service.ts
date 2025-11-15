@@ -30,18 +30,6 @@ export class HotelService {
             };
           }
 
-          //  const existingAircraft = await this.prisma.aircraft.findUnique({
-          //    where: { code: item.flightNo },
-          //  });
-
-          //  if (existingAircraft) {
-          //    return {
-          //      code: item.flightNo,
-          //      errorCode: '01',
-          //      errorMessage: `Aircraft with code ${item.flightNo} already exists`,
-          //    };
-          //  }
-
           const existingFlight = await this.prisma.hotel.findUnique({
             where: { hotelCode: item.hotelCode },
           });
