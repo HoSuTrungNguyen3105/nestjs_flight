@@ -9,19 +9,28 @@ import { FlightMeal } from 'generated/prisma';
 export class FlightMealService {
   constructor(private prisma: PrismaService) {}
 
-  async create(
+  async addMealToFlight(
     data: CreateFlightMealDto,
   ): Promise<BaseResponseDto<FlightMeal>> {
     const { flightId, mealId, quantity, price } = data;
 
     const flight = await this.prisma.flight.findUnique({ where: { flightId } });
-    const meal = await this.prisma.meal.findUnique({ where: { id: mealId } });
 
     if (!flight)
-      throw new Error(`Không tìm thấy chuyến bay có ID = ${flightId}`);
-    if (!meal) throw new Error(`Không tìm thấy suất ăn có ID = ${mealId}`);
+      return {
+        resultCode: '01',
+        resultMessage: `Không tìm thấy chuyến bay có ID = ${flightId}`,
+      };
 
-    const res = await this.prisma.flightMeal.create({
+    const meal = await this.prisma.meal.findUnique({ where: { id: mealId } });
+
+    if (!meal)
+      return {
+        resultCode: '02',
+        resultMessage: `Không tìm thấy suất ăn có ID = ${mealId}`,
+      };
+
+    await this.prisma.flightMeal.create({
       data: {
         flightId,
         mealId,
@@ -36,8 +45,56 @@ export class FlightMealService {
     return {
       resultCode: '00',
       resultMessage: 'Meal added to flight successfully',
-      data: res,
     };
+  }
+
+  private async generateForOneFlight(flightId: number) {
+    const meals = await this.prisma.meal.findMany();
+
+    if (meals.length === 0) {
+      throw new Error('Không có meal nào trong hệ thống');
+    }
+
+    const count = Math.floor(Math.random() * 5) + 1; // random 1–5 meal
+
+    const randomMeals = meals.sort(() => 0.5 - Math.random()).slice(0, count);
+
+    return this.prisma.flightMeal.createMany({
+      data: randomMeals.map((m) => ({
+        flightId,
+        mealId: m.id,
+        quantity: Math.floor(Math.random() * 3) + 1, // 1–3
+        price: Number((Math.random() * 20 + 5).toFixed(2)), // 5–25
+      })),
+    });
+  }
+
+  async generateRandomMealsForFlights(flightIds: number[]) {
+    const results: { flightId: number; total: number }[] = [];
+
+    for (const id of flightIds) {
+      const created = await this.generateForOneFlight(id);
+      results.push({
+        flightId: id,
+        total: created.count,
+      });
+    }
+
+    return {
+      message: 'Tạo ngẫu nhiên meal cho nhiều flight thành công',
+      flights: results,
+    };
+  }
+
+  // 👉 Tạo random cho ALL flight trong DB
+  async generateRandomMealsForAllFlights() {
+    const flights = await this.prisma.flight.findMany({
+      select: { flightId: true },
+    });
+
+    const ids = flights.map((f) => f.flightId);
+
+    return this.generateRandomMealsForFlights(ids);
   }
 
   async findAll(): Promise<BaseResponseDto<FlightMeal>> {
@@ -97,6 +154,36 @@ export class FlightMealService {
       resultCode: '00',
       resultMessage: 'Flight meals retrieved successfully',
       data: fm,
+    };
+  }
+
+  async findMealByFlightId(id: number): Promise<BaseResponseDto<FlightMeal>> {
+    const meals = await this.prisma.flightMeal.findMany({
+      where: { flightId: id },
+      include: {
+        flight: {
+          select: {
+            flightNo: true,
+            departureAirport: true,
+            arrivalAirport: true,
+            aircraftCode: true,
+            flightType: true,
+          },
+        },
+        meal: true,
+      },
+    });
+
+    if (!meals)
+      return {
+        resultCode: '01',
+        resultMessage: `FlightMeal with ID ${id} not found`,
+      };
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Flight meals retrieved successfully',
+      list: meals,
     };
   }
 

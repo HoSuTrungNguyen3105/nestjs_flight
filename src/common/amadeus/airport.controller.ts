@@ -10,6 +10,11 @@ export class AirportController {
     return this.importer.importAirports();
   }
 
+  //   @Post('import/batch')
+  //   async import() {
+  //     return this.importer.importAirportToFlight();
+  //   }
+
   @Post('flight/random')
   async createRandom() {
     return this.importer.createRandomFlights(10);

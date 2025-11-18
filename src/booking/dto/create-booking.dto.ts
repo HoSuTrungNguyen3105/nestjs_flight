@@ -48,6 +48,9 @@ export class MealOrderDto {
   mealId: number;
 
   @IsInt()
+  bookingId: number;
+
+  @IsInt()
   quantity: number;
 
   @IsOptional()

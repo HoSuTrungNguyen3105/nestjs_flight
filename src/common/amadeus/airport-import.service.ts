@@ -3,6 +3,11 @@ import { AmadeusService } from './amadeus.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from 'src/prisma.service';
 import { Flight } from 'generated/prisma';
+import { BaseResponseDto } from 'src/baseResponse/response.dto';
+import * as path from 'path';
+import * as fs from 'fs';
+import { nowDecimal } from '../helpers/format';
+// import * as path from 'path';
 
 @Injectable()
 export class AirportImportService {
@@ -12,26 +17,75 @@ export class AirportImportService {
   ) {}
 
   async importAirports() {
-    const data = await this.amadeus.fetchAllAirports();
+    try {
+      const data = await this.amadeus.fetchAllAirports();
 
-    for (const a of data) {
-      await this.prisma.airport.upsert({
-        where: { code: a.iataCode },
-        update: {},
-        create: {
-          code: a.iataCode,
-          name: a.name,
-          city: a.address.cityName,
-          country: a.address.countryName,
-          createdAt: new Decimal(Date.now() / 1000),
-        },
-      });
+      for (const a of data) {
+        await this.prisma.airport.upsert({
+          where: { code: a.iataCode },
+          update: {},
+          create: {
+            code: a.iataCode,
+            name: a.name,
+            city: a.address.cityName,
+            country: a.address.countryName,
+            createdAt: new Decimal(Date.now() / 1000),
+          },
+        });
+      }
+
+      return { total: data };
+    } catch (error) {
+      console.error('err', error);
     }
-
-    return { total: data.length };
   }
 
-  async createRandomFlights(count: number = 10) {
+  //   async importAirportToFlight() {
+  //     try {
+  //       //   const filePath = path.join(__dirname, 'airports.json');
+  //       //   const filePath = path.resolve(__dirname, 'airports.json'); // resolve thay vì join
+  //       const filePath = path.join(
+  //         process.cwd(),
+  //         'src/common/amadeus/airports.json',
+  //       );
+
+  //       if (!fs.existsSync(filePath)) {
+  //         throw new Error(`File not found: ${filePath}`);
+  //       }
+  //       const raw = fs.readFileSync(filePath, 'utf-8');
+  //       const data = JSON.parse(raw);
+
+  //       const timestamp = nowDecimal(); // dùng số nguyên cho Decimal
+
+  //       for (const airport of data.total) {
+  //         await this.prisma.airport.upsert({
+  //           where: { code: airport.iataCode },
+  //           update: {
+  //             name: airport.name,
+  //             city: airport.address.cityName,
+  //             country: airport.address.countryName,
+  //             updatedAt: timestamp,
+  //           },
+  //           create: {
+  //             code: airport.iataCode,
+  //             name: airport.name,
+  //             city: airport.address.cityName,
+  //             country: airport.address.countryName,
+  //             createdAt: timestamp,
+  //           },
+  //         });
+  //       }
+
+  //       return {
+  //         message: 'Imported airports successfully',
+  //         count: data.total.length,
+  //       };
+  //     } catch (error) {
+  //       console.error('err', error);
+  //     }
+  //   }
+
+  async createRandomFlights(count: number = 10): Promise<BaseResponseDto> {
     const airports = await this.prisma.airport.findMany();
     const aircrafts = await this.prisma.aircraft.findMany();
 
@@ -84,6 +138,9 @@ export class AirportImportService {
       flights.push(flight);
     }
 
-    return flights;
+    return {
+      resultCode: '00',
+      resultMessage: 'Success',
+    };
   }
 }

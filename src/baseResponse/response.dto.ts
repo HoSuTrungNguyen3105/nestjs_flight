@@ -6,6 +6,7 @@ export class BaseResponseDto<T = null> {
   data?: T | null;
   list?: T[] | null;
 }
+
 export interface UserPayload {
   sub: number;
   email: string;
@@ -21,10 +22,3 @@ export const GetUser = createParamDecorator(
     return data ? user?.[data] : user;
   },
 );
-
-// export const GetUser = createParamDecorator(
-//   (data: unknown, ctx: ExecutionContext): UserPayload => {
-//     const request = ctx.switchToHttp().getRequest();
-//     return request.user;
-//   },
-// );

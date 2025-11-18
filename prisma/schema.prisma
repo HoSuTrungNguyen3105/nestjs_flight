@@ -332,10 +332,10 @@ model Meal {
 
 model Seat {
   id                   Int       @id @default(autoincrement())
-  isBooked             Boolean   @default(false)
   flightId             Int
   seatNumber           Int
   seatRow              String
+  isBooked             Boolean   @default(false)
   isAvailable          Boolean   @default(true)
   isExitRow            Boolean   @default(false)
   isExtraLegroom       Boolean   @default(false)
@@ -345,7 +345,7 @@ model Seat {
   isNearLavatory       Boolean   @default(false)
   isUpperDeck          Boolean   @default(false)
   isWing               Boolean   @default(false)
-  type                 SeatType  @default(ECONOMY)
+  //type                 SeatType  @default(ECONOMY)
   bookings             Booking[]
   flight               Flight    @relation(fields: [flightId], references: [flightId])
 

@@ -290,26 +290,91 @@ export class FlightsService {
     };
   }
 
+  async getAvailableDates(airportCode: string) {
+    const flights = await this.prisma.flight.findMany({
+      where: {
+        OR: [
+          { departureAirport: airportCode },
+          { arrivalAirport: airportCode },
+        ],
+      },
+      select: {
+        scheduledDeparture: true,
+      },
+    });
+
+    // Convert Decimal -> Date -> chỉ lấy phần ngày
+    const dates = flights.map((f) => {
+      const num = Number(f.scheduledDeparture); // ví dụ: 20250110.123
+      const str = num.toString().split('.')[0]; // "20250110"
+
+      const year = Number(str.slice(0, 4));
+      const month = Number(str.slice(4, 6)) - 1; // month index 0–11
+      const day = Number(str.slice(6, 8));
+
+      const d = new Date(year, month, day);
+
+      const dayShort = d.toLocaleDateString('en-US', { weekday: 'short' }); // "Tue"
+      const dateShort = d.toLocaleDateString('en-US', {
+        day: '2-digit',
+        month: 'short',
+      }); // "18 Nov"
+
+      return {
+        day: dayShort,
+        date: dateShort,
+        year: year,
+      };
+    });
+
+    // const cleaned = dates.filter(
+    //   (d) =>
+    //     d instanceof Date && !isNaN(d.getTime()) && d.getFullYear() >= 2000,
+    // );
+
+    return {
+      resultCode: '00',
+      resultMessage: 'Success',
+      list: dates,
+    };
+  }
+
   async findAll(): Promise<BaseResponseDto<FlightResponseDto>> {
     try {
       const flights = await this.prisma.flight.findMany({
         include: {
-          aircraft: true,
-          departureAirportRel: true,
-          arrivalAirportRel: true,
-          meals: {
-            select: { id: true },
-          },
-          flightStatuses: true,
           _count: {
             select: {
               meals: true,
-              bookings: true,
-              gateAssignments: true,
-              flightStatuses: true,
+              // bookings: true,
+              // gateAssignments: true,
+              // flightStatuses: true,
               seats: true,
             }, // đếm số seats
           },
+        },
+        omit: {
+          gateId: true,
+          priceBusiness: true,
+          priceEconomy: true,
+          priceFirst: true,
+          isDomestic: true,
+          // aircraft: true,
+          // departureAirportRel: true,
+          // arrivalAirportRel: true,
+          // meals: {
+          //   select: { id: true },
+          // },
+          // flightStatuses: true,
+          // _count: {
+          //   select: {
+          //     meals: true,
+          //     bookings: true,
+          //     gateAssignments: true,
+          //     flightStatuses: true,
+          //     seats: true,
+          //   }, // đếm số seats
+          // },
         },
       });
 
@@ -857,77 +922,6 @@ export class FlightsService {
     };
   }
 
-  // async createRandomFlights(count: number = 10) {
-  //   const airports = await this.prisma.airport.findMany();
-  //   const aircrafts = await this.prisma.aircraft.findMany();
-
-  //   if (airports.length < 2) throw new Error('Not enough airports');
-  //   if (aircrafts.length < 1) throw new Error('No aircraft found');
-
-  //   const flights: Flight[] = []; // FIX
-
-  //   const toDecimal = (date: Date) =>
-  //     new Decimal((date.getTime() / 1000).toFixed(3));
-
-  //   const randomFlightNo = () => {
-  //     const prefix = ['VN', 'QH', 'VJ', 'CX', 'SQ'][
-  //       Math.floor(Math.random() * 5)
-  //     ];
-  //     return prefix + Math.floor(100 + Math.random() * 900);
-  //   };
-
-  //   for (let i = 0; i < count; i++) {
-  //     // random airport
-  //     let origin = airports[Math.floor(Math.random() * airports.length)];
-  //     let destination = airports[Math.floor(Math.random() * airports.length)];
-
-  //     while (destination.code === origin.code) {
-  //       destination = airports[Math.floor(Math.random() * airports.length)];
-  //     }
-
-  //     // random aircraft
-  //     const aircraft = aircrafts[Math.floor(Math.random() * aircrafts.length)];
-
-  //     // random times
-  //     const departureTime = new Date(
-  //       Date.now() + Math.random() * 20 * 24 * 3600 * 1000,
-  //     );
-  //     const arrivalTime = new Date(
-  //       departureTime.getTime() + (1 + Math.random() * 6) * 3600 * 1000,
-  //     );
-
-  //     // price
-  //     const economy = Number((50 + Math.random() * 300).toFixed(2));
-  //     const business = Number((200 + Math.random() * 500).toFixed(2));
-  //     const first = Number((400 + Math.random() * 800).toFixed(2));
-
-  //     // create flight
-  //     const flight = await this.prisma.flight.create({
-  //       data: {
-  //         flightNo: randomFlightNo(),
-  //         departureAirport: origin.code,
-  //         arrivalAirport: destination.code,
-  //         aircraftCode: aircraft.code,
-  //         scheduledDeparture: toDecimal(departureTime),
-  //         scheduledArrival: toDecimal(arrivalTime),
-
-  //         actualDeparture: null,
-  //         actualArrival: null,
-
-  //         priceEconomy: economy,
-  //         priceBusiness: business,
-  //         priceFirst: first,
-
-  //         isDomestic: origin.country === destination.country,
-  //       },
-  //     });
-
-  //     flights.push(flight);
-  //   }
-
-  //   return flights;
-  // }
-
   async searchFlightFromPassenger(search: SearchFlightFromPassengerDto) {
     console.log('search', search);
     const scheduledDepartureDate = search.scheduledDeparture
@@ -950,9 +944,9 @@ export class FlightsService {
         arrivalAirport: search.arrivalAirport
           ? { contains: search.arrivalAirport.toLowerCase() }
           : undefined,
-        seats: seatTypeEnum
-          ? { some: { type: seatTypeEnum, isBooked: false } } // đúng enum type
-          : { some: { isBooked: false } },
+        // seats: seatTypeEnum
+        //   ? { some: { isBooked: false } } // đúng enum type
+        //   : { some: { isBooked: false } },
 
         scheduledDeparture: scheduledDepartureDate
           ? { gte: scheduledDepartureDate }
@@ -967,27 +961,82 @@ export class FlightsService {
     });
 
     // Tính số ghế trống theo seatTypeEnum
-    const mappedFlights = flights.map((f) => {
-      const availableSeats = f.seats.filter(
-        (s) => !s.isBooked && (!seatTypeEnum || s.type === seatTypeEnum),
-      );
+    // const mappedFlights = flights.map((f) => {
+    //   const availableSeats = f.seats.filter(
+    //     (s) => {},
+    //     // !s.isBooked && (!seatTypeEnum || s.type === seatTypeEnum),
+    //   );
 
-      return {
-        ...f,
-        availableSeats: availableSeats.length, // chỉ trả số ghế trống
-      };
-    });
+    //   return {
+    //     ...f,
+    //     availableSeats: availableSeats.length, // chỉ trả số ghế trống
+    //   };
+    // });
 
     // Filter flight có đủ ghế cho search.passengers
-    const filteredFlights = mappedFlights.filter(
-      (f) => f.availableSeats >= (search.passengers || 1),
-    );
+    // const filteredFlights = flights.filter(
+    //   (f) => f.availableSeats >= (search.passengers || 1),
+    // );
 
     return {
       resultCode: '00',
       resultMessage: 'Success',
-      list: filteredFlights,
+      list: flights,
     };
+  }
+
+  async getFlightsByDate(airport: string, date: string) {
+    // chuyển "2025-01-10" → "20250110"
+    // const ymd = date.replace(/-/g, '');
+    const dateISO = new Date(date).toISOString().slice(0, 10); // chuẩn hóa
+
+    // tìm flight mà scheduledDeparture bắt đầu bằng 20250110
+    const flights = await this.prisma.flight.findMany({
+      where: {
+        OR: [{ departureAirport: airport }, { arrivalAirport: airport }],
+      },
+    });
+
+    console.log('dateISO', dateISO);
+
+    // // lọc theo ngày
+    // const filtered = flights.filter((f) => {
+    //   const num = Number(f.scheduledDeparture); // 20250110.123
+    //   const str = Math.floor(num).toString(); // lấy phần nguyên: "20250110"
+    //   return str === ymd;
+    // });
+    // const filtered = flights.filter((f) => {
+    //   const timestamp = Number(f.scheduledDeparture); // 1763690037.871
+    //   const dateObj = new Date(timestamp * 1000); // chuyển sang milliseconds
+
+    //   const flightDate = dateObj.toISOString().slice(0, 10); // "YYYY-MM-DD"
+    //   return flightDate === date; // date từ client: "2025-01-10"
+    // });
+    // const filtered = flights.filter((f) => {
+    //   const timestamp = Number(f.scheduledDeparture);
+    //   const flightDate = new Date(timestamp * 1000).toISOString().slice(0, 10);
+    //   return flightDate === dateISO;
+    // });
+    const filtered = flights.filter((f) => {
+      const timestamp = Number(f.scheduledDeparture);
+      const flightDate = new Date(timestamp * 1000) // *1000 vì JS Date dùng ms
+        .toISOString()
+        .slice(0, 10);
+      console.log('flightDate', flightDate);
+
+      return flightDate === dateISO;
+    });
+
+    flights.forEach((f) => {
+      console.log('scheduledDeparture raw', f.scheduledDeparture.toString());
+      console.log('Number', Number(f.scheduledDeparture));
+      console.log(
+        'Date',
+        new Date(Number(f.scheduledDeparture) * 1000).toISOString(),
+      );
+    });
+
+    return filtered;
   }
 
   async findTicketByPassengerID(

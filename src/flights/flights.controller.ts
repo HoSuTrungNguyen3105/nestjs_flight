@@ -90,6 +90,11 @@ export class FlightsController {
     return this.flightService.deleteAll();
   }
 
+  @Get('dates/:airportCode')
+  async getDates(@Param('airportCode') code: string) {
+    return this.flightService.getAvailableDates(code);
+  }
+
   @Get('aircraft')
   async getAircraft() {
     return this.flightService.getAllAircraft();
@@ -218,6 +223,14 @@ export class FlightsController {
     @Query() search: SearchFlightFromPassengerDto,
   ) {
     return this.flightService.searchFlightFromPassenger(search);
+  }
+
+  @Get('by-date')
+  async getFlightsByDate(
+    @Query('airport') airport: string,
+    @Query('date') date: string, // "2025-01-10"
+  ) {
+    return this.flightService.getFlightsByDate(airport, date);
   }
 
   @Post('find-passenger-ticket')

@@ -68,88 +68,6 @@ export class BookingService {
     }
   }
 
-  // async create(dto: CreateBookingDto) {
-  //   const hasFlight = await this.prisma.flight.findUnique({
-  //     where: {
-  //       flightId: dto.flightId,
-  //     },
-  //   });
-
-  //   if (!hasFlight) {
-  //     return {
-  //       resultCode: '01',
-  //       resultMessage: 'Flight not found',
-  //     };
-  //   }
-
-  //   const hasPassenger = await this.prisma.passenger.findUnique({
-  //     where: {
-  //       id: dto.passengerId,
-  //     },
-  //   });
-
-  //   if (!hasPassenger) {
-  //     return {
-  //       resultCode: '02',
-  //       resultMessage: 'Passenger not found',
-  //     };
-  //   }
-
-  //   if (dto.mealOrders && dto.mealOrders.length > 0) {
-  //     for (const meal of dto.mealOrders) {
-  //       const hasMeal = await this.prisma.meal.findUnique({
-  //         where: { id: meal.mealId },
-  //       });
-  //       if (!hasMeal) {
-  //         return {
-  //           resultCode: '03',
-  //           resultMessage: `Meal with id ${meal.mealId} not found`,
-  //         };
-  //       }
-  //     }
-  //   }
-
-  //   const booking = await this.prisma.booking.create({
-  //     data: {
-  //       passengerId: dto.passengerId,
-  //       flightId: dto.flightId,
-  //       bookingTime: nowDecimal(),
-  //       mealOrders: dto.mealOrders
-  //         ? {
-  //             create: dto.mealOrders.map((meal) => ({
-  //               mealId: meal.mealId,
-  //               quantity: meal.quantity,
-  //             })),
-  //           }
-  //         : undefined,
-  //       seat: dto.seatId ? { connect: { id: dto.seatId } } : undefined,
-  //     },
-  //     include: {
-  //       flight: {
-  //         select: {
-  //           flightId: true,
-  //         },
-  //       },
-  //       mealOrders: {
-  //         select: {
-  //           id: true,
-  //         },
-  //       },
-  //       seat: {
-  //         select: {
-  //           id: true,
-  //         },
-  //       },
-  //     },
-  //   });
-
-  //   return {
-  //     resultCode: '00',
-  //     resultMessage: 'Booking created successfully',
-  //     data: booking,
-  //   };
-  // }
-
   async findAll() {
     const bookings = await this.prisma.booking.findMany({
       include: {
@@ -346,14 +264,61 @@ export class BookingService {
           finalSeatPrice = 0;
         }
 
-        // Tính mealOrders nếu có
-        if (mealOrders && mealOrders.length > 0) {
-          const mealPrice = mealOrders.reduce(
-            (sum, meal) => sum + (meal.price ?? 0) * (meal.quantity ?? 1),
-            0,
-          );
-          finalSeatPrice += mealPrice;
+        // Check if we found all meals
+        if (mealOrders?.length !== mealOrders?.length) {
+          return {
+            resultCode: '01',
+            resultMessage: 'One or more meals not found',
+          };
         }
+        // Create meal order records
+        const createdMealOrders = [];
+        for (const mo of mealOrders) {
+          const mealOrder = await this.prisma.mealOrder.create({
+            data: {
+              bookingId: mo.bookingId,
+              mealId: mo.mealId,
+              quantity: mo.quantity,
+            },
+            include: {
+              meal: true,
+              booking: true,
+            },
+          });
+          createdMealOrders.push(mealOrder);
+        }
+
+        // Calculate the total meal price
+        let mealPrice = 0;
+        for (const mo of mealOrders) {
+          const meal = meals.find((m) => m.id === mo.mealId);
+          mealPrice += meal.price * mo.quantity;
+        }
+
+        //  return { createdMealOrders, mealPrice };
+
+        // Tính mealOrders nếu có
+        //     if (mealOrders && mealOrders.length > 0) {
+        //       const ordermeal = this.prisma.mealOrder.findUnique({
+        //         where:{ id: mealOrders}
+        //       })
+        //       this.prisma.mealOrder.create({
+        //   data: {
+        //     mealOrders.bookingId,
+        //     mealOrders.mealId,
+        //     mealOrders.quantity,
+        //   },
+        //   include: {
+        //     booking: true,
+        //     meal: true,
+        //   },
+        // });
+        //       const mealPrice = mealOrders.reduce(
+        //         (sum, meal) => sum + (meal.price ?? 0) * (meal.quantity ?? 1),
+        //         0,
+        //       );
+        //       finalSeatPrice += mealPrice;
+        //     }
       }
 
       const result = await this.prisma.$transaction(async (tx) => {

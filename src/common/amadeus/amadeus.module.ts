@@ -2,11 +2,12 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from 'src/prisma.module';
 import { AirportController } from './airport.controller';
 import { AmadeusService } from './amadeus.service';
+import { AirportImportService } from './airport-import.service';
 
 @Module({
   imports: [PrismaModule],
-  providers: [AmadeusService],
   controllers: [AirportController],
-  exports: [AmadeusService],
+  providers: [AirportImportService, AmadeusService],
+  //   exports: [AmadeusService],
 })
 export class AmadeusModule {}
