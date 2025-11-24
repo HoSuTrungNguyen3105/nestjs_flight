@@ -7,7 +7,6 @@ import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import * as path from 'path';
 import * as fs from 'fs';
 import { nowDecimal } from '../helpers/format';
-// import * as path from 'path';
 
 @Injectable()
 export class AirportImportService {
@@ -39,51 +38,6 @@ export class AirportImportService {
       console.error('err', error);
     }
   }
-
-  //   async importAirportToFlight() {
-  //     try {
-  //       //   const filePath = path.join(__dirname, 'airports.json');
-  //       //   const filePath = path.resolve(__dirname, 'airports.json'); // resolve thay vì join
-  //       const filePath = path.join(
-  //         process.cwd(),
-  //         'src/common/amadeus/airports.json',
-  //       );
-
-  //       if (!fs.existsSync(filePath)) {
-  //         throw new Error(`File not found: ${filePath}`);
-  //       }
-  //       const raw = fs.readFileSync(filePath, 'utf-8');
-  //       const data = JSON.parse(raw);
-
-  //       const timestamp = nowDecimal(); // dùng số nguyên cho Decimal
-
-  //       for (const airport of data.total) {
-  //         await this.prisma.airport.upsert({
-  //           where: { code: airport.iataCode },
-  //           update: {
-  //             name: airport.name,
-  //             city: airport.address.cityName,
-  //             country: airport.address.countryName,
-  //             updatedAt: timestamp,
-  //           },
-  //           create: {
-  //             code: airport.iataCode,
-  //             name: airport.name,
-  //             city: airport.address.cityName,
-  //             country: airport.address.countryName,
-  //             createdAt: timestamp,
-  //           },
-  //         });
-  //       }
-
-  //       return {
-  //         message: 'Imported airports successfully',
-  //         count: data.total.length,
-  //       };
-  //     } catch (error) {
-  //       console.error('err', error);
-  //     }
-  //   }
 
   async createRandomFlights(count: number = 10): Promise<BaseResponseDto> {
     const airports = await this.prisma.airport.findMany();

@@ -210,6 +210,7 @@ export class AuthService {
 
   async logout(id: number | string) {
     try {
+      console.log('id', id);
       let deleted;
 
       // Kiểm tra nếu id là number thì xóa phiên người dùng
@@ -255,6 +256,10 @@ export class AuthService {
       return { resultCode: '00', resultMessage: 'Logout successful' };
     } catch (error) {
       console.error('err', error);
+      return {
+        resultCode: '99',
+        resultMessage: 'Logout failed',
+      };
     }
   }
 
@@ -1650,7 +1655,7 @@ export class AuthService {
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const expiresAt = Decimal(Date.now() + 1000 * 60 * 15); // 15 phút
+    const expiresAt = new Decimal(Date.now() + 1000 * 60 * 15); // 15 phút
 
     await this.prisma.user.update({
       where: { id: user.id },

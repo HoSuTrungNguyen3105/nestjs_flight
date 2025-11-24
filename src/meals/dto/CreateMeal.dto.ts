@@ -11,6 +11,7 @@ import {
   IsArray,
 } from 'class-validator';
 import { MealType } from 'generated/prisma';
+import { MealOrderDto } from 'src/booking/dto/create-booking.dto';
 
 export class CreateMealDto {
   @IsString()
@@ -55,15 +56,15 @@ export class UpdateMealDto {
   isAvailable?: boolean;
 }
 
-export class MealOrderDto {
-  @IsInt()
-  @IsNotEmpty()
-  mealId: number;
+// export class MealOrderDto {
+//   @IsInt()
+//   @IsNotEmpty()
+//   mealId: number;
 
-  @IsInt()
-  @Min(1)
-  quantity: number;
-}
+//   @IsInt()
+//   @Min(1)
+//   quantity: number;
+// }
 
 export class CreateBookingDto {
   @IsInt()

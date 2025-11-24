@@ -87,4 +87,9 @@ export class BookingController {
   ) {
     return this.bookingService.createTicket(data);
   }
+
+  @Post('seed')
+  async seedBookings(@Body() dto: { flightId?: number; count?: number }) {
+    return this.bookingService.seedBookings(dto);
+  }
 }

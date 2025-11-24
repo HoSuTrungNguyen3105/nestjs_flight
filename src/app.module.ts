@@ -19,6 +19,7 @@ import { HotelsModule } from './hotel/hotel.module';
 import { LocaleController } from './common/services/locale.controller';
 import { LocaleModule } from './common/services/locale.module';
 import { AmadeusModule } from './common/amadeus/amadeus.module';
+import { CloudinaryModule } from './common/cloudinary/cloudinary.module';
 
 @Module({
   controllers: [AppController],
@@ -40,6 +41,7 @@ import { AmadeusModule } from './common/amadeus/amadeus.module';
     HotelsModule,
     LocaleModule,
     AmadeusModule,
+    CloudinaryModule,
   ],
 })
 export class AppModule {}

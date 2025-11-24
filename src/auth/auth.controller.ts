@@ -38,6 +38,13 @@ export class AuthController {
   @Post('logout')
   @UseGuards(AuthGuard('jwt'))
   async logout(@Request() req) {
+    console.log('Logout Request User:', req.user);
+    if (!req.user) {
+      return {
+        resultCode: '99',
+        resultMessage: 'User not found in request',
+      };
+    }
     const userId = req.user.sub;
     return this.authService.logout(userId);
   }

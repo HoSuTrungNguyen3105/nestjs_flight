@@ -22,6 +22,17 @@ export class FlightMealService {
         resultMessage: `Không tìm thấy chuyến bay có ID = ${flightId}`,
       };
 
+    // const hasMealCode = await this.prisma.meal.findUnique({
+    //       where: { mealCode: data.mealCode },
+    //     });
+
+    //     if (hasMealCode) {
+    //       return {
+    //         resultCode: '01',
+    //         resultMessage: 'Duplicate meal code!',
+    //       };
+    //     }
+
     const meal = await this.prisma.meal.findUnique({ where: { id: mealId } });
 
     if (!meal)
@@ -30,11 +41,22 @@ export class FlightMealService {
         resultMessage: `Không tìm thấy suất ăn có ID = ${mealId}`,
       };
 
+    const mealCode = await this.prisma.flightMeal.findUnique({
+      where: { flightMealCode: data.flightMealCode },
+    });
+
+    if (mealCode)
+      return {
+        resultCode: '03',
+        resultMessage: `Meal Code has yet = ${data.flightMealCode}`,
+      };
+
     await this.prisma.flightMeal.create({
       data: {
         flightId,
         mealId,
         quantity,
+        flightMealCode: data.flightMealCode,
         price: price ?? meal.price,
       },
       include: {
@@ -48,7 +70,7 @@ export class FlightMealService {
     };
   }
 
-  private async generateForOneFlight(flightId: number) {
+  async generateForOneFlight(flightId: number) {
     const meals = await this.prisma.meal.findMany();
 
     if (meals.length === 0) {
@@ -86,7 +108,7 @@ export class FlightMealService {
     };
   }
 
-  // 👉 Tạo random cho ALL flight trong DB
+  // Tạo random cho ALL flight trong DB
   async generateRandomMealsForAllFlights() {
     const flights = await this.prisma.flight.findMany({
       select: { flightId: true },
@@ -110,8 +132,9 @@ export class FlightMealService {
           },
         },
         meal: {
-          omit: {
-            id: true,
+          select: {
+            mealCode: true,
+            price: true,
           },
         },
       },
@@ -137,8 +160,9 @@ export class FlightMealService {
           },
         },
         meal: {
-          omit: {
-            id: true,
+          select: {
+            mealCode: true,
+            price: true,
           },
         },
       },

@@ -11,7 +11,7 @@ export class MealService {
   async create(data: CreateMealDto) {
     const res = await this.prisma.meal.create({
       data: {
-        mealCode: data.mealCode,
+        //mealCode: data.mealCode,
         name: data.name,
         mealType: data.mealType as MealType,
         description: data.description,
@@ -84,7 +84,7 @@ export class MealService {
   async findOne(id: number) {
     const meal = await this.prisma.meal.findUnique({
       where: { id },
-      include: { flightMeals: true, mealOrders: true },
+      include: { flightMeals: true },
     });
     if (!meal)
       return {
@@ -103,6 +103,16 @@ export class MealService {
       where: { id },
       data,
     });
+  }
+
+  async updateMealCode(id: number, mealCode: string) {
+    const res = await this.prisma.meal.update({
+      where: { id },
+      data: {
+        mealCode,
+      },
+    });
+    return res;
   }
 
   async remove(id: number) {

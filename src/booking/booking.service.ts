@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import {
   CreateBookingDto,
   CreatePassengerPseudoDto,
+  MealOrderDto,
 } from './dto/create-booking.dto';
 import { PrismaService } from 'src/prisma.service';
 import { nowDecimal } from 'src/common/helpers/format';
@@ -14,6 +15,7 @@ import {
   Prisma,
   Seat,
   SeatType,
+  Ticket,
 } from 'generated/prisma';
 import { SearchBookingDto } from './dto/search-booking.dto';
 import { CreateBaggageDto } from './dto/baggage.dto';
@@ -112,9 +114,10 @@ export class BookingService {
     try {
       const passenger = await this.prisma.passenger.findUnique({
         where: { id: id },
-        omit: {
-          password: true,
-        },
+
+        // omit: {
+        //   password: true,
+        // },
         include: {
           bookings: {
             include: {
@@ -192,7 +195,7 @@ export class BookingService {
     };
   }
 
-  async bookSeats(data: CreateBookingDto & { discountCode?: string }) {
+  async bookSeats(data: CreateBookingDto) {
     const {
       passengerId,
       flightId,
@@ -210,7 +213,10 @@ export class BookingService {
       // Kiểm tra đầu vào
       const seatIds = Array.isArray(seatId) ? seatId : [seatId];
       if (seatIds.length === 0) {
-        throw new BadRequestException('Danh sách ghế không hợp lệ.');
+        return {
+          resultCode: '01',
+          resultMessage: 'Danh sách ghế không hợp lệ.',
+        };
       }
 
       // Hành khách & chuyến bay
@@ -221,7 +227,7 @@ export class BookingService {
 
       if (!passenger || !flight) {
         return {
-          resultCode: '01',
+          resultCode: '02',
           resultMessage: 'Không tìm thấy hành khách hoặc chuyến bay.',
         };
       }
@@ -245,12 +251,16 @@ export class BookingService {
         });
 
         if (!flightDiscount) {
-          throw new BadRequestException(
-            'Discount code không hợp lệ cho chuyến bay này',
-          );
+          return {
+            resultCode: '02',
+            resultMessage: 'Discount code không hợp lệ cho chuyến bay này',
+          };
         }
         if (finalSeatPrice === null) {
-          throw new BadRequestException('Không xác định được giá ghế.');
+          return {
+            resultCode: '02',
+            resultMessage: 'Không xác định được giá ghế.',
+          };
         }
         const discountAmount =
           flightDiscount.discountCode.discountAmount ?? new Decimal(0);
@@ -264,61 +274,47 @@ export class BookingService {
           finalSeatPrice = 0;
         }
 
-        // Check if we found all meals
         if (mealOrders?.length !== mealOrders?.length) {
           return {
             resultCode: '01',
             resultMessage: 'One or more meals not found',
           };
         }
-        // Create meal order records
-        const createdMealOrders = [];
+
+        if (!mealOrders?.length) {
+          return {
+            resultCode: '02',
+            resultMessage: 'Meals not found',
+          };
+        }
+
+        const createdMealOrders: MealOrderDto[] = [];
         for (const mo of mealOrders) {
           const mealOrder = await this.prisma.mealOrder.create({
             data: {
               bookingId: mo.bookingId,
-              mealId: mo.mealId,
+              flightMealId: mo.flightMealId,
               quantity: mo.quantity,
             },
             include: {
-              meal: true,
+              flightMeal: true,
               booking: true,
             },
           });
           createdMealOrders.push(mealOrder);
         }
 
-        // Calculate the total meal price
         let mealPrice = 0;
         for (const mo of mealOrders) {
-          const meal = meals.find((m) => m.id === mo.mealId);
-          mealPrice += meal.price * mo.quantity;
+          // const meal = meals.find((m) => m.flightMealId === mo.flightMealId);
+          // if (!meal) {
+          //   return {
+          //     resultCode: '03',
+          //     resultMessage: `Meal with flightMealId ${mo.flightMealId} not found`,
+          //   };
+          // }
+          // mealPrice += meal.price * mo.quantity;
         }
-
-        //  return { createdMealOrders, mealPrice };
-
-        // Tính mealOrders nếu có
-        //     if (mealOrders && mealOrders.length > 0) {
-        //       const ordermeal = this.prisma.mealOrder.findUnique({
-        //         where:{ id: mealOrders}
-        //       })
-        //       this.prisma.mealOrder.create({
-        //   data: {
-        //     mealOrders.bookingId,
-        //     mealOrders.mealId,
-        //     mealOrders.quantity,
-        //   },
-        //   include: {
-        //     booking: true,
-        //     meal: true,
-        //   },
-        // });
-        //       const mealPrice = mealOrders.reduce(
-        //         (sum, meal) => sum + (meal.price ?? 0) * (meal.quantity ?? 1),
-        //         0,
-        //       );
-        //       finalSeatPrice += mealPrice;
-        //     }
       }
 
       const result = await this.prisma.$transaction(async (tx) => {
@@ -348,7 +344,6 @@ export class BookingService {
             bookingTime: bookingTime || nowDecimal(),
             status: 'PENDING',
             seatId: seatIds.length === 1 ? seatIds[0] : null,
-            // flight : flightId,
           },
         });
 
@@ -565,6 +560,99 @@ export class BookingService {
       resultCode: '00',
       resultMessage: 'Success.',
       data: flight.seats,
+    };
+  }
+
+  async seedBookings(dto: { flightId?: number; count?: number }) {
+    const count = dto.count || 5;
+    let flightId = dto.flightId;
+
+    // 1. Pick a flight if not provided
+    if (!flightId) {
+      const flight = await this.prisma.flight.findFirst({
+        where: {
+          seats: {
+            some: { isBooked: false },
+          },
+        },
+      });
+      if (!flight) {
+        return {
+          resultCode: '01',
+          resultMessage: 'No flights with available seats found.',
+        };
+      }
+      flightId = flight.flightId;
+    }
+
+    // 2. Get available seats
+    const availableSeats = await this.prisma.seat.findMany({
+      where: {
+        flightId,
+        isBooked: false,
+      },
+      take: count,
+    });
+
+    if (availableSeats.length === 0) {
+      return {
+        resultCode: '01',
+        resultMessage: 'No available seats for this flight.',
+      };
+    }
+
+    // 3. Get random passengers
+    const passengers = await this.prisma.passenger.findMany({
+      take: count,
+    });
+
+    if (passengers.length === 0) {
+      return {
+        resultCode: '01',
+        resultMessage: 'No passengers found to book for.',
+      };
+    }
+
+    const results: {
+      resultCode: string;
+      resultMessage: string;
+      data?: { booking: Booking; tickets: Ticket[] };
+    }[] = [];
+
+    // 4. Create bookings
+    for (let i = 0; i < Math.min(count, availableSeats.length); i++) {
+      const seat = availableSeats[i];
+      // Pick a random passenger
+      const passenger =
+        passengers[Math.floor(Math.random() * passengers.length)];
+
+      try {
+        const bookingData: CreateBookingDto = {
+          passengerId: passenger.id,
+          flightId: flightId,
+          seatId: seat.id,
+          bookingCode: `SEED-${Date.now()}-${i}`,
+          seatNo: seat.seatNumber.toString(),
+          seatClass: SeatType.ECONOMY, // Default to Economy
+          bookingTime: Date.now(),
+          seatPrice: 1000000, // Dummy price
+        };
+
+        const res = await this.bookSeats(bookingData);
+        results.push(res);
+      } catch (error) {
+        console.error(`Failed to seed booking for seat ${seat.id}`, error);
+        // results.push({
+        //   resultCode: '99',
+        //   resultMessage: `Failed: ${error.message}`,
+        // });
+      }
+    }
+
+    return {
+      resultCode: '00',
+      resultMessage: `Seeding completed. Attempted: ${Math.min(count, availableSeats.length)}`,
+      data: results,
     };
   }
 }

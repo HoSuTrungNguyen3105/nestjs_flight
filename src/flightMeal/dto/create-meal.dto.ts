@@ -1,6 +1,9 @@
-import { IsInt, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateFlightMealDto {
+  @IsString()
+  flightMealCode: string;
+
   @IsInt()
   flightId: number;
 

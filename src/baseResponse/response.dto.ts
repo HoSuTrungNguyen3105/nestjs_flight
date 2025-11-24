@@ -5,6 +5,12 @@ export class BaseResponseDto<T = null> {
   resultMessage: string;
   data?: T | null;
   list?: T[] | null;
+  meta?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
 export interface UserPayload {

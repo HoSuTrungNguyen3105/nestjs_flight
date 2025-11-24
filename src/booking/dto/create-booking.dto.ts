@@ -7,6 +7,8 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
+import { CreateFlightMealsDto } from 'src/flightMeal/dto/add-meal-to-flight.dto';
+import { CreateFlightMealDto } from 'src/flightMeal/dto/create-meal.dto';
 
 export class CreateBookingDto {
   @IsNotEmpty()
@@ -45,7 +47,7 @@ export class CreateBookingDto {
 
 export class MealOrderDto {
   @IsInt()
-  mealId: number;
+  flightMealId: number;
 
   @IsInt()
   bookingId: number;

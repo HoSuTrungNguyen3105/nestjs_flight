@@ -4,11 +4,10 @@ import {
   Post,
   Body,
   Param,
-  Delete,
-  HttpCode,
-  HttpStatus,
   ParseIntPipe,
   Query,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { FlightsService } from './flights.service';
 import { Prisma } from 'generated/prisma';
@@ -31,15 +30,13 @@ import {
   UpdateFlightDiscountDto,
 } from './dto/create-flight-discount.dto';
 import { CreateDiscountDto } from './dto/create-discount.dto';
-// import { ApiOperation } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('sys/flights')
 export class FlightsController {
   constructor(private readonly flightService: FlightsService) {}
 
   @Post()
-  @HttpCode(HttpStatus.CREATED)
-  // @ApiOperation({ summary: 'Create a new flight' })
   create(@Body() data: CreateFlightDto) {
     return this.flightService.create(data);
   }
@@ -47,11 +44,6 @@ export class FlightsController {
   @Post('bulk-create')
   async createMany(@Body() createFlightsDto: CreateFlightDto[]) {
     return this.flightService.createMany(createFlightsDto);
-  }
-
-  @Post('aircraft')
-  createAircraft(@Body() data: CreateAircraftDto) {
-    return this.flightService.createAircraft(data);
   }
 
   @Get('terminal')
@@ -64,10 +56,18 @@ export class FlightsController {
     return await this.flightService.creatManyTerminal(dto);
   }
 
+  @Get('best-sellers')
+  async findBestSellerFlightsWithDiscount() {
+    return await this.flightService.findBestSellerFlightsWithDiscount();
+  }
+
   // @UseGuards(AuthGuard('jwt'))
   @Get()
-  async findAll(): Promise<BaseResponseDto<FlightResponseDto>> {
-    return await this.flightService.findAll();
+  async findAll(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ): Promise<BaseResponseDto<FlightResponseDto>> {
+    return await this.flightService.findAll(Number(page), Number(limit));
   }
 
   @Get('getFlight/:id')
@@ -85,7 +85,7 @@ export class FlightsController {
     return this.flightService.updateFlight(+id, data);
   }
 
-  @Delete('all')
+  @Post('all')
   async deleteAllFlights() {
     return this.flightService.deleteAll();
   }
@@ -105,25 +105,39 @@ export class FlightsController {
     return this.flightService.findAllFlightWithStatus();
   }
 
-  @Get('flight-info/main')
-  async findAllMainInfoFlight() {
-    return this.flightService.findAllMainInfoFlight();
-  }
+  // @Get('flight-info/main')
+  // async findAllMainInfoFlight() {
+  //   return this.flightService.findAllMainInfoFlight();
+  // }
 
   @Post('flightIds/delete')
   async deleteManyFlightIds(@Body() ids: number[]) {
     return this.flightService.deleteManyFlightIds(ids);
   }
 
-  @Post('aircraft/batch')
-  async createBatchAircraft(
-    @Body() createBatchAircraftDto: CreateAircraftDto[],
+  @Post('aircraft')
+  @UseInterceptors(FileInterceptor('imageAircraft'))
+  async createAircraft(
+    @Body() data: CreateAircraftDto,
+    @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.flightService.createBatchAircraft(createBatchAircraftDto);
+    return this.flightService.createAircraft(data, file);
+  }
+
+  @Post('aircraft/batch')
+  @UseInterceptors(FileInterceptor('imageAircraft'))
+  async createBatchAircraft(
+    @Body('createBatchAircraftDto') createBatchAircraftDto: CreateAircraftDto[],
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    console.log('createBatchAircraftDto', createBatchAircraftDto);
+    return this.flightService.createBatchAircraft(createBatchAircraftDto, file);
   }
 
   @Post('airport/batch')
   async createBatchAirport(@Body() createBatchAircraftDto: CreateAirportDto[]) {
+    console.log('createBatchAircraftDto', createBatchAircraftDto);
+
     return this.flightService.createBatchAirport(createBatchAircraftDto);
   }
 
@@ -138,8 +152,8 @@ export class FlightsController {
   }
 
   @Get('aircraft/:code')
-  async findAircraftById(@Param('code') code: string) {
-    return this.flightService.findAircraftById(code);
+  async findAircraftByCode(@Param('code') code: string) {
+    return this.flightService.findAircraftByCode(code);
   }
 
   @Post('aircraft/update/:code')
@@ -172,31 +186,6 @@ export class FlightsController {
   async removeAirport(@Body() code: string) {
     return this.flightService.removeAirport(code);
   }
-
-  // @Post('tickets')
-  // async createTicket(
-  //   @Body()
-  //   data: {
-  //     ticketNo: string;
-  //     passengerId: string;
-  //     flightId: number;
-  //     seatClass: string;
-  //     seatNo: string;
-  //     bookedAt: number;
-  //   },
-  // ) {
-  //   return this.flightService.createTicket(data);
-  // }
-
-  @Get('tickets')
-  async findAllTicket() {
-    return this.flightService.findAllTicket();
-  }
-
-  // @Get('getFlightCodeName')
-  // async getFlightCodeName() {
-  //   return this.flightService.getAllFlightCodeName();
-  // }
 
   @Get('getAllCode')
   async getAllCode() {
@@ -266,6 +255,11 @@ export class FlightsController {
   @Get('flight-discount')
   async findAllFlightDiscount() {
     return this.flightService.findAllFlightDiscount();
+  }
+
+  @Get('flight-discount/:flightId')
+  async findFlightDiscountByFlightId(@Body() flightId: number) {
+    return this.flightService.findFlightDiscountByFlightId(flightId);
   }
 
   @Get('flight-discount/:id')
