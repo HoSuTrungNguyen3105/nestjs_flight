@@ -4,7 +4,14 @@ import { PrismaService } from 'src/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { LoginDto, MfaLoginDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
-import { Passenger, Prisma, Role, User, UserSession } from 'generated/prisma';
+import {
+  Passenger,
+  Prisma,
+  Role,
+  RolePermission,
+  User,
+  UserSession,
+} from 'generated/prisma';
 import { decimalToDate, nowDecimal, TEN_DAYS } from 'src/common/helpers/format';
 import * as speakeasy from 'speakeasy';
 import * as QRCode from 'qrcode';
@@ -15,6 +22,10 @@ import { generateOtp, hashPassword } from 'src/common/helpers/hook';
 import { VerifyPasswordResponseDto } from './dto/verifypw.dto';
 import { BaseResponseDto } from 'src/baseResponse/response.dto';
 import { PassengerDto } from 'src/flights/dto/ticket-response.dto';
+import {
+  ADMIN_PERMISSIONS,
+  MONITOR_PERMISSIONS,
+} from 'src/common/constants/permissions';
 
 export type GetSession = {
   passengerId: string | null;
@@ -210,7 +221,6 @@ export class AuthService {
 
   async logout(id: number | string) {
     try {
-      console.log('id', id);
       let deleted;
 
       // Kiểm tra nếu id là number thì xóa phiên người dùng
@@ -263,6 +273,43 @@ export class AuthService {
     }
   }
 
+  async seedPermissions() {
+    try {
+      await this.prisma.rolePermission.upsert({
+        where: { role: Role.ADMIN },
+        update: { permissions: ADMIN_PERMISSIONS },
+        create: {
+          role: Role.ADMIN,
+          permissions: ADMIN_PERMISSIONS,
+          createdAt: nowDecimal(),
+          updatedAt: nowDecimal(),
+        },
+      });
+
+      await this.prisma.rolePermission.upsert({
+        where: { role: Role.MONITOR },
+        update: { permissions: MONITOR_PERMISSIONS },
+        create: {
+          role: Role.MONITOR,
+          permissions: MONITOR_PERMISSIONS,
+          createdAt: nowDecimal(),
+          updatedAt: nowDecimal(),
+        },
+      });
+
+      return {
+        resultCode: '00',
+        resultMessage: 'Permissions seeded successfully',
+      };
+    } catch (error) {
+      console.error('Seed permissions error:', error);
+      return {
+        resultCode: '99',
+        resultMessage: 'Failed to seed permissions',
+      };
+    }
+  }
+
   private getDeviceInfo(userAgent: string): {
     device: string;
     browser: string;
@@ -287,12 +334,6 @@ export class AuthService {
     return { device, browser };
   }
 
-  // private getLocationFromIp(ip: string): string {
-  //   // Trong thực tế, bạn có thể sử dụng service như ipinfo.io hoặc maxmind
-  //   // Ở đây trả về giá trị mặc định
-  //   return 'Unknown Location';
-  // }
-
   async loginAdmin(dto: LoginDto) {
     try {
       const { email, password, authType } = dto;
@@ -303,6 +344,60 @@ export class AuthService {
           resultMessage: 'Email và mật khẩu là bắt buộc!',
         };
       }
+
+      if (authType === 'MONITOR') {
+        const user = await this.prisma.user.findUnique({
+          where: { email },
+          include: {},
+        });
+
+        if (!user)
+          return {
+            resultCode: '99',
+            resultMessage: 'Tài khoản không tồn tại!',
+          };
+
+        const sessions = await this.prisma.userSession.count({
+          where: { userId: user.id },
+        });
+
+        if (sessions >= 3) {
+          return {
+            resultCode: '99',
+            resultMessage: 'Tài khoản đã đăng nhập tối đa 3 thiết bị!',
+          };
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordValid) {
+          return {
+            resultCode: '03',
+            resultMessage: 'Mật khẩu không đúng!',
+          };
+        }
+
+        const payload = { sub: user.id, email: user.email, role: user.role };
+        const accessToken = await this.jwtService.signAsync(payload);
+
+        console.log('payload', payload);
+
+        await this.prisma.userSession.create({
+          data: {
+            userId: user.id,
+            token: accessToken,
+            createdAt: nowDecimal(),
+          },
+        });
+
+        return {
+          resultCode: '00',
+          resultMessage: 'Đăng nhập MONITOR thành công!',
+          accessToken,
+          data: { id: user.id },
+        };
+      }
+
       if (authType === 'DEV') {
         const user = await this.prisma.user.findUnique({
           where: { email },
@@ -913,7 +1008,7 @@ export class AuthService {
     } catch (error) {
       console.error('err', error);
       return {
-        resultCode: '00',
+        resultCode: '09',
         resultMessage: 'Success',
         list: [],
       };
@@ -1013,17 +1108,6 @@ export class AuthService {
       };
     }
   }
-
-  // async logoutAllOtherSessions(userId: number, currentSessionId: number) {
-  //   return this.prisma.userSession.deleteMany({
-  //     where: {
-  //       userId,
-  //       id: {
-  //         not: currentSessionId,
-  //       },
-  //     },
-  //   });
-  // }
 
   async getFacilityRelations(facilityId: string) {
     const facility = await this.prisma.facility.findUnique({
@@ -1272,8 +1356,6 @@ export class AuthService {
   }
 
   verifyMfaCode(secret: string, code: string) {
-    console.log('email', secret, code);
-
     return speakeasy.totp.verify({
       secret,
       encoding: 'base32',
@@ -1879,4 +1961,30 @@ export class AuthService {
       };
     }
   }
+
+  // Get permissions by category (optional feature)
+  // async getPermissionsByCategory(category: string): Promise<BaseResponseDto<RolePermission>> {
+  //   const res = await this.prisma.rolePermission.findMany({
+  //     where: {
+  //       description: {
+  //         contains: category,
+  //       },
+  //     },
+  //   });
+  // }
+
+  // // Update user permissions (optional feature)
+  // async updateUserPermissions(
+  //   userId: number,
+  //   permissions: string[],
+  // ): Promise<void> {
+  //   await this.prisma.user.update({
+  //     where: { id: userId },
+  //     data: {
+  //       permissions: {
+  //         set: permissions.map((perm) => ({ name: perm })),
+  //       },
+  //     },
+  //   });
+  // }
 }

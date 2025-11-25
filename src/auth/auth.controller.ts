@@ -91,6 +91,7 @@ export class AuthController {
 
   @Post('login-admin')
   async loginAdmin(@Body() dto: LoginDto) {
+    console.log('log', dto);
     return this.authService.loginAdmin(dto);
   }
 
@@ -270,5 +271,10 @@ export class AuthController {
     console.log('refetchLogoutAllSessions', userId);
     const res = await this.authService.logoutAllOtherSessions(userId);
     return res;
+  }
+
+  @Post('seed-permissions')
+  async seedPermissions() {
+    return this.authService.seedPermissions();
   }
 }

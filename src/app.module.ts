@@ -20,6 +20,7 @@ import { LocaleController } from './common/services/locale.controller';
 import { LocaleModule } from './common/services/locale.module';
 import { AmadeusModule } from './common/amadeus/amadeus.module';
 import { CloudinaryModule } from './common/cloudinary/cloudinary.module';
+import { PermissionsModule } from './permission/permissions.module';
 
 @Module({
   controllers: [AppController],
@@ -37,6 +38,7 @@ import { CloudinaryModule } from './common/cloudinary/cloudinary.module';
     PayrollModule,
     MailModule,
     GatesModule,
+    PermissionsModule,
     EnumModule,
     HotelsModule,
     LocaleModule,
