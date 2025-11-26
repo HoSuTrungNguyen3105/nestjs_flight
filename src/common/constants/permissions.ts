@@ -1,46 +1,44 @@
-export enum Permission {
-  // Flight
-  FLIGHT_VIEW = 'FLIGHT_VIEW',
-  FLIGHT_CREATE = 'FLIGHT_CREATE',
-  FLIGHT_EDIT = 'FLIGHT_EDIT',
-  FLIGHT_DELETE = 'FLIGHT_DELETE',
+export const Permission = {
+  FLIGHT: {
+    VIEW: 'FLIGHT_VIEW',
+    CREATE: 'FLIGHT_CREATE',
+    EDIT: 'FLIGHT_EDIT',
+    DELETE: 'FLIGHT_DELETE',
+  },
+  PASSENGER: {
+    VIEW: 'PASSENGER_VIEW',
+    EDIT: 'PASSENGER_EDIT',
+    DELETE: 'PASSENGER_DELETE',
+  },
+  BOOKING: {
+    VIEW: 'BOOKING_VIEW',
+    EDIT: 'BOOKING_EDIT',
+    DELETE: 'BOOKING_DELETE',
+  },
+  AIRCRAFT: {
+    VIEW: 'AIRCRAFT_VIEW',
+    CREATE: 'AIRCRAFT_CREATE',
+    EDIT: 'AIRCRAFT_EDIT',
+    DELETE: 'AIRCRAFT_DELETE',
+  },
+  AIRPORT: {
+    VIEW: 'AIRPORT_VIEW',
+    CREATE: 'AIRPORT_CREATE',
+    EDIT: 'AIRPORT_EDIT',
+    DELETE: 'AIRPORT_DELETE',
+  },
+  USER: {
+    VIEW: 'USER_VIEW',
+    CREATE: 'USER_CREATE',
+    EDIT: 'USER_EDIT',
+    DELETE: 'USER_DELETE',
+  },
+} as const;
 
-  // Passenger
-  PASSENGER_VIEW = 'PASSENGER_VIEW',
-  PASSENGER_EDIT = 'PASSENGER_EDIT',
-  PASSENGER_DELETE = 'PASSENGER_DELETE',
+export const ADMIN_PERMISSIONS = Object.values(Permission).flatMap((group) =>
+  Object.values(group),
+);
 
-  // Booking
-  BOOKING_VIEW = 'BOOKING_VIEW',
-  BOOKING_EDIT = 'BOOKING_EDIT',
-  BOOKING_DELETE = 'BOOKING_DELETE',
-
-  // Aircraft
-  AIRCRAFT_VIEW = 'AIRCRAFT_VIEW',
-  AIRCRAFT_CREATE = 'AIRCRAFT_CREATE',
-  AIRCRAFT_EDIT = 'AIRCRAFT_EDIT',
-  AIRCRAFT_DELETE = 'AIRCRAFT_DELETE',
-
-  // Airport
-  AIRPORT_VIEW = 'AIRPORT_VIEW',
-  AIRPORT_CREATE = 'AIRPORT_CREATE',
-  AIRPORT_EDIT = 'AIRPORT_EDIT',
-  AIRPORT_DELETE = 'AIRPORT_DELETE',
-
-  // User/Admin
-  USER_VIEW = 'USER_VIEW',
-  USER_CREATE = 'USER_CREATE',
-  USER_EDIT = 'USER_EDIT',
-  USER_DELETE = 'USER_DELETE',
-}
-
-export const ADMIN_PERMISSIONS = Object.values(Permission);
-
-export const MONITOR_PERMISSIONS = [
-  Permission.FLIGHT_VIEW,
-  Permission.PASSENGER_VIEW,
-  Permission.BOOKING_VIEW,
-  Permission.AIRCRAFT_VIEW,
-  Permission.AIRPORT_VIEW,
-  Permission.USER_VIEW,
-];
+export const MONITOR_PERMISSIONS = Object.values(Permission).flatMap((group) =>
+  Object.values(group).filter((p) => p.endsWith('_VIEW')),
+);

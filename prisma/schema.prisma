@@ -17,7 +17,7 @@ model User {
   id                      Int             @id @default(autoincrement())
   email                   String          @unique
   name                    String          @db.VarChar(50)
-  role                    Role            @default(USER)
+  role                    Role            @default(ADMIN)
   password                String          @db.VarChar(100)
   pictureUrl              String          @default("")
   rank                    Rank            @default(NONE)
@@ -59,7 +59,35 @@ model User {
   bookingLogs             BookingLog[]
   assignedTickets         SupportTicket[] @relation("AssignedSupportTickets")
   supportTickets          SupportTicket[] @relation("UserSupportTickets")
+  // rolePermissions         RolePermission[]
+  // userPermissions         UserPermission[]
 }
+
+model RolePermission {
+  id          String @id @default(uuid())
+  role        Role   @unique
+  permissions Json
+
+  createdAt Decimal @db.Decimal(20, 3)
+  updatedAt Decimal @db.Decimal(20, 3)
+  // user        User?      @relation(fields: [userId], references: [id])
+  // userId      Int?
+  // passenger   Passenger? @relation(fields: [passengerId], references: [id])
+  // passengerId String?
+}
+
+// model UserPermission {
+//   id          String  @id @default(uuid())
+//   userId      Int?    @unique
+//   passengerId String? @unique
+//   permissions Json
+
+//   createdAt Decimal @db.Decimal(20, 3)
+//   updatedAt Decimal @db.Decimal(20, 3)
+
+//   user      User?      @relation(fields: [userId], references: [id])
+//   passenger Passenger? @relation(fields: [passengerId], references: [id])
+// }
 
 model TransferAdmin {
   id          Int            @id @default(autoincrement())
@@ -127,6 +155,8 @@ model Passenger {
   sessions        UserSession[]
   notifications   Notification[]
   supportTickets  SupportTicket[]
+  // rolePermissions RolePermission[]
+  // userPermission  UserPermission?
 }
 
 model Payroll {
@@ -617,7 +647,6 @@ enum PaymentStatus {
 
 enum Role {
   PASSENGER
-  USER
   ADMIN
   MONITOR
 }

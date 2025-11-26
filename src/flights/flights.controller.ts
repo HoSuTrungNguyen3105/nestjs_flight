@@ -290,12 +290,12 @@ export class FlightsController {
     return this.flightService.createDiscounts(createDto);
   }
 
-  @Get()
+  @Get('discount/all')
   async getAllDiscounts() {
     return this.flightService.getAllDiscounts();
   }
 
-  @Get(':id')
+  @Get('discount/:id')
   async getDiscountById(@Param('id', ParseIntPipe) id: number) {
     return this.flightService.getDiscountById(id);
   }

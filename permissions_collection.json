@@ -1,0 +1,146 @@
+{
+  "info": {
+    "_postman_id": "b6a7b8c9-d0e1-4f2a-b3c4-d5e6f7a8b9c0",
+    "name": "Airport Management Permissions",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Permissions",
+      "item": [
+        {
+          "name": "Seed Permissions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/permissions/seed",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "permissions", "seed"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Role Permissions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/permissions/role/all",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "permissions", "role", "all"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Permission Enums",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/permissions/type/enum",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "permissions", "type", "enum"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Permissions for Role",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/permissions/role/ADMIN",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "permissions", "role", "ADMIN"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Permissions for Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"VIEW_DASHBOARD\": true,\n    \"MANAGE_USERS\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/permissions/role/ADMIN",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "permissions", "role", "ADMIN"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set User Permissions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"userId\": 1,\n    \"permissions\": {\n        \"SPECIAL_ACCESS\": true\n    }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/permissions/user",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "permissions", "user"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Permissions",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"userId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/permissions/user",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "permissions", "user"]
+            },
+            "description": "Note: This request uses a body in a GET request, which is supported by some clients (like Postman) but not by standard browsers or all proxies."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}

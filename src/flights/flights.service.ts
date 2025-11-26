@@ -677,40 +677,6 @@ export class FlightsService {
     };
   }
 
-  // async findAllMainInfoFlight() {
-  //   try {
-  //     const flights = await this.prisma.flight.findMany({
-  //       select: {
-  //         flightId: true,
-  //         flightNo: true,
-  //         aircraftCode: true,
-  //         arrivalAirport: true,
-  //         departureAirport: true,
-  //         gate: {
-  //           select: {
-  //             id: true,
-  //           },
-  //         },
-  //         priceBusiness: true,
-  //         priceEconomy: true,
-  //         priceFirst: true,
-  //         flightType: true,
-  //       },
-  //     });
-
-  //     return {
-  //       resultCode: '00',
-  //       resultMessage: 'Lấy danh sách chuyến bay thành công',
-  //       list: flights,
-  //     };
-  //   } catch (error) {
-  //     return {
-  //       resultCode: '99',
-  //       resultMessage: error.message || 'Xoá toàn bộ flights thất bại',
-  //     };
-  //   }
-  // }
-
   async createAircraft(data: CreateAircraftDto, file: Express.Multer.File) {
     try {
       const result = await this.cloudinaryService.uploadFile(file);
@@ -878,7 +844,6 @@ export class FlightsService {
   async findTicketByPassengerID(
     id: string,
   ): Promise<BaseResponseDto<TicketResponseDto>> {
-    // Lấy danh sách ticket của hành khách
     try {
       const tickets = await this.prisma.ticket.findMany({
         where: { passengerId: id },
@@ -898,9 +863,7 @@ export class FlightsService {
         };
       }
 
-      // 2️Cập nhật mã QR cho từng vé (chỉ khi chưa có)
       for (const t of tickets) {
-        // chỉ sinh QR mới nếu chưa có
         if (!t.qrCodeImage) {
           const qrData = `http://localhost:5173/ticket/${t.id}/verify`;
           const qrCodeImage = await QRCode.toDataURL(qrData);

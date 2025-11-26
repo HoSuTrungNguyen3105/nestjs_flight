@@ -6,13 +6,25 @@ export class PermissionsController {
   constructor(private readonly permissionsService: PermissionsService) {}
   @Get('role/all')
   async getAllPermissions() {
-    console.log('rolr');
     return this.permissionsService.getPermissions();
   }
 
-  @Get('type/all')
+  @Post('seed')
+  async seedPermissions(
+    @Body()
+    body: {
+      adminPerms: Record<string, boolean>;
+      monitorPerms: Record<string, boolean>;
+    },
+  ) {
+    return this.permissionsService.seedPermissions(
+      body.adminPerms,
+      body.monitorPerms,
+    );
+  }
+
+  @Get('type/enum')
   async getAllPermissionsEnum() {
-    console.log('rolr');
     return this.permissionsService.getAllPermissions();
   }
 
@@ -28,4 +40,30 @@ export class PermissionsController {
   ) {
     return this.permissionsService.updatePermissionsForRole(role, permissions);
   }
+
+  // @Post('user')
+  // async setUserPermissions(
+  //   @Body()
+  //   body: {
+  //     userId?: number;
+  //     passengerId?: string;
+  //     permissions: Record<string, boolean>;
+  //   },
+  // ) {
+  //   return this.permissionsService.setUserPermissions(
+  //     body.userId || null,
+  //     body.passengerId || null,
+  //     body.permissions,
+  //   );
+  // }
+
+  // @Get('user')
+  // async getUserPermissions(
+  //   @Body() body: { userId?: number; passengerId?: string },
+  // ) {
+  //   return this.permissionsService.getUserPermissions(
+  //     body.userId || null,
+  //     body.passengerId || null,
+  //   );
+  // }
 }
