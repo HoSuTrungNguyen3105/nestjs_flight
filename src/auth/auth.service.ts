@@ -143,9 +143,12 @@ export class AuthService {
     }
   }
 
-  async verifyOtp(userId: string, type: 'ADMIN' | 'ID,PW', otp: string) {
+  async verifyOtp(
+    userId: string,
+    type: 'ADMIN' | 'MONITOR' | 'ID,PW',
+    otp: string,
+  ) {
     try {
-      console.log('user', userId);
       if (!userId) {
         return {
           resultCode: '09',
@@ -345,135 +348,64 @@ export class AuthService {
         };
       }
 
-      if (authType === 'MONITOR') {
-        const user = await this.prisma.user.findUnique({
-          where: { email },
-          include: {},
-        });
+      // 1. Find user with sessions to optimize queries
+      const user = await this.prisma.user.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          password: true,
+          authType: true,
+          prevPassword: true,
+          isEmailVerified: true,
+          userAlias: true,
+          accountLockYn: true,
+          lastLoginDate: true,
+          loginFailCnt: true,
+          mfaEnabledYn: true,
+          tempPassword: true,
+          status: true,
+          isDeleted: true,
+          sessions: true,
+        },
+      });
 
-        if (!user)
-          return {
-            resultCode: '99',
-            resultMessage: 'Tài khoản không tồn tại!',
-          };
-
-        const sessions = await this.prisma.userSession.count({
-          where: { userId: user.id },
-        });
-
-        if (sessions >= 3) {
-          return {
-            resultCode: '99',
-            resultMessage: 'Tài khoản đã đăng nhập tối đa 3 thiết bị!',
-          };
-        }
-
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-
-        if (!isPasswordValid) {
-          return {
-            resultCode: '03',
-            resultMessage: 'Mật khẩu không đúng!',
-          };
-        }
-
-        const payload = { sub: user.id, email: user.email, role: user.role };
-        const accessToken = await this.jwtService.signAsync(payload);
-
-        console.log('payload', payload);
-
-        await this.prisma.userSession.create({
-          data: {
-            userId: user.id,
-            token: accessToken,
-            createdAt: nowDecimal(),
-          },
-        });
-
+      if (!user) {
         return {
-          resultCode: '00',
-          resultMessage: 'Đăng nhập MONITOR thành công!',
-          accessToken,
-          data: { id: user.id },
+          resultCode: '99',
+          resultMessage:
+            authType === 'ADMIN'
+              ? 'Tài khoản chưa đăng ký account!'
+              : 'Tài khoản không tồn tại!',
         };
       }
 
-      if (authType === 'DEV') {
-        const user = await this.prisma.user.findUnique({
-          where: { email },
-          include: {},
+      // 2. Cleanup expired sessions first
+      const now = Date.now();
+      const expiredSessions = user.sessions.filter(
+        (s) => now - Number(s.createdAt || 0) > TEN_DAYS,
+      );
+
+      if (expiredSessions.length > 0) {
+        await this.prisma.userSession.deleteMany({
+          where: { id: { in: expiredSessions.map((s) => s.id) } },
         });
+      }
 
-        if (!user)
-          return {
-            resultCode: '99',
-            resultMessage: 'Tài khoản không tồn tại!',
-          };
-
-        const sessions = await this.prisma.userSession.count({
-          where: { userId: user.id },
-        });
-
-        if (sessions >= 3) {
-          return {
-            resultCode: '99',
-            resultMessage: 'Tài khoản đã đăng nhập tối đa 3 thiết bị!',
-          };
-        }
-
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-
-        if (!isPasswordValid) {
-          return {
-            resultCode: '03',
-            resultMessage: 'Mật khẩu không đúng!',
-          };
-        }
-
-        const payload = { sub: user.id, email: user.email, role: user.role };
-        const accessToken = await this.jwtService.signAsync(payload);
-
-        console.log('payload', payload);
-
-        await this.prisma.userSession.create({
-          data: {
-            userId: user.id,
-            token: accessToken,
-            createdAt: nowDecimal(),
-          },
-        });
-
+      // 3. Check active session count
+      const activeSessionsCount = user.sessions.length - expiredSessions.length;
+      if (activeSessionsCount >= 3) {
         return {
-          resultCode: '00',
-          resultMessage: 'Đăng nhập DEV thành công!',
-          accessToken,
-          data: { id: user.id },
+          resultCode: '99',
+          resultMessage: 'Tài khoản đã đăng nhập tối đa 3 thiết bị!',
         };
       }
 
-      if (authType === 'ADMIN') {
-        const user = await this.prisma.user.findUnique({
-          where: { email },
-          include: { sessions: true },
-        });
-
-        if (!user)
-          return {
-            resultCode: '99',
-            resultMessage: 'Tài khoản chưa đăng ký account!',
-          };
-
-        const sessions = await this.prisma.userSession.count({
-          where: { userId: user.id },
-        });
-
-        if (sessions >= 3) {
-          return {
-            resultCode: '99',
-            resultMessage: 'Tài khoản đã đăng nhập tối đa 3 thiết bị!',
-          };
-        }
-
+      // 4. Security Checks (Lock, Email, Temp Password)
+      if (authType === 'ADMIN' || authType === 'MONITOR') {
+        // Lock check
+        console.log(authType);
         if (user.accountLockYn === 'Y') {
           const hasSendRequest = await this.prisma.unlockRequest.findFirst({
             where: { employeeId: user.id },
@@ -496,36 +428,32 @@ export class AuthService {
           };
         }
 
-        // 3. Nếu có mật khẩu tạm
-        if (
-          user.tempPassword &&
-          user.password !== '' &&
-          user.tempPassword !== ''
-        ) {
+        console.log('tempPassword', user.tempPassword);
+
+        // Temp password check
+        if (user.tempPassword !== '') {
           const isTempPasswordValid = await bcrypt.compare(
             password,
             user.tempPassword,
           );
-          if (!isTempPasswordValid) {
-            await this.handleLoginFail(user.id, user.loginFailCnt);
+
+          if (isTempPasswordValid) {
             return {
               resultCode: '99',
-              resultMessage: 'Mật khẩu tạm không đúng!',
+              resultMessage: 'Bạn cần đổi mật khẩu trước khi đăng nhập!',
+              requireChangePassword: true,
+              userId: user.id,
             };
           }
-
-          return {
-            resultCode: '99',
-            resultMessage: 'Bạn cần đổi mật khẩu trước khi đăng nhập!',
-            requireChangePassword: true,
-            userId: user.id,
-          };
+          // If temp password doesn't match, continue to check real password below
         }
+      }
 
-        // 4. Kiểm tra mật khẩu thật
-        const isPasswordValid = await bcrypt.compare(password, user.password);
+      // 5. Verify Password
+      const isPasswordValid = await bcrypt.compare(password, user.password);
 
-        if (!isPasswordValid) {
+      if (!isPasswordValid) {
+        if (authType === 'MONITOR' || authType === 'ADMIN') {
           const failResponse = await this.handleLoginFail(
             user.id,
             user.loginFailCnt,
@@ -542,7 +470,14 @@ export class AuthService {
           };
         }
 
-        // 5. Reset lại đếm sai mật khẩu
+        return {
+          resultCode: '03',
+          resultMessage: 'Mật khẩu không đúng!',
+        };
+      }
+
+      // 6. Success - Update User
+      if (authType === 'ADMIN' || authType === 'MONITOR') {
         await this.prisma.user.update({
           where: { id: user.id },
           data: {
@@ -551,46 +486,29 @@ export class AuthService {
             lastLoginDate: nowDecimal(),
           },
         });
+      }
 
-        // 6. Sinh JWT + quản lý session
-        const payload = { sub: user.id, email: user.email, role: user.role };
-        const accessToken = await this.jwtService.signAsync(payload);
+      // 7. Generate Token & Create Session
+      const payload = { sub: user.id, email: user.email, role: user.role };
+      const accessToken = await this.jwtService.signAsync(payload);
+      const deviceInfo = this.getDeviceInfo(dto.userAgent);
 
-        for (const s of user.sessions) {
-          if (Date.now() - Number(s.createdAt || 0) > TEN_DAYS) {
-            await this.prisma.userSession.delete({ where: { id: s.id } });
-          }
-        }
-        console.log('payload', payload);
+      await this.prisma.userSession.create({
+        data: {
+          userId: user.id,
+          token: accessToken,
+          createdAt: nowDecimal(),
+          device: deviceInfo.device,
+          browser: deviceInfo.browser,
+          location: dto.location,
+          ipAddress: dto.ipAddress,
+          userAgent: dto.userAgent,
+          isCurrent: true,
+        },
+      });
 
-        const validSessions = user.sessions.filter(
-          (s) => Date.now() - Number(s.createdAt || 0) <= TEN_DAYS,
-        );
-
-        // Giới hạn số session (ví dụ: tối đa 5 sessions)
-        if (validSessions.length >= 5) {
-          const oldest = validSessions.sort(
-            (a, b) => Number(a.createdAt) - Number(b.createdAt),
-          )[0];
-          await this.prisma.userSession.delete({ where: { id: oldest.id } });
-        }
-
-        const deviceInfo = this.getDeviceInfo(dto.userAgent);
-
-        await this.prisma.userSession.create({
-          data: {
-            userId: user.id,
-            token: accessToken,
-            createdAt: nowDecimal(),
-            device: deviceInfo.device,
-            browser: deviceInfo.browser,
-            location: dto.location,
-            ipAddress: dto.ipAddress,
-            userAgent: dto.userAgent,
-            isCurrent: true, // Session hiện tại
-          },
-        });
-
+      // Update other sessions to not current (ADMIN only)
+      if (authType === 'ADMIN') {
         await this.prisma.userSession.updateMany({
           where: {
             userId: user.id,
@@ -600,19 +518,22 @@ export class AuthService {
             isCurrent: false,
           },
         });
-
-        return {
-          resultCode: '00',
-          resultMessage: 'Đăng nhập thành công!',
-          accessToken,
-          data: { id: user.id },
-        };
       }
+
+      return {
+        resultCode: '00',
+        resultMessage:
+          authType === 'ADMIN'
+            ? 'Đăng nhập thành công!'
+            : `Đăng nhập ${authType} thành công!`,
+        accessToken,
+        data: { id: user.id },
+      };
     } catch (error) {
-      console.error('err', error);
+      console.error('Login error:', error);
       return {
         resultCode: '99',
-        resultMessage: 'Đăng nhập khong thành công!',
+        resultMessage: 'Đăng nhập không thành công!',
       };
     }
   }

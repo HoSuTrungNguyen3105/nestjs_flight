@@ -196,7 +196,12 @@ export class AuthController {
 
   @Post('verifyOtp')
   async verifyOtp(
-    @Body() body: { userId: string; type: 'ADMIN' | 'ID,PW'; otp: string },
+    @Body()
+    body: {
+      userId: string;
+      type: 'ADMIN' | 'MONITOR' | 'ID,PW';
+      otp: string;
+    },
   ) {
     return this.authService.verifyOtp(body.userId, body.type, body.otp);
   }
