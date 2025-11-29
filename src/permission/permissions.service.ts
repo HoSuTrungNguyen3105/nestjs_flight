@@ -8,7 +8,8 @@ import {
 } from 'src/common/constants/permissions';
 import { nowDecimal } from 'src/common/helpers/format';
 import { PrismaService } from 'src/prisma.service';
-import { PermissionResponseDto } from './dto/permission.response';
+import { PermissionResponseDto } from './dto/permission_definition.response';
+import { RolePermissionResponseDto } from './dto/role_permission.response';
 
 @Injectable()
 export class PermissionsService {
@@ -40,7 +41,7 @@ export class PermissionsService {
       }
 
       // Upsert all permissions
-      const results = await Promise.all(
+      await Promise.all(
         permissionEntries.map((perm) =>
           this.prisma.permissionDefinition.upsert({
             where: { key: perm.key },
@@ -63,13 +64,16 @@ export class PermissionsService {
         ),
       );
 
+      // const list = results.map((e) => ({
+      //   ...e,
+      //   createdAt: Number(e.createdAt),
+      //   updatedAt: Number(e.updatedAt),
+      // }));
+
       return {
         resultCode: '00',
         resultMessage: 'Permission definitions seeded successfully',
-        data: {
-          count: results.length,
-          permissions: results,
-        },
+        // list,
       };
     } catch (error) {
       console.error('Seed permission definitions error:', error);
@@ -279,11 +283,30 @@ export class PermissionsService {
    * @param adminPerms - Optional custom permissions for ADMIN role (defaults to all permissions)
    * @param monitorPerms - Optional custom permissions for MONITOR role (defaults to VIEW-only permissions)
    */
+
   async seedPermissions(
     adminPerms?: Record<string, boolean>,
     monitorPerms?: Record<string, boolean>,
   ) {
     try {
+      const adminPermKeys = Object.keys(adminPerms || {});
+      const monitorPermKeys = Object.keys(monitorPerms || {});
+
+      const allKeys = [...adminPermKeys, ...monitorPermKeys];
+
+      const hasValueKey = await this.prisma.permissionDefinition.findMany({
+        where: {
+          key: {
+            in: allKeys,
+          },
+        },
+      });
+      if (hasValueKey.length > 0) {
+        return {
+          resultCode: '01',
+          resultMessage: 'Permissions seeded has value key yet',
+        };
+      }
       // Use provided permissions or convert default arrays to Record<string, boolean>
       const adminPermissions =
         adminPerms ||
@@ -321,17 +344,27 @@ export class PermissionsService {
         },
       });
 
+      // let role = Role.ADMIN || Role.MONITOR;
+      // let permissions = adminPermissions || monitorPermissions;
+
+      // await this.prisma.rolePermission.upsert({
+      //   where: { role: role },
+      //   update: { permissions, updatedAt: nowDecimal() },
+      //   create: {
+      //     role: role,
+      //     permissions: permissions,
+      //     createdAt: nowDecimal(),
+      //     updatedAt: nowDecimal(),
+      //   },
+      // });
+
       return {
         resultCode: '00',
         resultMessage: 'Permissions seeded successfully',
-        data: {
-          adminPermissionsCount: Object.keys(adminPermissions).length,
-          monitorPermissionsCount: Object.keys(monitorPermissions).length,
-        },
       };
     } catch (error) {
       console.error('Seed permissions error:', error);
-      throw error; // Re-throw for proper error handling in controller
+      throw error;
     }
   }
 
@@ -343,13 +376,20 @@ export class PermissionsService {
     return this.seedPermissions();
   }
 
-  async getPermissions(): Promise<BaseResponseDto<RolePermission>> {
+  async getPermissions(): Promise<BaseResponseDto<RolePermissionResponseDto>> {
     try {
       const res = await this.prisma.rolePermission.findMany();
+      const data = res.map((e) => {
+        return {
+          ...e,
+          createdAt: Number(e.createdAt),
+          updatedAt: Number(e.updatedAt),
+        };
+      });
       return {
         resultCode: '00',
-        resultMessage: 'Lấy thông tin người dùng thành công!',
-        list: res,
+        resultMessage: 'Lấy thông tin thành công!',
+        list: data,
       };
     } catch (error) {
       console.error('error', error);
@@ -400,18 +440,16 @@ export class PermissionsService {
 
   async getPermissionsForRole(role: 'ADMIN' | 'MONITOR') {
     if (role === 'ADMIN') {
-      console.log(role);
       const res = await this.prisma.rolePermission.findUnique({
         where: { role: Role.ADMIN },
         select: {
           permissions: true,
         },
       });
-      console.log(res);
       return {
         resultCode: '00',
         resultMessage: 'Lấy thông tin thành công!',
-        list: res,
+        data: res,
       };
     } else if (role === 'MONITOR') {
       const res = await this.prisma.rolePermission.findUnique({
@@ -423,7 +461,7 @@ export class PermissionsService {
       return {
         resultCode: '00',
         resultMessage: 'Lấy thông tin thành công!',
-        list: res,
+        data: res,
       };
     }
     // return [];
@@ -449,13 +487,25 @@ export class PermissionsService {
   }
 
   async findPermissionDefinition() {
-    return this.prisma.permissionDefinition.findMany({
+    const res = await this.prisma.permissionDefinition.findMany({
       select: {
         category: true,
         action: true,
         description: true,
         isActive: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
+    const list = res.map((e) => ({
+      ...e, // phải là e, không phải res
+      createdAt: Number(e.createdAt),
+      updatedAt: Number(e.updatedAt),
+    }));
+    return {
+      resultCode: '00',
+      resultMessage: 'Lấy thông tin thành công!',
+      list,
+    };
   }
 }

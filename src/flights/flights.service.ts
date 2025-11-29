@@ -35,6 +35,7 @@ import {
   UpdateFlightDiscountDto,
 } from './dto/create-flight-discount.dto';
 import { CreateDiscountDto } from './dto/create-discount.dto';
+import { FindTicketDto } from './dto/find-ticket.dto';
 import { Decimal } from 'generated/prisma/runtime/library';
 import { CloudinaryService } from 'src/common/cloudinary/cloudinary.service';
 
@@ -942,30 +943,35 @@ export class FlightsService {
       console.error('err', error);
       return {
         resultCode: '99',
-        resultMessage: 'Ticket list success !!',
+        resultMessage: 'Ticket list failed !!',
         list: [],
       };
     }
   }
 
-  async findOneTicketByPassengerID(
-    id: string,
-    ticketNo: string,
+  async findTicketsByPassenger(
+    dto: FindTicketDto,
   ): Promise<BaseResponseDto<TicketResponseDto>> {
     try {
-      const ticket = await this.prisma.ticket.findFirst({
-        where: { passengerId: id, ticketNo },
+      const { id, ticketNo, take = 10, skip = 0 } = dto;
+      const where: Prisma.TicketWhereInput = {
+        passengerId: id,
+      };
+
+      if (ticketNo) {
+        where.ticketNo = { contains: ticketNo };
+      }
+
+      const tickets = await this.prisma.ticket.findMany({
+        where,
         select: {
-          // chọn tất cả trường ở ticket bạn cần (thay đổi theo schema)
           id: true,
           ticketNo: true,
           passengerId: true,
           flightId: true,
-          // relation flight + nested selects (dùng select với nested)
           flight: {
             select: {
-              // kiểm tra tên trường trong schema: `id` hay `flightId`?
-              flightId: true, // nếu có
+              flightId: true,
               flightNo: true,
               flightType: true,
               departureAirport: true,
@@ -973,33 +979,53 @@ export class FlightsService {
               scheduledDeparture: true,
               scheduledArrival: true,
               aircraftCode: true,
-              // nested relation flightStatuses
               flightStatuses: {
                 select: {
                   id: true,
-                  // nếu DB không có flightId trong flightStatuses, ta sẽ map sau
                   flightId: true,
                   status: true,
+                  updatedAt: true,
                 },
+                orderBy: {
+                  updatedAt: 'desc',
+                },
+                take: 1,
               },
-              bookings: true,
-              // gateId: true,
-              // ... thêm các trường flight khác bạn cần
             },
           },
           boardingPass: {
             select: {
               id: true,
               issuedAt: true,
-              ticket: true,
               ticketId: true,
               flightId: true,
-              // ... các trường boardingPass bạn cần
+              gateId: true,
+            },
+          },
+          baggage: true,
+          passenger: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              phone: true,
+              passport: true,
+              role: true,
+              status: true,
+              lastLoginDate: true,
             },
           },
         },
+        take,
+        skip,
+        orderBy: {
+          booking: {
+            bookingTime: 'desc',
+          },
+        },
       });
-      if (!ticket) {
+
+      if (!tickets || tickets.length === 0) {
         return {
           resultCode: '01',
           resultMessage: 'No tickets found for this passenger.',
@@ -1007,33 +1033,39 @@ export class FlightsService {
         };
       }
 
-      // Map dữ liệu ra DTO
-      const mapped: TicketResponseDto = {
+      // Map data to DTO
+      const mapped = tickets.map((ticket) => ({
         ...ticket,
-        // bookedAt: Number(ticket.bookedAt),
         flight: ticket.flight
           ? {
               ...ticket.flight,
-              flightStatuses:
-                ticket.flight.flightStatuses?.map((fs) => ({
-                  ...fs,
-                })) || [],
+              flightStatuses: ticket.flight.flightStatuses || [],
             }
           : null,
         boardingPass: ticket.boardingPass
           ? {
               ...ticket.boardingPass,
-              // seatNo: ticket.seatNo, // lấy từ ticket
               issuedAt: Number(ticket.boardingPass.issuedAt),
-              // boardingTime: Number(ticket.boardingPass.boardingTime),
             }
           : null,
-      };
+        passenger: ticket.passenger
+          ? {
+              ...ticket.passenger,
+              lastLoginDate: ticket.passenger.lastLoginDate?.toNumber(),
+            }
+          : null,
+        baggage: ticket.baggage
+          ? {
+              ...ticket.baggage,
+              checkedAt: Number(ticket.baggage.checkedAt),
+            }
+          : undefined,
+      }));
 
       return {
         resultCode: '00',
         resultMessage: 'Ticket query success !!',
-        list: [mapped],
+        list: mapped,
       };
     } catch (error) {
       console.error('err', error);

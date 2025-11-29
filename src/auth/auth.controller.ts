@@ -278,8 +278,8 @@ export class AuthController {
     return res;
   }
 
-  @Post('seed-permissions')
-  async seedPermissions() {
-    return this.authService.seedPermissions();
-  }
+  // @Post('seed-permissions')
+  // async seedPermissions() {
+  //   return this.authService.seedPermissions();
+  // }
 }

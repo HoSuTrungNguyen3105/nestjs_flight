@@ -1,5 +1,3 @@
-import { Prisma } from 'generated/prisma';
-
 export class PermissionResponseDto {
   id: string;
   key: string;

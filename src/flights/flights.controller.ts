@@ -31,6 +31,7 @@ import {
 } from './dto/create-flight-discount.dto';
 import { CreateDiscountDto } from './dto/create-discount.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { FindTicketDto } from './dto/find-ticket.dto';
 
 @Controller('sys/flights')
 export class FlightsController {
@@ -227,12 +228,9 @@ export class FlightsController {
     return this.flightService.findTicketByPassengerID(id);
   }
 
-  @Post('find-one-passenger-ticket')
-  async findOneTicketByPassengerID(
-    @Body('id') id: string,
-    @Body('ticketNo') ticketNo: string,
-  ) {
-    return this.flightService.findOneTicketByPassengerID(id, ticketNo);
+  @Post('find-passenger-tickets')
+  async findTicketsByPassenger(@Body() dto: FindTicketDto) {
+    return this.flightService.findTicketsByPassenger(dto);
   }
 
   @Post('flight-status/add')

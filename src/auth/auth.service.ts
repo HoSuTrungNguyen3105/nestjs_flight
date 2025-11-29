@@ -276,42 +276,42 @@ export class AuthService {
     }
   }
 
-  async seedPermissions() {
-    try {
-      await this.prisma.rolePermission.upsert({
-        where: { role: Role.ADMIN },
-        update: { permissions: ADMIN_PERMISSIONS },
-        create: {
-          role: Role.ADMIN,
-          permissions: ADMIN_PERMISSIONS,
-          createdAt: nowDecimal(),
-          updatedAt: nowDecimal(),
-        },
-      });
+  // async seedPermissions() {
+  //   try {
+  //     await this.prisma.rolePermission.upsert({
+  //       where: { role: Role.ADMIN },
+  //       update: { permissions: ADMIN_PERMISSIONS },
+  //       create: {
+  //         role: Role.ADMIN,
+  //         permissions: ADMIN_PERMISSIONS,
+  //         createdAt: nowDecimal(),
+  //         updatedAt: nowDecimal(),
+  //       },
+  //     });
 
-      await this.prisma.rolePermission.upsert({
-        where: { role: Role.MONITOR },
-        update: { permissions: MONITOR_PERMISSIONS },
-        create: {
-          role: Role.MONITOR,
-          permissions: MONITOR_PERMISSIONS,
-          createdAt: nowDecimal(),
-          updatedAt: nowDecimal(),
-        },
-      });
+  //     await this.prisma.rolePermission.upsert({
+  //       where: { role: Role.MONITOR },
+  //       update: { permissions: MONITOR_PERMISSIONS },
+  //       create: {
+  //         role: Role.MONITOR,
+  //         permissions: MONITOR_PERMISSIONS,
+  //         createdAt: nowDecimal(),
+  //         updatedAt: nowDecimal(),
+  //       },
+  //     });
 
-      return {
-        resultCode: '00',
-        resultMessage: 'Permissions seeded successfully',
-      };
-    } catch (error) {
-      console.error('Seed permissions error:', error);
-      return {
-        resultCode: '99',
-        resultMessage: 'Failed to seed permissions',
-      };
-    }
-  }
+  //     return {
+  //       resultCode: '00',
+  //       resultMessage: 'Permissions seeded successfully',
+  //     };
+  //   } catch (error) {
+  //     console.error('Seed permissions error:', error);
+  //     return {
+  //       resultCode: '99',
+  //       resultMessage: 'Failed to seed permissions',
+  //     };
+  //   }
+  // }
 
   private getDeviceInfo(userAgent: string): {
     device: string;
